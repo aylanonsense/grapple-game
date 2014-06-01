@@ -1,8 +1,10 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define([
-	'jquery'
+	'jquery',
+	'app/PhysObj',
 ], function(
-	$
+	$,
+	PhysObj
 ) {
 	return function() {
 		//set up canvas
@@ -11,19 +13,24 @@ define([
 		var ctx = canvas[0].getContext('2d');
 
 		//interaction
+		var player = new PhysObj();
+		player.pos.x = 250;
+		player.pos.y = 400;
+		player.width = 20;
+		player.height = 20;
+		player.mass = 500;
 		var boxes = [
 			{ x: 200, y: 100, width: 100, height: 30 },
 			{ x: 600, y: 100, width: 30, height: 200 }
 		];
 		var GRAPPLE_SPEED = 1000;
 		var grapples = [];
-		var pos = { x: 250, y: 400 };
-		var vel = { x: 0, y: 0 };
 		var DIAG = 1 / Math.sqrt(2);
 		var speed = 100;
 		var move = { x: 0, y : 0 };
 		var keys = {};
-		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, SPACE: 32, SHIFT: 16 };
+		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, Z: 90, X: 88,
+			C: 67, Q: 81, E: 69, R: 82, SPACE: 32, SHIFT: 16 };
 		$(document).on('keydown', function(evt) {
 			if(!keys[evt.which]) {
 				keys[evt.which] = true;
@@ -37,7 +44,7 @@ define([
 					for(var i = 0, len = grapples.length; i < len; i++) {
 						var g = grapples[i];
 						if(!g.detatched) {
-							g.detatched = { x: pos.x, y: pos.y };
+							g.detatched = { x: player.pos.x, y: player.pos.y };
 						}
 					}
 				}
@@ -56,8 +63,8 @@ define([
 		});
 		$(document).on('click', function(evt) {
 			var click = { x: evt.clientX, y: evt.clientY };
-			var diff = { x: click.x - pos.x, y: click.y - pos.y };
-			var grapplePos = { x: pos.x, y: pos.y };
+			var diff = { x: click.x - player.pos.x, y: click.y - player.pos.y };
+			var grapplePos = { x: player.pos.x, y: player.pos.y };
 			var diffTotal = Math.sqrt(diff.x * diff.x + diff.y * diff.y);
 			var grappleVel = { x: GRAPPLE_SPEED * diff.x / diffTotal, y: GRAPPLE_SPEED * diff.y / diffTotal };
 			grapples.push({
@@ -73,7 +80,7 @@ define([
 			var t = ms / 1000;
 
 			//move
-			pos.x += move.x * speed * t;
+			player.pos.x += move.x * speed * t;
 			for(i = 0, len = grapples.length; i < len; i++) {
 				g = grapples[i];
 				if(!g.colliding) {
@@ -88,28 +95,24 @@ define([
 				//move player
 				if(g.colliding && !g.detatched) {
 					var dist = Math.sqrt(
-							(g.pos.x - pos.x) * (g.pos.x - pos.x) +
-							(g.pos.y - pos.y) * (g.pos.y - pos.y));
-					if(dist > 0.7 * g.collisionDist) {
-						var diff = dist - 0.7 * g.collisionDist;
-						var vectorX = (g.pos.x - pos.x) / dist;
-						var vectorY = (g.pos.y - pos.y) / dist;
+						(g.pos.x - player.pos.x) * (g.pos.x - player.pos.x) +
+						(g.pos.y - player.pos.y) * (g.pos.y - player.pos.y));
+					if(dist > 0.6 * g.collisionDist) {
+						var diff = dist - 0.6 * g.collisionDist;
+						var vectorX = (g.pos.x - player.pos.x) / dist;
+						var vectorY = (g.pos.y - player.pos.y) / dist;
 						var force = diff;
-						var forceX = 35 * force * vectorX;
-						var forceY = 35 * force * vectorY;
-						vel.x += forceX * t;
-						vel.y += forceY * t;
+						var forceX = 3000 * force * vectorX;
+						var forceY = 3000 * force * vectorY;
+						player.applyForce(forceX, forceY);
 					}
 				}
 			}
-			vel.y += 10;
-			vel.x *= (1 - 0.01);
-			vel.y *= (1 - 0.01);
-			pos.x += vel.x * t;
-			pos.y += vel.y * t;
-			if(pos.y > 400) {
-				pos.y = 400;
-				vel.y = 0;
+			player.applyForce(0, 1000 * player.mass); //gravity
+			player.tick(ms);
+			if(player.pos.y > 400) {
+				player.pos.y = 400;
+				player.vel.y = 0;
 			}
 
 			//collision
@@ -120,8 +123,8 @@ define([
 					if(g.pos.x > b.x && g.pos.x < b.x + b.width && g.pos.y > b.y && g.pos.y < b.y + b.height) {
 						g.colliding = true;
 						g.collisionDist = Math.sqrt(
-							(g.pos.x - pos.x) * (g.pos.x - pos.x) +
-							(g.pos.y - pos.y) * (g.pos.y - pos.y));
+							(g.pos.x - player.pos.x) * (g.pos.x - player.pos.x) +
+							(g.pos.y - player.pos.y) * (g.pos.y - player.pos.y));
 					}
 				}
 			}
@@ -131,7 +134,7 @@ define([
 			ctx.fillRect(0, 0, width, height);
 			ctx.fillStyle = '#fff';
 			ctx.strokeStyle = '#fff';
-			ctx.fillRect(pos.x - 10, pos.y - 10, 20, 20);
+			ctx.fillRect(player.pos.x - 10, player.pos.y - 10, player.width, player.height);
 			for(i = 0, len = grapples.length; i < len; i++) {
 				g = grapples[i];
 				ctx.beginPath();
@@ -140,7 +143,7 @@ define([
 						ctx.moveTo(g.detatched.x, g.detatched.y);
 					}
 					else {
-						ctx.moveTo(pos.x, pos.y);
+						ctx.moveTo(player.pos.x, player.pos.y);
 					}
 					ctx.lineTo(g.pos.x, g.pos.y);
 					ctx.stroke();
