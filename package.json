@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "dependencies": {
+    "express": "3.3.3",
+    "jade": "0.32.0",
+    "less-middleware": "0.1.12",
+    "requirejs": "2.1.9",
+    "amdefine": "0.1.0"
+  },
+  "scripts": {
+    "start": "node app.js"
+  },
+  "engines": {
+    "node": "0.8.*"
+  }
+}
