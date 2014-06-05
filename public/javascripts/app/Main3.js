@@ -24,8 +24,8 @@ define([
 		};
 
 		var line = {
-			start: { x: 500, y: 360 },
-			end: { x: 550, y: 550 }
+			start: { x: 380, y: 350 },
+			end: { x: 300, y: 500 }
 		};
 
 		var ballColor = '#f00';
@@ -72,6 +72,8 @@ define([
 			var circleX = rotate(circle.x, circle.y);
 			var circleY = rotate2(circle.x, circle.y);
 
+			var circleVelY = rotate2(circle.vel.x, circle.vel.y);
+
 			//calculate the collision point
 			var circlePathChangeInY = circleY - oldCircleY; //TODO don't assume change in y is non-0
 			var circlePathChangeInX = circleX - oldCircleX;
@@ -80,9 +82,13 @@ define([
 			var collisionPointY = lineStartY - circleRadius;
 			var collisionPointX = (collisionPointY - circlePathAt0) / circlePathSlope;
 
+			var pointOfContactX = null;
+			var pointOfContactY = null;
+
 			//determine if collision point is above the line segment
 			if(lineStartX >= collisionPointX && collisionPointX >= lineEndX) {
-
+				pointOfContactX = collisionPointX;
+				pointOfContactY = collisionPointY + circleRadius;
 			}
 			else if(lineStartX < collisionPointX) {
 				//it's to the right of the line, could be colliding with lineStartX
@@ -98,7 +104,7 @@ define([
 				var distY = intersectionY - lineStartY;
 				var distOver = Math.sqrt(distX * distX + distY * distY);
 				var distUp = Math.sqrt(circleRadius * circleRadius - distOver * distOver);
-				var distUpX = distUp / Math.sqrt(1 + circlePathSlope * circlePathSlope);
+				var distUpX = distUp / Math.sqrt(1 + circlePathSlope * circlePathSlope) * (circlePathSlope < 0 ? 1 : -1);
 				var distUpY = circlePathSlope * distUpX;
 				collisionPointX = intersectionX + distUpX;
 				collisionPointY = intersectionY + distUpY;
@@ -110,8 +116,12 @@ define([
 				ctx.moveTo(lineStartX / m + n, lineStartY / m + p);
 				ctx.lineTo((lineStartX + 200) / m + n, (lineStartY + 200 * perpendicularSlope) / m + p);
 				ctx.stroke();
+
+				pointOfContactX = lineStartX;
+				pointOfContactY = lineStartY;
 			}
 			else if(collisionPointX < lineEndX) {
+				console.log("LEFT");
 				//it's to the left of the line, could be colliding with lineEndX
 				var perpendicularSlope = -1 / circlePathSlope;
 				var perpendicularLineAt0 = lineEndY - (perpendicularSlope * lineEndX);
@@ -122,10 +132,10 @@ define([
 
 				//move up the circle's path to the collision point
 				var distX = intersectionX - lineEndX;
-				var distY = intersectionY - lineEndY;
+				var distY = (intersectionY - lineEndY);
 				var distOver = Math.sqrt(distX * distX + distY * distY);
 				var distUp = Math.sqrt(circleRadius * circleRadius - distOver * distOver);
-				var distUpX = distUp / Math.sqrt(1 + circlePathSlope * circlePathSlope);
+				var distUpX = distUp / Math.sqrt(1 + circlePathSlope * circlePathSlope) * (circlePathSlope < 0 ? 1 : -1);
 				var distUpY = circlePathSlope * distUpX;
 				collisionPointX = intersectionX + distUpX;
 				collisionPointY = intersectionY + distUpY;
@@ -137,10 +147,22 @@ define([
 				ctx.moveTo(lineEndX / m + n, lineEndY / m + p);
 				ctx.lineTo((lineEndX - 200) / m + n, (lineEndY - 200 * perpendicularSlope) / m + p);
 				ctx.stroke();
+
+				pointOfContactX = lineEndX;
+				pointOfContactY = lineEndY;
 			}
 			else {
 				collisionPointX = null;
 				collisionPointY = null;
+				pointOfContactX = null;
+				pointOfContactY = null;
+			}
+
+			if(circleVelY < 0) {
+				collisionPointX = null;
+				collisionPointY = null;
+				pointOfContactX = null;
+				pointOfContactY = null;
 			}
 
 			if(collisionPointX !== null && collisionPointY !== null) {
@@ -159,26 +181,55 @@ define([
 					circleY = collisionPointY;
 				}
 			}
+			if(pointOfContactX !== null && pointOfContactY !== null) {
+				var rotatedPointOfContactX = unrotate(pointOfContactX, pointOfContactY);
+				var rotatedPointOfContactY = unrotate2(pointOfContactX, pointOfContactY);
+			}
 
-			//draw collision point
-			ctx.strokeStyle = '#000';
-			ctx.lineWidth = 1.5;
-			ctx.beginPath();
-			ctx.moveTo((collisionPointX - 10) / m + n, (collisionPointY - 10) / m + p);
-			ctx.lineTo((collisionPointX + 10) / m + n, (collisionPointY + 10) / m + p);
-			ctx.moveTo((collisionPointX + 10) / m + n, (collisionPointY - 10) / m + p);
-			ctx.lineTo((collisionPointX - 10) / m + n, (collisionPointY + 10) / m + p);
-			ctx.stroke();
 
-			//draw actual collision point
-			ctx.strokeStyle = '#000';
-			ctx.lineWidth = 5;
-			ctx.beginPath();
-			ctx.moveTo((rotatedCollisionPointX - 10), (rotatedCollisionPointY - 10));
-			ctx.lineTo((rotatedCollisionPointX + 10), (rotatedCollisionPointY + 10));
-			ctx.moveTo((rotatedCollisionPointX + 10), (rotatedCollisionPointY - 10));
-			ctx.lineTo((rotatedCollisionPointX - 10), (rotatedCollisionPointY + 10));
-			ctx.stroke();
+			if(collisionPointX !== null && collisionPointY !== null) {
+				//draw collision point
+				ctx.strokeStyle = '#000';
+				ctx.lineWidth = 1.5;
+				ctx.beginPath();
+				ctx.moveTo((collisionPointX - 10) / m + n, (collisionPointY - 10) / m + p);
+				ctx.lineTo((collisionPointX + 10) / m + n, (collisionPointY + 10) / m + p);
+				ctx.moveTo((collisionPointX + 10) / m + n, (collisionPointY - 10) / m + p);
+				ctx.lineTo((collisionPointX - 10) / m + n, (collisionPointY + 10) / m + p);
+				ctx.stroke();
+
+				//draw actual collision point
+				ctx.strokeStyle = '#000';
+				ctx.lineWidth = 5;
+				ctx.beginPath();
+				ctx.moveTo((rotatedCollisionPointX - 10), (rotatedCollisionPointY - 10));
+				ctx.lineTo((rotatedCollisionPointX + 10), (rotatedCollisionPointY + 10));
+				ctx.moveTo((rotatedCollisionPointX + 10), (rotatedCollisionPointY - 10));
+				ctx.lineTo((rotatedCollisionPointX - 10), (rotatedCollisionPointY + 10));
+				ctx.stroke();
+			}
+
+			if(pointOfContactX !== null && pointOfContactY !== null) {
+				//draw point of contact
+				ctx.strokeStyle = '#0ff';
+				ctx.lineWidth = 1.5;
+				ctx.beginPath();
+				ctx.moveTo((pointOfContactX - 10) / m + n, (pointOfContactY - 10) / m + p);
+				ctx.lineTo((pointOfContactX + 10) / m + n, (pointOfContactY + 10) / m + p);
+				ctx.moveTo((pointOfContactX + 10) / m + n, (pointOfContactY - 10) / m + p);
+				ctx.lineTo((pointOfContactX - 10) / m + n, (pointOfContactY + 10) / m + p);
+				ctx.stroke();
+
+				//draw actual point of contact
+				ctx.strokeStyle = '#0ff';
+				ctx.lineWidth = 5;
+				ctx.beginPath();
+				ctx.moveTo((rotatedPointOfContactX - 10), (rotatedPointOfContactY - 10));
+				ctx.lineTo((rotatedPointOfContactX + 10), (rotatedPointOfContactY + 10));
+				ctx.moveTo((rotatedPointOfContactX + 10), (rotatedPointOfContactY - 10));
+				ctx.lineTo((rotatedPointOfContactX - 10), (rotatedPointOfContactY + 10));
+				ctx.stroke();
+			}
 
 			//draw new mini circle
 			ctx.fillStyle = ballColor;
