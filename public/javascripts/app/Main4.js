@@ -22,13 +22,17 @@ define([
 				x: 0,
 				y: 0
 			},
+			suggestedVel: {
+				x: null,
+				y: null
+			},
 			r: 50
 		};
 
 		//WASD to move the circle
 		var echosEnabled = false;
 		var keys = {};
-		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, SHIFT: 16, SPACE: 32 };
+		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, R: 82, SHIFT: 16, SPACE: 32 };
 		$(document).on('keydown', function(evt) {
 			if(!keys[evt.which]) {
 				keys[evt.which] = true;
@@ -40,6 +44,9 @@ define([
 				if(evt.which === KEY_MAP.SPACE) {
 					echosEnabled = !echosEnabled;
 				}
+				else if(evt.which === KEY_MAP.R) {
+					paused = !paused;
+				}
 			}
 		});
 
@@ -50,7 +57,6 @@ define([
 		$(document).on('click', function(evt) {
 			if(newLineStart) {
 				lines.push({ start: newLineStart, end: { x: evt.clientX, y: evt.clientY } });
-				console.log("Created line ", newLineStart.x, newLineStart.y, " ", evt.clientX, evt.clientY);
 				newLineStart = null;
 			}
 			else {
@@ -64,10 +70,12 @@ define([
 
 		//collision code
 		function handleCollision(circle, line) {
+			var ret = false;
 			//line angle (pre-calculated)
 			var lineDeltaX = line.end.x - line.start.x;
 			var lineDeltaY = line.end.y - line.start.y;
 			var angle = Math.atan2(lineDeltaY, lineDeltaX);
+			var pos = null;
 
 			//helper functions to rotate and unrotate
 			function rotateX(x, y) {
@@ -116,6 +124,7 @@ define([
 				if(lineStartX >= collisionPointX && collisionPointX >= lineEndX) {
 					pointOfContactX = collisionPointX;
 					pointOfContactY = collisionPointY + circle.r;
+					pos = 'center';
 				}
 				else if(lineStartX < collisionPointX) {
 					//it's to the right of the line, could be colliding with lineStartX
@@ -138,6 +147,7 @@ define([
 
 					pointOfContactX = lineStartX;
 					pointOfContactY = lineStartY;
+					pos = 'right';
 				}
 				else if(collisionPointX < lineEndX) {
 					//it's to the left of the line, could be colliding with lineEndX
@@ -160,6 +170,7 @@ define([
 
 					pointOfContactX = lineEndX;
 					pointOfContactY = lineEndY;
+					pos = 'left';
 				}
 				else {
 					collisionPointX = null;
@@ -188,51 +199,64 @@ define([
 						//there was a collision!
 						circle.x = rotatedCollisionPointX;
 						circle.y = rotatedCollisionPointY;
-						circle.vel.x = rotatedVelX;
-						circle.vel.y = rotatedVelY;
+						circle.suggestedVel.x = rotatedVelX;
+						circle.suggestedVel.y = rotatedVelY;
+						ret = pos;
 					}
 				}
 				if(pointOfContactX !== null && pointOfContactY !== null) {
 					var rotatedPointOfContactX = unrotateX(pointOfContactX, pointOfContactY);
 					var rotatedPointOfContactY = unrotateY(pointOfContactX, pointOfContactY);
 				}
+				return ret;
 			//}
 		}
 
 		//do this all the time
+		var paused = false, collisions = 0;
 		function everyFrame(ms) {
-			var slope, xDiff;
-			var t = ms / 1000;
+			var edge = false;
+			if(!paused) {
+				var slope, xDiff;
+				var t = ms / 1000;
+				collisions = 0;
 
-			//move circle
-			if(keys[KEY_MAP.W]) {
-				circle.vel.y -= 100 * t;
-			}
-			if(keys[KEY_MAP.A]) {
-				circle.vel.x -= 100 * t;
-			}
-			if(keys[KEY_MAP.S]) {
-				circle.vel.y += 100 * t;
-			}
-			if(keys[KEY_MAP.D]) {
-				circle.vel.x += 100 * t;
-			}
-			if(keys[KEY_MAP.SHIFT]) {
-				circle.vel.x *= 1.10;
-				circle.vel.y *= 1.10;
-			}
+				//move circle
+				if(keys[KEY_MAP.W]) {
+					circle.vel.y -= 100 * t;
+				}
+				if(keys[KEY_MAP.A]) {
+					circle.vel.x -= 100 * t;
+				}
+				if(keys[KEY_MAP.S]) {
+					circle.vel.y += 100 * t;
+				}
+				if(keys[KEY_MAP.D]) {
+					circle.vel.x += 100 * t;
+				}
+				if(keys[KEY_MAP.SHIFT]) {
+					circle.vel.x *= 1.10;
+					circle.vel.y *= 1.10;
+				}
 
-			//apply velocity
-			circle.prev.x = circle.x;
-			circle.prev.y = circle.y;
-			circle.x += circle.vel.x * t;
-			circle.y += circle.vel.y * t;
+				//apply velocity
+				circle.prev.x = circle.x;
+				circle.prev.y = circle.y;
+				circle.x += circle.vel.x * t;
+				circle.y += circle.vel.y * t;
 
-			//check for collisions
-			for(var i = 0; i < lines.length; i++) {
-				handleCollision(circle, lines[i]);
+				//check for collisions
+				for(var i = 0; i < lines.length; i++) {
+					var collision = handleCollision(circle, lines[i]);
+					edge = edge || (collision === 'left') || (collision === 'right');
+					collisions += collision ? 1 : 0;
+				}
+
+				if(circle.suggestedVel.x !== null && circle.suggestedVel.y !== null) {
+					circle.vel.x = circle.suggestedVel.x;
+					circle.vel.y = circle.suggestedVel.y;
+				}
 			}
-
 			//draw background
 			if(!echosEnabled) {
 				ctx.fillStyle = '#fff';
@@ -284,7 +308,7 @@ define([
 			//draw circle
 			ctx.strokeStyle = '#fff';
 			ctx.lineWidth = 0.5;
-			ctx.fillStyle = '#090';
+			ctx.fillStyle = (edge ? '#990' : (collisions > 1 ? '#900' : '#090'));
 			ctx.beginPath();
 			ctx.arc(circle.x, circle.y, circle.r, 0, 2 * Math.PI, false);
 			ctx.fill();
