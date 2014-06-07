@@ -12,39 +12,23 @@ define([
 
 		var circle = {
 			mass: 10,
-			x: width / 4,
-			y: width / 4,
-			prev: {
-				x: width / 4,
-				y: width / 4
-			},
-			vel: {
-				x: 0,
-				y: 0
-			},
 			r: 20,
-			_force: {
-				x: 0,
-				y: 0
-			},
-			_instantForce: {
-				x: 0,
-				y: 0
-			}
+			x: width / 2,
+			y: height / 4,
+			prev: { x: width / 2, y: height / 4 },
+			vel: { x: 0, y: 0 },
+			_force: { x: 0, y: 0 },
+			_instantForce: { x: 0, y: 0 }
 		};
 
 		//WASD to move the circle
 		var keys = {};
 		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, R: 82, SHIFT: 16, SPACE: 32 };
 		$(document).on('keydown', function(evt) {
-			if(!keys[evt.which]) {
-				keys[evt.which] = true;
-			}
+			keys[evt.which] = true;
 		});
 		$(document).on('keyup', function(evt) {
-			if(keys[evt.which]) {
-				keys[evt.which] = false;
-			}
+			keys[evt.which] = false;
 		});
 
 		//click the canvas to create new lines
@@ -56,7 +40,7 @@ define([
 		});
 		$(document).on('mouseup', function(evt) {
 			if(newLineEnd) {
-				lines.push({ start: { x: evt.clientX, y: evt.clientY }, end: newLineEnd });
+				createLine(newLineEnd.x, newLineEnd.y, evt.clientX, evt.clientY);
 				newLineEnd = null;
 			}
 		});
@@ -64,6 +48,47 @@ define([
 			mouse.x = evt.clientX;
 			mouse.y = evt.clientY;
 		});
+		function createLine(x1, y1, x2, y2) {
+			var line = {
+				start: { x: x2, y: y2 },
+				end: { x: x1, y: y1 }
+			};
+			lines.push(line);
+		}
+		function createPoly(points) {
+			for(var i = 0; i + 2 < points.length; i += 2) {
+				createLine(points[i], points[i + 1], points[i + 2], points[i + 3]);
+			}
+			createLine(points[points.length - 2], points[points.length - 1], points[0], points[1]);
+		}
+
+		//create starting lines
+		/*var x = 250, y = 400;
+		for(var i = 0; i < 30; i++) {
+			createLine(x, y, x + 10, y + (14.5 - i) / 2);
+			x += 10;
+			y += (14.5 - i) / 2;
+		}
+		createLine(100, 400, 250, 400);
+		createLine(550, 400, 700, 400);
+		createLine(700, 400, 700, 500);
+		createLine(700, 500, 100, 500);
+		createLine(100, 500, 100, 400);
+		createLine(350, 200, 650, 200);
+		createLine(650, 200, 750, 100);
+		createLine(750, 100, 750, 215);
+		createLine(750, 215, 350, 215);
+		createLine(350, 215, 350, 200);*/
+		createLine(  350, 220,   390, 220);
+		createPoly([ 10,  400,    70, 390,    50, 450 ]);
+		createPoly([ 100, 100,   200, 100,   200, 200,   100, 200 ]);
+		createPoly([ 170, 250,   320, 280,   300, 300,   150, 280 ]);
+		createPoly([ 250, 500,   430, 430,   480, 450 ]);
+		createPoly([ 420, 300,   440, 350,   390, 350 ]);
+		createPoly([ 470, 180,   490, 180,   530, 240,   520, 270,   460, 260 ]);
+		createPoly([ 500, 350,   700, 290,   680, 500 ]);
+		createPoly([ 680, 160,   750, 150,   770, 160,   720, 190]);
+		createPoly([ 760, 500,   790, 550,   760, 595,   750, 550]);
 
 		function drawLine(x1, y1, x2, y2, color, width) {
 			ctx.strokeStyle = color;
@@ -140,114 +165,66 @@ define([
 			var circleX = rotateX(circle.x, circle.y, angle);
 			var circleY = rotateY(circle.x, circle.y, angle);
 
-			//calculate the collision point if the circle intersects the bulk of the line
-			var circlePathSlope = (circleY - prevCircleY) / ((circleX - prevCircleX) || 0.000001); //cheating!
-			var circlePathAt0 = circleY - circleX * circlePathSlope;
-			var collisionPointY = lineStartY - circle.r;
-			var collisionPointX = (collisionPointY - circlePathAt0) / circlePathSlope;
-			var pointOfContactX = collisionPointX;
-			var pointOfContactY = collisionPointY + circle.r;
+			//circle can only collide if it's moving toward the line
+			if(circleVelY > 0 && circleY > prevCircleY) {
+				//calculate line equation y = mx + b of circle's path
+				var circlePathSlope = (circleY - prevCircleY) / (circleX - prevCircleX); //can be Infinity
+				var circlePathAt0 = circleY - circleX * circlePathSlope; //can be Infinity or -Infinity
 
-			//determine if collision point is above the line segment
-			if(lineStartX >= collisionPointX && collisionPointX >= lineEndX) {
-				//noop
-			}
-			else if(lineStartX < collisionPointX) {
-				//it's to the right of the line, could be colliding with lineStartX
-				var perpendicularSlope = -1 / circlePathSlope;
-				var perpendicularLineAt0 = lineStartY - (perpendicularSlope * lineStartX);
-				
-				//find intersection, e.g.  x = (c - b) / (m - n)
-				var intersectionX = (circlePathAt0 - perpendicularLineAt0) / (perpendicularSlope - circlePathSlope);
-				var intersectionY = perpendicularSlope * intersectionX + perpendicularLineAt0;
+				//find collision point if circle were to intersect bulk of the line
+				var collisionPointY = lineStartY - circle.r;
+				var collisionPointX = (circlePathSlope === Infinity ? circleX : (collisionPointY - circlePathAt0) / circlePathSlope);
+				var pointOfContactX = collisionPointX;
+				var pointOfContactY = collisionPointY + circle.r;
 
-				//move up the circle's path to the collision point
-				var distX = intersectionX - lineStartX;
-				var distY = intersectionY - lineStartY;
-				var distOver = Math.sqrt(distX * distX + distY * distY);
-				var distUp = Math.sqrt(circle.r * circle.r - distOver * distOver);
-				var distUpX = distUp / Math.sqrt(1 + circlePathSlope * circlePathSlope) * (circlePathSlope < 0 ? 1 : -1);
-				var distUpY = circlePathSlope * distUpX;
-				collisionPointX = intersectionX + distUpX;
-				collisionPointY = intersectionY + distUpY;
+				//if that collision point is not actually on the line segment, check the edges
+				if(lineStartX < collisionPointX || collisionPointX < lineEndX) {
+					//the point of contact is just the edge of the line
+					pointOfContactX = (lineStartX < collisionPointX ? lineStartX : lineEndX);
+					pointOfContactY = (lineStartY < collisionPointY ? lineStartY : lineEndY);
 
-				pointOfContactX = lineStartX;
-				pointOfContactY = lineStartY;
-			}
-			else if(collisionPointX < lineEndX) {
-				//it's to the left of the line, could be colliding with lineEndX
-				var perpendicularSlope = -1 / circlePathSlope;
-				var perpendicularLineAt0 = lineEndY - (perpendicularSlope * lineEndX);
-				
-				//find intersection, e.g.  x = (c - b) / (m - n)
-				var intersectionX = (circlePathAt0 - perpendicularLineAt0) / (perpendicularSlope - circlePathSlope);
-				var intersectionY = perpendicularSlope * intersectionX + perpendicularLineAt0;
+					//calculate the slope perpendicular to the circle's path
+					var perpendicularSlope = -1 / circlePathSlope;
+					var perpendicularLineAt0 = pointOfContactY - (perpendicularSlope * pointOfContactX);
 
-				//move up the circle's path to the collision point
-				var distX = intersectionX - lineEndX;
-				var distY = (intersectionY - lineEndY);
-				var distOver = Math.sqrt(distX * distX + distY * distY);
-				var distUp = Math.sqrt(circle.r * circle.r - distOver * distOver);
-				var distUpX = distUp / Math.sqrt(1 + circlePathSlope * circlePathSlope) * (circlePathSlope < 0 ? 1 : -1);
-				var distUpY = circlePathSlope * distUpX;
-				collisionPointX = intersectionX + distUpX;
-				collisionPointY = intersectionY + distUpY;
+					//find intersection of the circle's path and the extension perpendicular to it from the line endpoint
+					var intersectionX = (circlePathSlope === Infinity ? circleX : (circlePathAt0 - perpendicularLineAt0) / (perpendicularSlope - circlePathSlope));
+					var intersectionY = perpendicularSlope * intersectionX + perpendicularLineAt0;
 
-				pointOfContactX = lineEndX;
-				pointOfContactY = lineEndY;
-			}
-			else {
-				collisionPointX = null;
-				collisionPointY = null;
-				pointOfContactX = null;
-				pointOfContactY = null;
-			}
+					//move up the circle's path to the collision point
+					var distFromIntersectionToEndpoint = Math.sqrt((intersectionX - pointOfContactX) * (intersectionX - pointOfContactX) + (intersectionY - pointOfContactY) * (intersectionY - pointOfContactY));
+					var distUpCirclePath = Math.sqrt(circle.r * circle.r - distFromIntersectionToEndpoint * distFromIntersectionToEndpoint);
+					var distUpCirclePathX = (circlePathSlope === Infinity ? 0 : distUpCirclePath / Math.sqrt(1 + circlePathSlope * circlePathSlope) * (circlePathSlope < 0 ? 1 : -1));
+					var distUpCirclePathY = (circlePathSlope === Infinity ? distUpCirclePath : circlePathSlope * distUpCirclePathX);
+					collisionPointX = intersectionX + distUpCirclePathX;
+					collisionPointY = intersectionY + distUpCirclePathY;
+				}
 
-			if(circleVelY < 0) {
-				collisionPointX = null;
-				collisionPointY = null;
-				pointOfContactX = null;
-				pointOfContactY = null;
-			}
-
-			if(collisionPointX !== null && collisionPointY !== null && pointOfContactX !== null && pointOfContactY !== null) {
-				var angleToPointOfContact = Math.atan2(collisionPointX - pointOfContactX, pointOfContactY - collisionPointY);
-				var velocityBouncedOffContactPointX = rotateX(circleVelX, circleVelY, angleToPointOfContact);
-				var velocityBouncedOffContactPointY = rotateY(circleVelX, circleVelY, angleToPointOfContact);
-				velocityBouncedOffContactPointY *= -1;
-				var rotatedVelocityBouncedOffContactPointX = unrotateX(velocityBouncedOffContactPointX, velocityBouncedOffContactPointY, angleToPointOfContact);
-				var rotatedVelocityBouncedOffContactPointY = unrotateY(velocityBouncedOffContactPointX, velocityBouncedOffContactPointY, angleToPointOfContact);
-				var rotatedVelocitySplattedAgainstContactPointX = unrotateX(velocityBouncedOffContactPointX, 0, angleToPointOfContact);
-				var rotatedVelocitySplattedAgainstContactPointY = unrotateY(velocityBouncedOffContactPointX, 0, angleToPointOfContact);
-				var rotatedCollisionPointX = unrotateX(collisionPointX, collisionPointY, angle);
-				var rotatedCollisionPointY = unrotateY(collisionPointX, collisionPointY, angle);
-				var rotatedVelX = unrotateX(rotatedVelocityBouncedOffContactPointX, -rotatedVelocityBouncedOffContactPointY, angle);
-				var rotatedVelY = unrotateY(rotatedVelocityBouncedOffContactPointX, -rotatedVelocityBouncedOffContactPointY, angle);
-				var rotatedPointOfContactX = unrotateX(pointOfContactX, pointOfContactY, angle);
-				var rotatedPointOfContactY = unrotateY(pointOfContactX, pointOfContactY, angle);
+				circleVelY *= -1;
 
 				//determine if collision point is on the current path
 				//have to account for a bit of error here, hence the 0.005
+				//TODO the following two lines are causing errors when a ball is falling directly on top of an endpoint from above
+				//TODO endpoint coolio collision bouncing isn't working anymore, I removed it. add it back in
 				if((prevCircleX - 0.005 <= collisionPointX && collisionPointX <= circleX + 0.005) ||
 					(circleX - 0.005 <= collisionPointX && collisionPointX <= prevCircleX + 0.005)) {
-					//there was a collision!
-					return {
-						position: {
-							x: rotatedCollisionPointX,
-							y: rotatedCollisionPointY
-						},
-						contact: {
-							x: rotatedPointOfContactX,
-							y: rotatedPointOfContactY
-						},
-						splatVel: {
-							x: rotatedVelocitySplattedAgainstContactPointX,
-							y: rotatedVelocitySplattedAgainstContactPointY
-						},
-						bounceVel: {
-							x: rotatedVelocityBouncedOffContactPointX, //rotatedVelX,
-							y: rotatedVelocityBouncedOffContactPointY //rotatedVelY
-						}
+					if(circleY > collisionPointY) {
+						//there was a collision!
+						var collision = {
+							position: {
+								x: unrotateX(collisionPointX, collisionPointY, angle),
+								y: unrotateY(collisionPointX, collisionPointY, angle)
+							},
+							contact: {
+								x: unrotateX(pointOfContactX, pointOfContactY, angle),
+								y: unrotateY(pointOfContactX, pointOfContactY, angle)
+							},
+							bounceVel: {
+								x: unrotateX(circleVelX, circleVelY, angle),
+								y: unrotateY(circleVelX, circleVelY, angle)
+							}
+						};
+						return collision;
 					}
 				}
 			}
@@ -360,5 +337,16 @@ define([
 			everyFrame(ms, time);
 			requestAnimationFrame(loop);
 		}
+				/*var angleToPointOfContact = Math.atan2(collisionPointX - pointOfContactX, pointOfContactY - collisionPointY);
+				var velocityBouncedOffContactPointX = rotateX(circleVelX, circleVelY, angleToPointOfContact);
+				var velocityBouncedOffContactPointY = rotateY(circleVelX, circleVelY, angleToPointOfContact);
+				var newVelX = unrotateX(velocityBouncedOffContactPointX, -velocityBouncedOffContactPointY, angleToPointOfContact);
+				var newVelY = unrotateY(velocityBouncedOffContactPointX, -velocityBouncedOffContactPointY, angleToPointOfContact);
+				var rotatedCollisionPointX = unrotateX(collisionPointX, collisionPointY, angle);
+				var rotatedCollisionPointY = unrotateY(collisionPointX, collisionPointY, angle);
+				var rotatedVelX = unrotateX(newVelX, -newVelY, angle);
+				var rotatedVelY = unrotateY(newVelX, -newVelY, angle);
+				var rotatedPointOfContactX = unrotateX(pointOfContactX, pointOfContactY, angle);
+				var rotatedPointOfContactY = unrotateY(pointOfContactX, pointOfContactY, angle);*/
 	};
 });
