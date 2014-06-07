@@ -26,6 +26,9 @@ define([
 		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, R: 82, SHIFT: 16, SPACE: 32 };
 		$(document).on('keydown', function(evt) {
 			keys[evt.which] = true;
+			if(evt.which === KEY_MAP.SPACE) {
+				paused = !paused;
+			}
 		});
 		$(document).on('keyup', function(evt) {
 			keys[evt.which] = false;
@@ -79,7 +82,6 @@ define([
 		createLine(750, 100, 750, 215);
 		createLine(750, 215, 350, 215);
 		createLine(350, 215, 350, 200);*/
-		createLine(  350, 220,   390, 220);
 		createPoly([ 10,  400,    70, 390,    50, 450 ]);
 		createPoly([ 100, 100,   200, 100,   200, 200,   100, 200 ]);
 		createPoly([ 170, 250,   320, 280,   300, 300,   150, 280 ]);
@@ -164,6 +166,9 @@ define([
 			var prevCircleY = rotateY(circle.prev.x, circle.prev.y, angle);
 			var circleX = rotateX(circle.x, circle.y, angle);
 			var circleY = rotateY(circle.x, circle.y, angle);
+			if(Math.abs(prevCircleX) - 0.00001 < Math.abs(circleX) && Math.abs(circleX) < Math.abs(prevCircleX) + 0.0001) {
+				prevCircleX = circleX;// + 0.00001; //hack!
+			}
 
 			//circle can only collide if it's moving toward the line
 			if(circleVelY > 0 && circleY > prevCircleY) {
@@ -183,31 +188,38 @@ define([
 					pointOfContactX = (lineStartX < collisionPointX ? lineStartX : lineEndX);
 					pointOfContactY = (lineStartY < collisionPointY ? lineStartY : lineEndY);
 
-					//calculate the slope perpendicular to the circle's path
-					var perpendicularSlope = -1 / circlePathSlope;
-					var perpendicularLineAt0 = pointOfContactY - (perpendicularSlope * pointOfContactX);
+					if(circlePathSlope === Infinity) {
+						var d = collisionPointX - pointOfContactX;
+						var up = Math.sqrt(circle.r * circle.r - d * d);
+						collisionPointX = pointOfContactX + d;
+						collisionPointY = pointOfContactY - up;
+					}
+					else {
+						//calculate the slope perpendicular to the circle's path
+						var perpendicularSlope = -1 / circlePathSlope;
+						var perpendicularLineAt0 = pointOfContactY - (perpendicularSlope * pointOfContactX);
 
-					//find intersection of the circle's path and the extension perpendicular to it from the line endpoint
-					var intersectionX = (circlePathSlope === Infinity ? circleX : (circlePathAt0 - perpendicularLineAt0) / (perpendicularSlope - circlePathSlope));
-					var intersectionY = perpendicularSlope * intersectionX + perpendicularLineAt0;
+						//find intersection of the circle's path and the extension perpendicular to it from the line endpoint
+						var intersectionX = (circlePathAt0 - perpendicularLineAt0) / (perpendicularSlope - circlePathSlope);
+						var intersectionY = perpendicularSlope * intersectionX + perpendicularLineAt0;
 
-					//move up the circle's path to the collision point
-					var distFromIntersectionToEndpoint = Math.sqrt((intersectionX - pointOfContactX) * (intersectionX - pointOfContactX) + (intersectionY - pointOfContactY) * (intersectionY - pointOfContactY));
-					var distUpCirclePath = Math.sqrt(circle.r * circle.r - distFromIntersectionToEndpoint * distFromIntersectionToEndpoint);
-					var distUpCirclePathX = (circlePathSlope === Infinity ? 0 : distUpCirclePath / Math.sqrt(1 + circlePathSlope * circlePathSlope) * (circlePathSlope < 0 ? 1 : -1));
-					var distUpCirclePathY = (circlePathSlope === Infinity ? distUpCirclePath : circlePathSlope * distUpCirclePathX);
-					collisionPointX = intersectionX + distUpCirclePathX;
-					collisionPointY = intersectionY + distUpCirclePathY;
+						//move up the circle's path to the collision point
+						var distFromIntersectionToEndpoint = Math.sqrt((intersectionX - pointOfContactX) * (intersectionX - pointOfContactX) + (intersectionY - pointOfContactY) * (intersectionY - pointOfContactY));
+						var distUpCirclePath = Math.sqrt(circle.r * circle.r - distFromIntersectionToEndpoint * distFromIntersectionToEndpoint);
+						var distUpCirclePathX = distUpCirclePath / Math.sqrt(1 + circlePathSlope * circlePathSlope) * (circlePathSlope < 0 ? 1 : -1);
+						var distUpCirclePathY = circlePathSlope * distUpCirclePathX;
+						collisionPointX = intersectionX + distUpCirclePathX;
+						collisionPointY = intersectionY + distUpCirclePathY;
+					}
 				}
 
 				circleVelY *= -1;
 
 				//determine if collision point is on the current path
 				//have to account for a bit of error here, hence the 0.005
-				//TODO the following two lines are causing errors when a ball is falling directly on top of an endpoint from above
-				//TODO endpoint coolio collision bouncing isn't working anymore, I removed it. add it back in
-				if((prevCircleX - 0.005 <= collisionPointX && collisionPointX <= circleX + 0.005) ||
-					(circleX - 0.005 <= collisionPointX && collisionPointX <= prevCircleX + 0.005)) {
+				if(((prevCircleX - 0.005 <= collisionPointX && collisionPointX <= circleX + 0.005) ||
+					(circleX - 0.005 <= collisionPointX && collisionPointX <= prevCircleX + 0.005)) &&
+					(prevCircleY - 0.005 <= collisionPointY && collisionPointY <= circleY + 0.005)) {
 					if(circleY > collisionPointY) {
 						//there was a collision!
 						var collision = {
@@ -235,75 +247,78 @@ define([
 		var FRICTION = 0.5;
 		var GRAVITY = 900;
 		var MOVE_FORCE = 200;
+		var paused = false;
 		function everyFrame(ms) {
 			var t = ms / 1000, i;
+
+			if(!paused) {
+				//gravity
+				applyForce(circle, 0, GRAVITY);
+
+				//move circle
+				if(keys[KEY_MAP.A]) {
+					applyForce(circle, -MOVE_FORCE, 0);
+				}
+				if(keys[KEY_MAP.D]) {
+					applyForce(circle, MOVE_FORCE, 0);
+				}
+
+				//apply forces
+				var oldVelX = circle.vel.x;
+				var oldVelY = circle.vel.y;
+				circle.vel.x += circle._force.x * t + circle._instantForce.x / 60;
+				circle.vel.y += circle._force.y * t + circle._instantForce.y / 60;
+				circle._force.x = 0;
+				circle._force.y = 0;
+				circle._instantForce.x = 0;
+				circle._instantForce.y = 0;
+
+				//apply friction
+				var friction = Math.pow(Math.E, Math.log(1 - FRICTION) * t);
+				circle.vel.x *= friction;
+				circle.vel.y *= friction;
+				oldVelX *= friction;
+				oldVelY *= friction;
+
+				//update circle position
+				circle.prev.x = circle.x;
+				circle.prev.y = circle.y;
+				circle.x += (circle.vel.x + oldVelX) / 2 * t;
+				circle.y += (circle.vel.y + oldVelY) / 2 * t;
+
+				//check for collisions
+				var collision = null;
+				for(i = 0; i < lines.length; i++) {
+					var collisionWithLine = checkForCollision(circle, lines[i]);
+					if(collisionWithLine) {
+						collision = collisionWithLine;
+						circle.x = collision.position.x;
+						circle.y = collision.position.y;
+					}
+				}
+				if(collision) {
+					circle.vel.x = collision.bounceVel.x;
+					circle.vel.y = collision.bounceVel.y;
+				}
+
+				//keep player in bounds
+				if(circle.x > width + circle.r / 2) {
+					circle.x = -circle.r / 2;
+				}
+				else if(circle.x < -circle.r / 2) {
+					circle.x = width + circle.r / 2;
+				}
+				if(circle.y > height + circle.r / 2) {
+					circle.y = -circle.r / 2;
+				}
+				else if(circle.y < -circle.r / 2) {
+					circle.y = height + circle.r / 2;
+				}
+			}
 
 			//draw background
 			ctx.fillStyle = '#fff';
 			ctx.fillRect(0, 0, width, height);
-
-			//gravity
-			applyForce(circle, 0, GRAVITY);
-
-			//move circle
-			if(keys[KEY_MAP.A]) {
-				applyForce(circle, -MOVE_FORCE, 0);
-			}
-			if(keys[KEY_MAP.D]) {
-				applyForce(circle, MOVE_FORCE, 0);
-			}
-
-			//apply forces
-			var oldVelX = circle.vel.x;
-			var oldVelY = circle.vel.y;
-			circle.vel.x += circle._force.x * t + circle._instantForce.x / 60;
-			circle.vel.y += circle._force.y * t + circle._instantForce.y / 60;
-			circle._force.x = 0;
-			circle._force.y = 0;
-			circle._instantForce.x = 0;
-			circle._instantForce.y = 0;
-
-			//apply friction
-			var friction = Math.pow(Math.E, Math.log(1 - FRICTION) * t);
-			circle.vel.x *= friction;
-			circle.vel.y *= friction;
-			oldVelX *= friction;
-			oldVelY *= friction;
-
-			//update circle position
-			circle.prev.x = circle.x;
-			circle.prev.y = circle.y;
-			circle.x += (circle.vel.x + oldVelX) / 2 * t;
-			circle.y += (circle.vel.y + oldVelY) / 2 * t;
-
-			//check for collisions
-			var collision = null;
-			for(i = 0; i < lines.length; i++) {
-				var collisionWithLine = checkForCollision(circle, lines[i]);
-				if(collisionWithLine) {
-					collision = collisionWithLine;
-					circle.x = collision.position.x;
-					circle.y = collision.position.y;
-				}
-			}
-			if(collision) {
-				circle.vel.x = collision.bounceVel.x;
-				circle.vel.y = collision.bounceVel.y;
-			}
-
-			//keep player in bounds
-			if(circle.x > width + circle.r / 2) {
-				circle.x = -circle.r / 2;
-			}
-			else if(circle.x < -circle.r / 2) {
-				circle.x = width + circle.r / 2;
-			}
-			if(circle.y > height + circle.r / 2) {
-				circle.y = -circle.r / 2;
-			}
-			else if(circle.y < -circle.r / 2) {
-				circle.y = height + circle.r / 2;
-			}
 
 			//draw lines
 			for(i = 0; i < lines.length; i++) {
