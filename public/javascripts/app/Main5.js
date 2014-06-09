@@ -66,7 +66,7 @@ define([
 		}
 
 		//create starting lines
-		/*var x = 250, y = 400;
+		var x = 250, y = 400;
 		for(var i = 0; i < 30; i++) {
 			createLine(x, y, x + 10, y + (14.5 - i) / 2);
 			x += 10;
@@ -81,16 +81,7 @@ define([
 		createLine(650, 200, 750, 100);
 		createLine(750, 100, 750, 215);
 		createLine(750, 215, 350, 215);
-		createLine(350, 215, 350, 200);*/
-		createPoly([ 10,  400,    70, 390,    50, 450 ]);
-		createPoly([ 100, 100,   200, 100,   200, 200,   100, 200 ]);
-		createPoly([ 170, 250,   320, 280,   300, 300,   150, 280 ]);
-		createPoly([ 250, 500,   430, 430,   480, 450 ]);
-		createPoly([ 420, 300,   440, 350,   390, 350 ]);
-		createPoly([ 470, 180,   490, 180,   530, 240,   520, 270,   460, 260 ]);
-		createPoly([ 500, 350,   700, 290,   680, 500 ]);
-		createPoly([ 680, 160,   750, 150,   770, 160,   720, 190]);
-		createPoly([ 760, 500,   790, 550,   760, 595,   750, 550]);
+		createLine(350, 215, 350, 200);
 
 		function drawLine(x1, y1, x2, y2, color, width) {
 			ctx.strokeStyle = color;
@@ -167,7 +158,7 @@ define([
 			var circleX = rotateX(circle.x, circle.y, angle);
 			var circleY = rotateY(circle.x, circle.y, angle);
 			if(Math.abs(prevCircleX) - 0.00001 < Math.abs(circleX) && Math.abs(circleX) < Math.abs(prevCircleX) + 0.0001) {
-				prevCircleX = circleX;// + 0.00001; //hack!
+				prevCircleX = circleX; //hack!
 			}
 
 			//circle can only collide if it's moving toward the line
@@ -189,10 +180,11 @@ define([
 					pointOfContactY = (lineStartY < collisionPointY ? lineStartY : lineEndY);
 
 					if(circlePathSlope === Infinity) {
-						var d = collisionPointX - pointOfContactX;
-						var up = Math.sqrt(circle.r * circle.r - d * d);
-						collisionPointX = pointOfContactX + d;
-						collisionPointY = pointOfContactY - up;
+						//if the circle is moving straight down, the collision point is easier to calculate
+						var distanceFromPointOfContactX = collisionPointX - pointOfContactX;
+						var distanceFromPointOfContactY = Math.sqrt(circle.r * circle.r - distanceFromPointOfContactX * distanceFromPointOfContactX);
+						collisionPointX = pointOfContactX + distanceFromPointOfContactX;
+						collisionPointY = pointOfContactY - distanceFromPointOfContactY;
 					}
 					else {
 						//calculate the slope perpendicular to the circle's path
@@ -211,9 +203,21 @@ define([
 						collisionPointX = intersectionX + distUpCirclePathX;
 						collisionPointY = intersectionY + distUpCirclePathY;
 					}
-				}
 
-				circleVelY *= -1;
+					//calculate the angle from the line endpoint to the collision point
+					var angleToPointOfContact = -Math.PI - Math.atan2(pointOfContactX - collisionPointX, pointOfContactY - collisionPointY);
+
+					//rotate the circle's velocity, negate its velocity towards the point, then unrotate it
+					var circleVelXRelativeToPointOfContact = rotateX(circleVelX, circleVelY, angleToPointOfContact);
+					var circleVelYRelativeToPointOfContact = rotateY(circleVelX, circleVelY, angleToPointOfContact);
+					circleVelYRelativeToPointOfContact *= -1;
+					circleVelX = unrotateX(circleVelXRelativeToPointOfContact, circleVelYRelativeToPointOfContact, angleToPointOfContact);
+					circleVelY = unrotateY(circleVelXRelativeToPointOfContact, circleVelYRelativeToPointOfContact, angleToPointOfContact);
+				}
+				else {
+					//collisions directly on the line sement are easy-peasy to hangle
+					circleVelY *= -1;
+				}
 
 				//determine if collision point is on the current path
 				//have to account for a bit of error here, hence the 0.005
@@ -222,6 +226,7 @@ define([
 					(prevCircleY - 0.005 <= collisionPointY && collisionPointY <= circleY + 0.005)) {
 					if(circleY > collisionPointY) {
 						//there was a collision!
+						console.log(angleToPointOfContact);
 						var collision = {
 							position: {
 								x: unrotateX(collisionPointX, collisionPointY, angle),
@@ -352,16 +357,5 @@ define([
 			everyFrame(ms, time);
 			requestAnimationFrame(loop);
 		}
-				/*var angleToPointOfContact = Math.atan2(collisionPointX - pointOfContactX, pointOfContactY - collisionPointY);
-				var velocityBouncedOffContactPointX = rotateX(circleVelX, circleVelY, angleToPointOfContact);
-				var velocityBouncedOffContactPointY = rotateY(circleVelX, circleVelY, angleToPointOfContact);
-				var newVelX = unrotateX(velocityBouncedOffContactPointX, -velocityBouncedOffContactPointY, angleToPointOfContact);
-				var newVelY = unrotateY(velocityBouncedOffContactPointX, -velocityBouncedOffContactPointY, angleToPointOfContact);
-				var rotatedCollisionPointX = unrotateX(collisionPointX, collisionPointY, angle);
-				var rotatedCollisionPointY = unrotateY(collisionPointX, collisionPointY, angle);
-				var rotatedVelX = unrotateX(newVelX, -newVelY, angle);
-				var rotatedVelY = unrotateY(newVelX, -newVelY, angle);
-				var rotatedPointOfContactX = unrotateX(pointOfContactX, pointOfContactY, angle);
-				var rotatedPointOfContactY = unrotateY(pointOfContactX, pointOfContactY, angle);*/
 	};
 });
