@@ -166,12 +166,15 @@ define([
 			var prevCircleY = rotateY(circle.prev.x, circle.prev.y, angle);
 			var circleX = rotateX(circle.x, circle.y, angle);
 			var circleY = rotateY(circle.x, circle.y, angle);
-			if(Math.abs(prevCircleX) - 0.00001 < Math.abs(circleX) && Math.abs(circleX) < Math.abs(prevCircleX) + 0.0001) {
-				prevCircleX = circleX; //hack!
-			}
+			var origCircleX = circleX;
+			var origCircleY = circleY;
+			var origPrevX = prevCircleX;
+			var origPrevY = prevCircleY;
+			var s = "";
 
 			//circle can only collide if it's moving toward the line
 			if(circleVelY > 0 && circleY > prevCircleY) {
+				s += "A";
 				//calculate line equation y = mx + b of circle's path
 				var circlePathSlope = (circleY - prevCircleY) / (circleX - prevCircleX); //can be Infinity
 				var circlePathAt0 = circleY - circleX * circlePathSlope; //can be Infinity or -Infinity
@@ -184,11 +187,13 @@ define([
 
 				//if that collision point is not actually on the line segment, check the edges
 				if(lineStartX < collisionPointX || collisionPointX < lineEndX) {
+					s += "B";
 					//the point of contact is just the edge of the line
 					pointOfContactX = (lineStartX < collisionPointX ? lineStartX : lineEndX);
 					pointOfContactY = (lineStartY < collisionPointY ? lineStartY : lineEndY);
 
 					if(circlePathSlope === Infinity) {
+						s += "C";
 						//if the circle is moving straight down, the collision point is easier to calculate
 						var distanceFromPointOfContactX = collisionPointX - pointOfContactX;
 						var distanceFromPointOfContactY = Math.sqrt(circle.r * circle.r - distanceFromPointOfContactX * distanceFromPointOfContactX);
@@ -196,6 +201,7 @@ define([
 						collisionPointY = pointOfContactY - distanceFromPointOfContactY;
 					}
 					else {
+						s += "D";
 						//calculate the slope perpendicular to the circle's path
 						var perpendicularSlope = -1 / circlePathSlope;
 						var perpendicularLineAt0 = pointOfContactY - (perpendicularSlope * pointOfContactX);
@@ -224,7 +230,8 @@ define([
 					circleVelY = unrotateY(circleVelXRelativeToPointOfContact, circleVelYRelativeToPointOfContact, angleToPointOfContact);
 				}
 				else {
-					//collisions directly on the line sement are easy-peasy to hangle
+					s += "E";
+					//collisions directly on the line sement are easy-peasy to handle
 					circleVelY *= 0;//-1;
 				}
 
@@ -233,17 +240,32 @@ define([
 				var posAfterMovingX = circleX;
 				var posAfterMovingY = collisionPointY;
 
+				var distanceCovered = Math.sqrt((collisionPointX - prevCircleX) * (collisionPointX - prevCircleX) +
+					(collisionPointY - prevCircleY) * (collisionPointY - prevCircleY));
+				var distanceTotal = Math.sqrt((circleX - prevCircleX) * (circleX - prevCircleX) +
+					(circleY - prevCircleY) * (circleY - prevCircleY));
+				var percentOfDistanceCovered = distanceCovered / distanceTotal;
+
 				//determine if collision point is on the current path
 				//have to account for a bit of error here, hence the 0.005
 				if(((prevCircleX - 0.005 <= collisionPointX && collisionPointX <= circleX + 0.005) ||
 					(circleX - 0.005 <= collisionPointX && collisionPointX <= prevCircleX + 0.005)) &&
 					(prevCircleY - 0.005 <= collisionPointY && collisionPointY <= circleY + 0.005)) {
+					s += "F";
 					if(circleY > collisionPointY) {
 						//there was a collision!
 						var collision = {
 							position: {
 								x: unrotateX(collisionPointX, collisionPointY, angle),
 								y: unrotateY(collisionPointX, collisionPointY, angle)
+							},
+							origPos: {
+								x: unrotateX(origCircleX, origCircleY, angle),
+								y: unrotateY(origCircleX, origCircleY, angle)
+							},
+							origPrev: {
+								x: unrotateX(origPrevX, origPrevY, angle),
+								y: unrotateY(origPrevX, origPrevY, angle)
 							},
 							contact: {
 								x: unrotateX(pointOfContactX, pointOfContactY, angle),
@@ -257,8 +279,10 @@ define([
 								x: unrotateX(circleVelX, circleVelY, angle),
 								y: unrotateY(circleVelX, circleVelY, angle)
 							},
+							percentThere: percentOfDistanceCovered,
 							line: line
 						};
+						//console.log(s);
 						return collision;
 					}
 				}
@@ -268,27 +292,41 @@ define([
 
 		function handleOneRoundOfCollisions(collisionImmunity) {
 			var collision = null;
-			for(i = 0; i < lines.length; i++) {
-				if(collisionImmunity !== lines[i].id) {
+			var immunities = [ collisionImmunity ];
+			/*for(var i = lines.length - 1; i >= 0; i--) {
+				if(immunities.indexOf(lines[i].id) === -1) {
 					var collisionWithLine = checkForCollision(circle, lines[i]);
 					if(collisionWithLine) {
 						collision = collisionWithLine;
 						circle.x = collision.position.x;
 						circle.y = collision.position.y;
+						immunities.push(lines[i].id);
+						i = lines.length;
+						//TODO undo this, unnecessary
 					}
+				}
+			}*/
+			for(var i = 0; i < lines.length - 1; i++) {
+				var collisionWithLine = checkForCollision(circle, lines[i]);
+				if(collisionWithLine && (!collision || collisionWithLine.percentThere < collision.percentThere)) {
+					collision = collisionWithLine;
 				}
 			}
 			if(collision) {
-				console.log(
-					Math.floor(collision.line.id), "  Contact:",
-					Math.floor(collision.contact.x),
-					Math.floor(collision.contact.y), "  Pos:",
-					Math.floor(collision.position.x),
-					Math.floor(collision.position.y), "  Vel:",
-					Math.floor(collision.revisedVel.x),
-					Math.floor(collision.revisedVel.y), "  Slide:",
-					Math.floor(collision.slide.x),
-					Math.floor(collision.slide.y), "  ");
+				// console.log(
+				// 	Math.floor(10 * collision.line.id) / 10, "  Contact:",
+				// 	Math.floor(10 * collision.contact.x) / 10,
+				// 	Math.floor(10 * collision.contact.y) / 10, "  OrigPrev:",
+				// 	Math.floor(10 * collision.origPrev.x) / 10,
+				// 	Math.floor(10 * collision.origPrev.y) / 10,"  OrigPos:",
+				// 	Math.floor(10 * collision.origPos.x) / 10,
+				// 	Math.floor(10 * collision.origPos.y) / 10, "  Pos:",
+				// 	Math.floor(10 * collision.position.x) / 10,
+				// 	Math.floor(10 * collision.position.y) / 10,  "  Slide:",
+				// 	Math.floor(10 * collision.slide.x) / 10,
+				// 	Math.floor(10 * collision.slide.y) / 10, "  Vel:",
+				// 	Math.floor(10 * collision.revisedVel.x) / 10,
+				// 	Math.floor(10 * collision.revisedVel.y) / 10, "  ");
 			}
 			return collision;
 		}
@@ -338,39 +376,56 @@ define([
 					circle.x += (circle.vel.x + oldVelX) / 2 * t;
 					circle.y += (circle.vel.y + oldVelY) / 2 * t;
 
+					// console.log(
+					// 	"Circle pos:",
+					// 	Math.floor(10 * circle.x) / 10,
+					// 	Math.floor(10 * circle.y) / 10,
+					// 	"  Prev pos:",
+					// 	Math.floor(10 * circle.prev.x) / 10,
+					// 	Math.floor(10 * circle.prev.y) / 10,
+					// 	"  Vel:",
+					// 	Math.floor(10 * circle.vel.x) / 10,
+					// 	Math.floor(10 * circle.vel.y) / 10,
+					// 	"  Inx:",
+					// 	(circle.vel.x + oldVelX) / 2 * t,
+					// 	(circle.vel.y + oldVelY) / 2 * t
+					// );
+					var toDrawOldVelX = circle.vel.x;
+					var toDrawOldVelY = circle.vel.y;
+					var toDrawOldPrevX = circle.prev.x;
+					var toDrawOldPrevY = circle.prev.y;
+					var toDrawOldX = circle.x;
+					var toDrawOldY = circle.y;
+
 					//check for collisions
 					var lineId = null;
-					console.log("");
+					//console.log("");
 					var collision = handleOneRoundOfCollisions(lineId);
-					if(collision) {
+					if(!collision) {
+						//it is aireborne--not a single collision
+						circle.floorLine = null;
+					}
+					while(collision) {
+						console.log(collision.percentThere);
+						//each subsequent collision, slide more!
+						//TODO to get when it has slid off the current line, we need to have immunity just note it still collides
+						circle.floorLine = collision.floorLine;
 						circle.vel.x = collision.revisedVel.x;
 						circle.vel.y = collision.revisedVel.y;
 						lineId = collision.line.id;
-						//look for more collisions
-						circle.floorLine = collision.line.id;
 						circle.prev.x = collision.position.x;
 						circle.prev.y = collision.position.y;
 						circle.x = collision.slide.x;
 						circle.y = collision.slide.y;
 						collision = handleOneRoundOfCollisions(lineId);
-						while(collision) {
-							//each subsequent collision, slide more!
-							//TODO to get when it has slid off the current line, we need to have immunity just note it still collides
-							circle.floorLine = collision.floorLine;
-							circle.vel.x = collision.revisedVel.x;
-							circle.vel.y = collision.revisedVel.y;
-							lineId = collision.line.id;
-							circle.prev.x = collision.position.x;
-							circle.prev.y = collision.position.y;
-							circle.x = collision.slide.x;
-							circle.y = collision.slide.y;
-							collision = handleOneRoundOfCollisions(lineId);
-						}
 					}
-					else {
-						//it is aireborne--not a single collision
-						circle.floorLine = null;
-					}
+
+					var toDrawNewVelX = circle.vel.x;
+					var toDrawNewVelY = circle.vel.y;
+					var toDrawNewPrevX = circle.prev.x;
+					var toDrawNewPrevY = circle.prev.y;
+					var toDrawNewX = circle.x;
+					var toDrawNewY = circle.y;
 
 					//keep player in bounds
 					if(circle.x > width + circle.r / 2) {
@@ -411,6 +466,29 @@ define([
 			ctx.arc(circle.x, circle.y, circle.r, 0, 2 * Math.PI, false);
 			ctx.fill();
 			ctx.stroke();
+
+			//draw extras
+			/*
+					var toDrawOldVelX = circle.vel.x;
+					var toDrawOldVelY = circle.vel;y
+					var toDrawOldPrevX = circle.prev.x;
+					var toDrawOldPrevY = circle.prev.y;
+					var toDrawOldX = circle.x;
+					var toDrawOldY = circle.y;
+					var toDrawNewVelX = circle.vel.x;
+					var toDrawNewVelY = circle.vel;y
+					var toDrawNewPrevX = circle.prev.x;
+					var toDrawNewPrevY = circle.prev.y;
+					var toDrawNewX = circle.x;
+					var toDrawNewY = circle.y;*/
+			// ctx.strokeStyle = '#f00';
+			// ctx.lineWidth = 0.5;
+			// ctx.beginPath();
+			// ctx.arc(toDrawOldX, toDrawOldY, circle.r, 0, 2 * Math.PI, false);
+			// ctx.moveTo(toDrawOldX, toDrawOldY);
+			// ctx.lineTo(toDrawOldX + toDrawNewVelX / 10, toDrawOldY + toDrawNewVelY / 10);
+			// ctx.stroke();
+
 		}
 
 		//set up animation frame functionality
