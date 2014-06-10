@@ -306,7 +306,7 @@ define([
 					}
 				}
 			}*/
-			for(var i = 0; i < lines.length - 1; i++) {
+			for(var i = 0; i < lines.length; i++) {
 				var collisionWithLine = checkForCollision(circle, lines[i]);
 				if(collisionWithLine && (!collision || collisionWithLine.percentThere < collision.percentThere)) {
 					collision = collisionWithLine;
@@ -406,7 +406,7 @@ define([
 						circle.floorLine = null;
 					}
 					while(collision) {
-						console.log(collision.percentThere);
+						//console.log(collision.percentThere);
 						//each subsequent collision, slide more!
 						//TODO to get when it has slid off the current line, we need to have immunity just note it still collides
 						circle.floorLine = collision.floorLine;
