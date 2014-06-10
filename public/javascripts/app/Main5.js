@@ -18,7 +18,8 @@ define([
 			prev: { x: width / 2, y: height / 4 },
 			vel: { x: 0, y: 0 },
 			_force: { x: 0, y: 0 },
-			_instantForce: { x: 0, y: 0 }
+			_instantForce: { x: 0, y: 0 },
+			floorLine: null
 		};
 
 		//WASD to move the circle
@@ -29,9 +30,15 @@ define([
 			if(evt.which === KEY_MAP.SPACE) {
 				paused = !paused;
 			}
+			else if(evt.which === KEY_MAP.SHIFT) {
+				framesPerFrame = 15;
+			}
 		});
 		$(document).on('keyup', function(evt) {
 			keys[evt.which] = false;
+			if(evt.which === KEY_MAP.SHIFT) {
+				framesPerFrame = 1;
+			}
 		});
 
 		//click the canvas to create new lines
@@ -51,8 +58,10 @@ define([
 			mouse.x = evt.clientX;
 			mouse.y = evt.clientY;
 		});
+		var nextLineId = 0;
 		function createLine(x1, y1, x2, y2) {
 			var line = {
+				id: nextLineId++,
 				start: { x: x2, y: y2 },
 				end: { x: x1, y: y1 }
 			};
@@ -210,14 +219,19 @@ define([
 					//rotate the circle's velocity, negate its velocity towards the point, then unrotate it
 					var circleVelXRelativeToPointOfContact = rotateX(circleVelX, circleVelY, angleToPointOfContact);
 					var circleVelYRelativeToPointOfContact = rotateY(circleVelX, circleVelY, angleToPointOfContact);
-					circleVelYRelativeToPointOfContact *= -1;
+					circleVelYRelativeToPointOfContact *= 0;//-1;
 					circleVelX = unrotateX(circleVelXRelativeToPointOfContact, circleVelYRelativeToPointOfContact, angleToPointOfContact);
 					circleVelY = unrotateY(circleVelXRelativeToPointOfContact, circleVelYRelativeToPointOfContact, angleToPointOfContact);
 				}
 				else {
 					//collisions directly on the line sement are easy-peasy to hangle
-					circleVelY *= -1;
+					circleVelY *= 0;//-1;
 				}
+
+				//once we find the collision point and adjust the velocity, we might need to move the circle forward
+				//if the circle hit the ground and is now sliding, slide!
+				var posAfterMovingX = circleX;
+				var posAfterMovingY = collisionPointY;
 
 				//determine if collision point is on the current path
 				//have to account for a bit of error here, hence the 0.005
@@ -226,7 +240,6 @@ define([
 					(prevCircleY - 0.005 <= collisionPointY && collisionPointY <= circleY + 0.005)) {
 					if(circleY > collisionPointY) {
 						//there was a collision!
-						console.log(angleToPointOfContact);
 						var collision = {
 							position: {
 								x: unrotateX(collisionPointX, collisionPointY, angle),
@@ -236,10 +249,15 @@ define([
 								x: unrotateX(pointOfContactX, pointOfContactY, angle),
 								y: unrotateY(pointOfContactX, pointOfContactY, angle)
 							},
-							bounceVel: {
+							slide: {
+								x: unrotateX(posAfterMovingX, posAfterMovingY, angle),
+								y: unrotateY(posAfterMovingX, posAfterMovingY, angle)
+							},
+							revisedVel: {
 								x: unrotateX(circleVelX, circleVelY, angle),
 								y: unrotateY(circleVelX, circleVelY, angle)
-							}
+							},
+							line: line
 						};
 						return collision;
 					}
@@ -248,52 +266,10 @@ define([
 			return false;
 		}
 
-		//do this all the time
-		var FRICTION = 0.5;
-		var GRAVITY = 900;
-		var MOVE_FORCE = 200;
-		var paused = false;
-		function everyFrame(ms) {
-			var t = ms / 1000, i;
-
-			if(!paused) {
-				//gravity
-				applyForce(circle, 0, GRAVITY);
-
-				//move circle
-				if(keys[KEY_MAP.A]) {
-					applyForce(circle, -MOVE_FORCE, 0);
-				}
-				if(keys[KEY_MAP.D]) {
-					applyForce(circle, MOVE_FORCE, 0);
-				}
-
-				//apply forces
-				var oldVelX = circle.vel.x;
-				var oldVelY = circle.vel.y;
-				circle.vel.x += circle._force.x * t + circle._instantForce.x / 60;
-				circle.vel.y += circle._force.y * t + circle._instantForce.y / 60;
-				circle._force.x = 0;
-				circle._force.y = 0;
-				circle._instantForce.x = 0;
-				circle._instantForce.y = 0;
-
-				//apply friction
-				var friction = Math.pow(Math.E, Math.log(1 - FRICTION) * t);
-				circle.vel.x *= friction;
-				circle.vel.y *= friction;
-				oldVelX *= friction;
-				oldVelY *= friction;
-
-				//update circle position
-				circle.prev.x = circle.x;
-				circle.prev.y = circle.y;
-				circle.x += (circle.vel.x + oldVelX) / 2 * t;
-				circle.y += (circle.vel.y + oldVelY) / 2 * t;
-
-				//check for collisions
-				var collision = null;
-				for(i = 0; i < lines.length; i++) {
+		function handleOneRoundOfCollisions(collisionImmunity) {
+			var collision = null;
+			for(i = 0; i < lines.length; i++) {
+				if(collisionImmunity !== lines[i].id) {
 					var collisionWithLine = checkForCollision(circle, lines[i]);
 					if(collisionWithLine) {
 						collision = collisionWithLine;
@@ -301,23 +277,114 @@ define([
 						circle.y = collision.position.y;
 					}
 				}
-				if(collision) {
-					circle.vel.x = collision.bounceVel.x;
-					circle.vel.y = collision.bounceVel.y;
-				}
+			}
+			if(collision) {
+				console.log(
+					Math.floor(collision.line.id), "  Contact:",
+					Math.floor(collision.contact.x),
+					Math.floor(collision.contact.y), "  Pos:",
+					Math.floor(collision.position.x),
+					Math.floor(collision.position.y), "  Vel:",
+					Math.floor(collision.revisedVel.x),
+					Math.floor(collision.revisedVel.y), "  Slide:",
+					Math.floor(collision.slide.x),
+					Math.floor(collision.slide.y), "  ");
+			}
+			return collision;
+		}
 
-				//keep player in bounds
-				if(circle.x > width + circle.r / 2) {
-					circle.x = -circle.r / 2;
-				}
-				else if(circle.x < -circle.r / 2) {
-					circle.x = width + circle.r / 2;
-				}
-				if(circle.y > height + circle.r / 2) {
-					circle.y = -circle.r / 2;
-				}
-				else if(circle.y < -circle.r / 2) {
-					circle.y = height + circle.r / 2;
+		//do this all the time
+		var FRICTION = 0.3;
+		var GRAVITY = 600;
+		var MOVE_FORCE = 400;
+		var paused = false;
+		var framesPerFrame = 1, f = 0;
+		function everyFrame(ms) {
+			var t = ms / 1000, i;
+
+			if(f++ % framesPerFrame === 0) {
+				if(!paused) {
+					//gravity
+					applyForce(circle, 0, GRAVITY);
+
+					//move circle
+					if(keys[KEY_MAP.A]) {
+						applyForce(circle, -MOVE_FORCE, 0);
+					}
+					if(keys[KEY_MAP.D]) {
+						applyForce(circle, MOVE_FORCE, 0);
+					}
+
+					//apply forces
+					var oldVelX = circle.vel.x;
+					var oldVelY = circle.vel.y;
+					circle.vel.x += circle._force.x * t + circle._instantForce.x / 60;
+					circle.vel.y += circle._force.y * t + circle._instantForce.y / 60;
+					circle._force.x = 0;
+					circle._force.y = 0;
+					circle._instantForce.x = 0;
+					circle._instantForce.y = 0;
+
+					//apply friction
+					var friction = Math.pow(Math.E, Math.log(1 - FRICTION) * t);
+					circle.vel.x *= friction;
+					circle.vel.y *= friction;
+					oldVelX *= friction;
+					oldVelY *= friction;
+
+					//update circle position
+					circle.prev.x = circle.x;
+					circle.prev.y = circle.y;
+					circle.x += (circle.vel.x + oldVelX) / 2 * t;
+					circle.y += (circle.vel.y + oldVelY) / 2 * t;
+
+					//check for collisions
+					var lineId = null;
+					console.log("");
+					var collision = handleOneRoundOfCollisions(lineId);
+					if(collision) {
+						circle.vel.x = collision.revisedVel.x;
+						circle.vel.y = collision.revisedVel.y;
+						lineId = collision.line.id;
+						//look for more collisions
+						circle.floorLine = collision.line.id;
+						circle.prev.x = collision.position.x;
+						circle.prev.y = collision.position.y;
+						circle.x = collision.slide.x;
+						circle.y = collision.slide.y;
+						collision = handleOneRoundOfCollisions(lineId);
+						while(collision) {
+							//each subsequent collision, slide more!
+							//TODO to get when it has slid off the current line, we need to have immunity just note it still collides
+							circle.floorLine = collision.floorLine;
+							circle.vel.x = collision.revisedVel.x;
+							circle.vel.y = collision.revisedVel.y;
+							lineId = collision.line.id;
+							circle.prev.x = collision.position.x;
+							circle.prev.y = collision.position.y;
+							circle.x = collision.slide.x;
+							circle.y = collision.slide.y;
+							collision = handleOneRoundOfCollisions(lineId);
+						}
+					}
+					else {
+						//it is aireborne--not a single collision
+						circle.floorLine = null;
+					}
+
+					//keep player in bounds
+					if(circle.x > width + circle.r / 2) {
+						circle.x = -circle.r / 2;
+					}
+					else if(circle.x < -circle.r / 2) {
+						circle.x = width + circle.r / 2;
+					}
+					if(circle.y > height + circle.r / 2) {
+						circle.y = -circle.r / 2;
+					}
+					else if(circle.y < -circle.r / 2) {
+						circle.y = height + circle.r / 2;
+					}
 				}
 			}
 
@@ -327,7 +394,8 @@ define([
 
 			//draw lines
 			for(i = 0; i < lines.length; i++) {
-				drawLine(lines[i].start.x, lines[i].start.y, lines[i].end.x, lines[i].end.y, '#000', 1);
+				drawLine(lines[i].start.x, lines[i].start.y, lines[i].end.x, lines[i].end.y,
+					(lines[i].id === circle.floorLine ? '#f00' : '#000'), 1);
 			}
 
 			//draw line being created
