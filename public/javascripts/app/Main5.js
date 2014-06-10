@@ -16,7 +16,7 @@ define([
 			x: width / 2,
 			y: height / 4,
 			prev: { x: width / 2, y: height / 4 },
-			vel: { x: 0, y: 0 },
+			vel: { x: -150, y: 0 },
 			_force: { x: 0, y: 0 },
 			_instantForce: { x: 0, y: 0 },
 			floorLine: null
@@ -91,6 +91,11 @@ define([
 		createLine(750, 100, 750, 215);
 		createLine(750, 215, 350, 215);
 		createLine(350, 215, 350, 200);
+		createLine(320, 220, 350, 350);
+		createLine(220, 240, 320, 220);
+		createLine(240, 160, 220, 240);
+		createLine(120, 200, 120, 350);
+		createLine(120, 350, 240, 350);
 
 		function drawLine(x1, y1, x2, y2, color, width) {
 			ctx.strokeStyle = color;
@@ -173,7 +178,7 @@ define([
 			var s = "";
 
 			//circle can only collide if it's moving toward the line
-			if(circleVelY > 0 && circleY > prevCircleY) {
+			if(/*circleVelY > 0 &&*/ circleY > prevCircleY) {
 				s += "A";
 				//calculate line equation y = mx + b of circle's path
 				var circlePathSlope = (circleY - prevCircleY) / (circleX - prevCircleX); //can be Infinity
@@ -292,41 +297,11 @@ define([
 
 		function handleOneRoundOfCollisions(collisionImmunity) {
 			var collision = null;
-			var immunities = [ collisionImmunity ];
-			/*for(var i = lines.length - 1; i >= 0; i--) {
-				if(immunities.indexOf(lines[i].id) === -1) {
-					var collisionWithLine = checkForCollision(circle, lines[i]);
-					if(collisionWithLine) {
-						collision = collisionWithLine;
-						circle.x = collision.position.x;
-						circle.y = collision.position.y;
-						immunities.push(lines[i].id);
-						i = lines.length;
-						//TODO undo this, unnecessary
-					}
-				}
-			}*/
 			for(var i = 0; i < lines.length; i++) {
 				var collisionWithLine = checkForCollision(circle, lines[i]);
 				if(collisionWithLine && (!collision || collisionWithLine.percentThere < collision.percentThere)) {
 					collision = collisionWithLine;
 				}
-			}
-			if(collision) {
-				// console.log(
-				// 	Math.floor(10 * collision.line.id) / 10, "  Contact:",
-				// 	Math.floor(10 * collision.contact.x) / 10,
-				// 	Math.floor(10 * collision.contact.y) / 10, "  OrigPrev:",
-				// 	Math.floor(10 * collision.origPrev.x) / 10,
-				// 	Math.floor(10 * collision.origPrev.y) / 10,"  OrigPos:",
-				// 	Math.floor(10 * collision.origPos.x) / 10,
-				// 	Math.floor(10 * collision.origPos.y) / 10, "  Pos:",
-				// 	Math.floor(10 * collision.position.x) / 10,
-				// 	Math.floor(10 * collision.position.y) / 10,  "  Slide:",
-				// 	Math.floor(10 * collision.slide.x) / 10,
-				// 	Math.floor(10 * collision.slide.y) / 10, "  Vel:",
-				// 	Math.floor(10 * collision.revisedVel.x) / 10,
-				// 	Math.floor(10 * collision.revisedVel.y) / 10, "  ");
 			}
 			return collision;
 		}
@@ -376,20 +351,6 @@ define([
 					circle.x += (circle.vel.x + oldVelX) / 2 * t;
 					circle.y += (circle.vel.y + oldVelY) / 2 * t;
 
-					// console.log(
-					// 	"Circle pos:",
-					// 	Math.floor(10 * circle.x) / 10,
-					// 	Math.floor(10 * circle.y) / 10,
-					// 	"  Prev pos:",
-					// 	Math.floor(10 * circle.prev.x) / 10,
-					// 	Math.floor(10 * circle.prev.y) / 10,
-					// 	"  Vel:",
-					// 	Math.floor(10 * circle.vel.x) / 10,
-					// 	Math.floor(10 * circle.vel.y) / 10,
-					// 	"  Inx:",
-					// 	(circle.vel.x + oldVelX) / 2 * t,
-					// 	(circle.vel.y + oldVelY) / 2 * t
-					// );
 					var toDrawOldVelX = circle.vel.x;
 					var toDrawOldVelY = circle.vel.y;
 					var toDrawOldPrevX = circle.prev.x;
@@ -401,11 +362,32 @@ define([
 					var lineId = null;
 					//console.log("");
 					var collision = handleOneRoundOfCollisions(lineId);
+					var collisionsLeft = 5;
+					var collisionHistory = [];
+					var collisionSummary = {};
+					var prevCollision = null;
 					if(!collision) {
 						//it is aireborne--not a single collision
 						circle.floorLine = null;
 					}
-					while(collision) {
+					while(collision && collisionsLeft-- > 0) {
+						collisionHistory.push(collision.line.id);
+						if(!collisionSummary[collision.line.id]) {
+							collisionSummary[collision.line.id] = 0;
+						}
+						collisionSummary[collision.line.id]++;
+						if(collisionSummary[collision.line.id] > 1) {
+							circle.x = prevCollision.position.x;
+							circle.y = prevCollision.position.y;
+							break;
+							circle.vel.x = 0;
+							circle.vel.y = 0;
+						}
+						/*if(collisionSummary[collision.line.id] > 1) {
+							circle.vel.x = 0;
+							circle.vel.y = 0;
+							break;
+						}*/
 						//console.log(collision.percentThere);
 						//each subsequent collision, slide more!
 						//TODO to get when it has slid off the current line, we need to have immunity just note it still collides
@@ -417,7 +399,22 @@ define([
 						circle.prev.y = collision.position.y;
 						circle.x = collision.slide.x;
 						circle.y = collision.slide.y;
+						prevCollision = collision;
 						collision = handleOneRoundOfCollisions(lineId);
+					}
+					if(collisionsLeft < 5) {
+						//console.log(collisionsLeft === 0 ? "5+ collisions" : (5 - collisionsLeft) + " collision(s)");
+					}
+					if(collisionHistory.length > 0) {
+						var collisionSummary = {}
+						for(var i = 0; i < collisionHistory.length; i++) {
+							var lineId = collisionHistory[i];
+							if(!collisionSummary[lineId]) {
+								collisionSummary[lineId] = 0;
+							}
+							collisionSummary[lineId]++;
+						}
+						console.log(collisionSummary);
 					}
 
 					var toDrawNewVelX = circle.vel.x;
@@ -466,29 +463,7 @@ define([
 			ctx.arc(circle.x, circle.y, circle.r, 0, 2 * Math.PI, false);
 			ctx.fill();
 			ctx.stroke();
-
-			//draw extras
-			/*
-					var toDrawOldVelX = circle.vel.x;
-					var toDrawOldVelY = circle.vel;y
-					var toDrawOldPrevX = circle.prev.x;
-					var toDrawOldPrevY = circle.prev.y;
-					var toDrawOldX = circle.x;
-					var toDrawOldY = circle.y;
-					var toDrawNewVelX = circle.vel.x;
-					var toDrawNewVelY = circle.vel;y
-					var toDrawNewPrevX = circle.prev.x;
-					var toDrawNewPrevY = circle.prev.y;
-					var toDrawNewX = circle.x;
-					var toDrawNewY = circle.y;*/
-			// ctx.strokeStyle = '#f00';
-			// ctx.lineWidth = 0.5;
-			// ctx.beginPath();
-			// ctx.arc(toDrawOldX, toDrawOldY, circle.r, 0, 2 * Math.PI, false);
-			// ctx.moveTo(toDrawOldX, toDrawOldY);
-			// ctx.lineTo(toDrawOldX + toDrawNewVelX / 10, toDrawOldY + toDrawNewVelY / 10);
-			// ctx.stroke();
-
+x
 		}
 
 		//set up animation frame functionality
