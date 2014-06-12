@@ -15,8 +15,8 @@ define([
 			x: width / 2,
 			y: height / 4,
 			r: 20,
-			prev: { x: width / 2, y: height / 4 },
 			vel: { x: -150, y: 0 },
+			_prev: { x: width / 2, y: height / 4 },
 			_force: { x: 0, y: 0 },
 			_instantForce: { x: 0, y: 0 },
 			_floorLine: null
@@ -159,11 +159,11 @@ define([
 			obj._instantForce.y += forceY;
 		}
 
-		function checkForCollision(circle, line) {
+		function checkForCollisionWithLine(circle, line) {
 			//transform circle to rotated coordinates
 			var pos = line.rotate(circle);
 			var vel = line.rotate(circle.vel);
-			var prev = line.rotate(circle.prev);
+			var prev = line.rotate(circle._prev);
 
 			//circle can only collide if it's headed toward the line
 			if(pos.y > prev.y) {
@@ -188,10 +188,7 @@ define([
 
 					if(slope === Infinity) {
 						//if the circle is moving straight down, the collision point is easier to calculate
-						var distanceFromPointOfContactX = posOnHit.x - contactPoint.x;
-						var distanceFromPointOfContactY = Math.sqrt(circle.r * circle.r - distanceFromPointOfContactX * distanceFromPointOfContactX);
-						posOnHit.x = contactPoint.x + distanceFromPointOfContactX;
-						posOnHit.y = contactPoint.y - distanceFromPointOfContactY;
+						posOnHit.y = contactPoint.y - Math.sqrt(circle.r * circle.r - (posOnHit.x - contactPoint.x) * (posOnHit.x - contactPoint.x));
 					}
 					else {
 						//calculate the slope perpendicular to the circle's path
@@ -204,11 +201,11 @@ define([
 
 						//move up the circle's path to the collision point
 						var distFromIntersectionToEndpoint = Math.sqrt((intersectionX - contactPoint.x) * (intersectionX - contactPoint.x) + (intersectionY - contactPoint.y) * (intersectionY - contactPoint.y));
-						var distUpCirclePath = Math.sqrt(circle.r * circle.r - distFromIntersectionToEndpoint * distFromIntersectionToEndpoint);
-						var distUpCirclePathX = distUpCirclePath / Math.sqrt(1 + slope * slope) * (slope < 0 ? 1 : -1);
-						var distUpCirclePathY = slope * distUpCirclePathX;
-						posOnHit.x = intersectionX + distUpCirclePathX;
-						posOnHit.y = intersectionY + distUpCirclePathY;
+						var distAlongCirclePath = Math.sqrt(circle.r * circle.r - distFromIntersectionToEndpoint * distFromIntersectionToEndpoint);
+						var horizontalDistAlongCirclePath = distAlongCirclePath / Math.sqrt(1 + slope * slope) * (slope < 0 ? 1 : -1);
+						var verticalDistAlongCirclePath = slope * horizontalDistAlongCirclePath;
+						posOnHit.x = intersectionX + horizontalDistAlongCirclePath;
+						posOnHit.y = intersectionY + verticalDistAlongCirclePath;
 					}
 
 					//calculate the angle from the line endpoint to the collision point
@@ -225,39 +222,33 @@ define([
 					vel.y = 0;
 				}
 
-				//TODO simplify with less sqrts (and don't need total dist)
-				var distanceCovered = Math.sqrt((posOnHit.x - prev.x) * (posOnHit.x - prev.x) +
-					(posOnHit.y - prev.y) * (posOnHit.y - prev.y));
-				var distanceTotal = Math.sqrt((pos.x - prev.x) * (pos.x - prev.x) +
-					(pos.y - prev.y) * (pos.y - prev.y));
-				var percentOfDistanceCovered = distanceCovered / distanceTotal;
-
-				//determine if collision point is on the current path
-				//have to account for a bit of error here, hence the 0.005
+				//determine if collision point is on the current path (have to account for a bit of error here, hence the 0.005)
 				if(((prev.x - 0.005 <= posOnHit.x && posOnHit.x <= pos.x + 0.005) ||
 					(pos.x - 0.005 <= posOnHit.x && posOnHit.x <= prev.x + 0.005)) &&
-					(prev.y - 0.005 <= posOnHit.y && posOnHit.y <= pos.y + 0.005)) {
-					if(pos.y > posOnHit.y) {
-						//there was a collision!
-						return {
-							position: line.unrotate(posOnHit),
-							contact: line.unrotate(contactPoint),
-							slide: line.unrotate({ x: pos.x, y: posOnHit.y }),
-							revisedVel: line.unrotate(vel),
-							percentThere: percentOfDistanceCovered,
-							line: line
-						};
-					}
+					(prev.y - 0.005 <= posOnHit.y && posOnHit.y <= pos.y + 0.005) &&
+					pos.y > posOnHit.y) {
+					//need to determine which collision happened first--we can do that by looking at how far it went before colliding
+					var squareDistTraveledPreContact = (posOnHit.x - prev.x) * (posOnHit.x - prev.x) + (posOnHit.y - prev.y) * (posOnHit.y - prev.y);
+
+					//there was a collision!
+					return {
+						line: line,
+						pointOfContact: line.unrotate(contactPoint), //unused
+						posDuringContact: line.unrotate(posOnHit),
+						posAfterContact: line.unrotate({ x: pos.x, y: posOnHit.y }),
+						velAfterContact: line.unrotate(vel),
+						squareDistTraveledPreContact: (posOnHit.x - prev.x) * (posOnHit.x - prev.x) + (posOnHit.y - prev.y) * (posOnHit.y - prev.y)
+					};
 				}
 			}
 			return false;
 		}
 
-		function handleOneRoundOfCollisions(collisionImmunity) {
+		function checkForCollisions() {
 			var collision = null;
 			for(var i = 0; i < lines.length; i++) {
-				var collisionWithLine = checkForCollision(circle, lines[i]);
-				if(collisionWithLine && (!collision || collisionWithLine.percentThere < collision.percentThere)) {
+				var collisionWithLine = checkForCollisionWithLine(circle, lines[i]);
+				if(collisionWithLine && (!collision || collisionWithLine.squareDistTraveledPreContact < collision.squareDistTraveledPreContact)) {
 					collision = collisionWithLine;
 				}
 			}
@@ -268,105 +259,97 @@ define([
 		var FRICTION = 0.3;
 		var GRAVITY = 600;
 		var MOVE_FORCE = 400;
-		var paused = false;
-		var framesPerFrame = 1, f = 0;
 		function everyFrame(ms) {
 			var t = ms / 1000, i;
 
-			if(f++ % framesPerFrame === 0) {
-				if(!paused) {
-					//gravity
-					applyForce(circle, 0, GRAVITY);
+			//gravity
+			applyForce(circle, 0, GRAVITY);
 
-					//move circle
-					if(keys[KEY_MAP.A]) {
-						applyForce(circle, -MOVE_FORCE, 0);
-					}
-					if(keys[KEY_MAP.D]) {
-						applyForce(circle, MOVE_FORCE, 0);
-					}
+			//move circle
+			if(keys[KEY_MAP.A]) {
+				applyForce(circle, -MOVE_FORCE, 0);
+			}
+			if(keys[KEY_MAP.D]) {
+				applyForce(circle, MOVE_FORCE, 0);
+			}
 
-					//apply forces
-					var oldVelX = circle.vel.x;
-					var oldVelY = circle.vel.y;
-					circle.vel.x += circle._force.x * t + circle._instantForce.x / 60;
-					circle.vel.y += circle._force.y * t + circle._instantForce.y / 60;
-					circle._force.x = 0;
-					circle._force.y = 0;
-					circle._instantForce.x = 0;
-					circle._instantForce.y = 0;
+			//apply forces
+			var oldVelX = circle.vel.x;
+			var oldVelY = circle.vel.y;
+			circle.vel.x += circle._force.x * t + circle._instantForce.x / 60;
+			circle.vel.y += circle._force.y * t + circle._instantForce.y / 60;
+			circle._force.x = 0;
+			circle._force.y = 0;
+			circle._instantForce.x = 0;
+			circle._instantForce.y = 0;
 
-					//apply friction
-					var friction = Math.pow(Math.E, Math.log(1 - FRICTION) * t);
-					circle.vel.x *= friction;
-					circle.vel.y *= friction;
-					oldVelX *= friction;
-					oldVelY *= friction;
+			//apply friction
+			var friction = Math.pow(Math.E, Math.log(1 - FRICTION) * t);
+			circle.vel.x *= friction;
+			circle.vel.y *= friction;
+			oldVelX *= friction;
+			oldVelY *= friction;
 
-					//update circle position
-					circle.prev.x = circle.x;
-					circle.prev.y = circle.y;
-					circle.x += (circle.vel.x + oldVelX) / 2 * t;
-					circle.y += (circle.vel.y + oldVelY) / 2 * t;
+			//update circle position
+			circle._prev.x = circle.x;
+			circle._prev.y = circle.y;
+			circle.x += (circle.vel.x + oldVelX) / 2 * t;
+			circle.y += (circle.vel.y + oldVelY) / 2 * t;
 
-					var toDrawOldVelX = circle.vel.x;
-					var toDrawOldVelY = circle.vel.y;
-					var toDrawOldPrevX = circle.prev.x;
-					var toDrawOldPrevY = circle.prev.y;
-					var toDrawOldX = circle.x;
-					var toDrawOldY = circle.y;
+			var toDrawOldVelX = circle.vel.x;
+			var toDrawOldVelY = circle.vel.y;
+			var toDrawOldPrevX = circle._prev.x;
+			var toDrawOldPrevY = circle._prev.y;
+			var toDrawOldX = circle.x;
+			var toDrawOldY = circle.y;
 
-					//check for collisions
-					var lineId = null;
-					var collision = handleOneRoundOfCollisions(lineId);
-					var collisionsLeft = 5;
-					var collisionHistory = [];
-					var collisionSummary = {};
-					var prevCollision = null;
-					if(!collision) {
-						//it is aireborne--not a single collision
-						circle._floorLine = null;
-					}
-					while(collision && collisionsLeft-- > 0) {
-						collisionHistory.push(collision.line.id);
-						if(!collisionSummary[collision.line.id]) {
-							collisionSummary[collision.line.id] = 0;
-						}
-						collisionSummary[collision.line.id]++;
-						if(collisionSummary[collision.line.id] > 1) {
-							circle.x = prevCollision.position.x;
-							circle.y = prevCollision.position.y;
-							break;
-							circle.vel.x = 0;
-							circle.vel.y = 0;
-						}
-						//TODO to get when it has slid off the current line, we need to have immunity just note it still collides
-						circle._floorLine = collision.floorLine;
-						circle.vel.x = collision.revisedVel.x;
-						circle.vel.y = collision.revisedVel.y;
-						lineId = collision.line.id;
-						circle.prev.x = collision.position.x;
-						circle.prev.y = collision.position.y;
-						circle.x = collision.slide.x;
-						circle.y = collision.slide.y;
-						prevCollision = collision;
-						collision = handleOneRoundOfCollisions(lineId);
-					}
-
-					//keep player in bounds
-					if(circle.x > width + circle.r / 2) {
-						circle.x = -circle.r / 2;
-					}
-					else if(circle.x < -circle.r / 2) {
-						circle.x = width + circle.r / 2;
-					}
-					if(circle.y > height + circle.r / 2) {
-						circle.y = -circle.r / 2;
-					}
-					else if(circle.y < -circle.r / 2) {
-						circle.y = height + circle.r / 2;
-					}
+			//check for collisions
+			var collision = checkForCollisions();
+			var collisionsLeft = 5;
+			var collisionHistory = [];
+			var collisionSummary = {};
+			var prevCollision = null;
+			if(!collision) {
+				//it is aireborne--not a single collision
+				circle._floorLine = null;
+			}
+			while(collision && collisionsLeft-- > 0) {
+				collisionHistory.push(collision.line.id);
+				if(!collisionSummary[collision.line.id]) {
+					collisionSummary[collision.line.id] = 0;
 				}
+				collisionSummary[collision.line.id]++;
+				if(collisionSummary[collision.line.id] > 1) {
+					circle.x = prevCollision.posDuringContact.x;
+					circle.y = prevCollision.posDuringContact.y;
+					break;
+					circle.vel.x = 0;
+					circle.vel.y = 0;
+				}
+				//TODO to get when it has slid off the current line, we need to have immunity just note it still collides
+				circle._floorLine = collision.floorLine;
+				circle.vel.x = collision.velAfterContact.x;
+				circle.vel.y = collision.velAfterContact.y;
+				circle._prev.x = collision.posDuringContact.x;
+				circle._prev.y = collision.posDuringContact.y;
+				circle.x = collision.posAfterContact.x;
+				circle.y = collision.posAfterContact.y;
+				prevCollision = collision;
+				collision = checkForCollisions();
+			}
+
+			//keep player in bounds
+			if(circle.x > width + circle.r / 2) {
+				circle.x = -circle.r / 2;
+			}
+			else if(circle.x < -circle.r / 2) {
+				circle.x = width + circle.r / 2;
+			}
+			if(circle.y > height + circle.r / 2) {
+				circle.y = -circle.r / 2;
+			}
+			else if(circle.y < -circle.r / 2) {
+				circle.y = height + circle.r / 2;
 			}
 
 			//draw background
@@ -386,12 +369,9 @@ define([
 
 			//draw circle
 			ctx.fillStyle = '#090';
-			ctx.strokeStyle = '#fff';
-			ctx.lineWidth = 0.5;
 			ctx.beginPath();
 			ctx.arc(circle.x, circle.y, circle.r, 0, 2 * Math.PI, false);
 			ctx.fill();
-			ctx.stroke();
 		}
 
 		//set up animation frame functionality
