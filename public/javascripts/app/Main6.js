@@ -256,21 +256,18 @@ define([
 		}
 
 		//do this all the time
-		var FRICTION = 0.3;
-		var GRAVITY = 600;
-		var MOVE_FORCE = 400;
 		function everyFrame(ms) {
 			var t = ms / 1000, i;
 
 			//gravity
-			applyForce(circle, 0, GRAVITY);
+			applyForce(circle, 0, 600);
 
 			//move circle
 			if(keys[KEY_MAP.A]) {
-				applyForce(circle, -MOVE_FORCE, 0);
+				applyForce(circle, -400, 0);
 			}
 			if(keys[KEY_MAP.D]) {
-				applyForce(circle, MOVE_FORCE, 0);
+				applyForce(circle, 400, 0);
 			}
 
 			//apply forces
@@ -284,7 +281,7 @@ define([
 			circle._instantForce.y = 0;
 
 			//apply friction
-			var friction = Math.pow(Math.E, Math.log(1 - FRICTION) * t);
+			var friction = Math.pow(Math.E, Math.log(1 - 0.3) * t);
 			circle.vel.x *= friction;
 			circle.vel.y *= friction;
 			oldVelX *= friction;
@@ -304,38 +301,27 @@ define([
 			var toDrawOldY = circle.y;
 
 			//check for collisions
-			var collision = checkForCollisions();
-			var collisionsLeft = 5;
-			var collisionHistory = [];
-			var collisionSummary = {};
-			var prevCollision = null;
-			if(!collision) {
-				//it is aireborne--not a single collision
-				circle._floorLine = null;
-			}
-			while(collision && collisionsLeft-- > 0) {
-				collisionHistory.push(collision.line.id);
-				if(!collisionSummary[collision.line.id]) {
-					collisionSummary[collision.line.id] = 0;
+			var collision = checkForCollisions()
+			var prevCollision;
+			var collisionLookup = {};
+			while(collision) {
+				if(!collisionLookup[collision.line]) {
+					collisionLookup[collision.line] = 0;
 				}
-				collisionSummary[collision.line.id]++;
-				if(collisionSummary[collision.line.id] > 1) {
+				collisionLookup[collision.line]++;
+				if(collisionLookup[collision.line] >= 3) {
 					circle.x = prevCollision.posDuringContact.x;
 					circle.y = prevCollision.posDuringContact.y;
 					break;
-					circle.vel.x = 0;
-					circle.vel.y = 0;
 				}
-				//TODO to get when it has slid off the current line, we need to have immunity just note it still collides
-				circle._floorLine = collision.floorLine;
-				circle.vel.x = collision.velAfterContact.x;
-				circle.vel.y = collision.velAfterContact.y;
-				circle._prev.x = collision.posDuringContact.x;
-				circle._prev.y = collision.posDuringContact.y;
 				circle.x = collision.posAfterContact.x;
 				circle.y = collision.posAfterContact.y;
-				prevCollision = collision;
+				circle._prev.x = collision.posDuringContact.x;
+				circle._prev.y = collision.posDuringContact.y;
+				circle.vel.x = collision.velAfterContact.x;
+				circle.vel.y = collision.velAfterContact.y;
 				collision = checkForCollisions();
+				prevCollision = collision;
 			}
 
 			//keep player in bounds
