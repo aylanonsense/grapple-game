@@ -19,7 +19,8 @@ define([
 			_prev: { x: width / 2, y: height / 4 },
 			_force: { x: 0, y: 0 },
 			_instantForce: { x: 0, y: 0 },
-			_floorLine: null
+			_activeCollision: null,
+			_wantsToJump: false
 		};
 
 		//WASD to move the circle
@@ -27,6 +28,9 @@ define([
 		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, R: 82, SHIFT: 16, SPACE: 32 };
 		$(document).on('keydown', function(evt) {
 			keys[evt.which] = true;
+			if(evt.which === KEY_MAP.SPACE && circle._activeCollision) {
+				circle._wantsToJump = true;
+			}
 		});
 		$(document).on('keyup', function(evt) {
 			keys[evt.which] = false;
@@ -71,6 +75,10 @@ define([
 						x: x2 * -cosAngle + y2 * -sinAngle,
 						y: x2 * sinAngle + y2 * -cosAngle
 					}
+				},
+				perpendicular: {
+					x: sinAngle,
+					y: -cosAngle
 				},
 				angle: angle,
 				rotate: function(pos) {
@@ -256,6 +264,7 @@ define([
 		}
 
 		//do this all the time
+		var prevCollisions = [];
 		function everyFrame(ms) {
 			var t = ms / 1000, i;
 
@@ -268,6 +277,23 @@ define([
 			}
 			if(keys[KEY_MAP.D]) {
 				applyForce(circle, 400, 0);
+			}
+
+			//apply sticky forces
+			for(var i = 0; i < prevCollisions.length; i++) {
+				applyForce(circle,
+					1 * prevCollisions[i].line.perpendicular.x,
+					1 * prevCollisions[i].line.perpendicular.y);
+			}
+
+			//jump!
+			if(circle._wantsToJump) {
+				if(circle._activeCollision) {
+					applyInstantaneousForce(circle,
+						-15000 * circle._activeCollision.line.perpendicular.x,
+						-15000 * circle._activeCollision.line.perpendicular.y);
+				}
+				circle._wantsToJump = false;
 			}
 
 			//apply forces
@@ -301,12 +327,17 @@ define([
 			var toDrawOldY = circle.y;
 
 			//check for collisions
-			var collision = checkForCollisions()
+			prevCollisions = [];
+			var numCollisions = 0;
+			var collision = checkForCollisions();
 			var prevCollision;
 			var collisionLookup = {};
 			while(collision) {
+				numCollisions++;
+				circle._activeCollision = collision;
 				if(!collisionLookup[collision.line]) {
 					collisionLookup[collision.line] = 0;
+					prevCollisions.push(collision);
 				}
 				collisionLookup[collision.line]++;
 				if(collisionLookup[collision.line] >= 3) {
@@ -322,6 +353,9 @@ define([
 				circle.vel.y = collision.velAfterContact.y;
 				collision = checkForCollisions();
 				prevCollision = collision;
+			}
+			if(numCollisions === 0) {
+				circle._activeCollision = null;
 			}
 
 			//keep player in bounds
@@ -344,8 +378,7 @@ define([
 
 			//draw lines
 			for(i = 0; i < lines.length; i++) {
-				drawLine(lines[i].start.x, lines[i].start.y, lines[i].end.x, lines[i].end.y,
-					(lines[i].id === circle._floorLine ? '#f00' : '#000'), 1);
+				drawLine(lines[i].start.x, lines[i].start.y, lines[i].end.x, lines[i].end.y, '#000', 1);
 			}
 
 			//draw line being created
