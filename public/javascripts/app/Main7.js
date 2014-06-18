@@ -12,10 +12,10 @@ define([
 
 		//create circle (the player)
 		var circle = {
-			x: width / 2,
-			y: height / 4,
+			x: 744,
+			y: 79,
 			r: 20,
-			vel: { x: -150, y: 0 },
+			vel: { x: 30, y: 0 },
 			_prev: { x: width / 2, y: height / 4 },
 			_force: { x: 0, y: 0 },
 			_instantForce: { x: 0, y: 0 },
@@ -179,6 +179,7 @@ define([
 				var slope = (pos.y - prev.y) / (pos.x - prev.x); //can be Infinity
 
 				//find collision point if circle were to intersect bulk of the line
+				var intersectingEndPoint = false;
 				var posOnHit = {
 					x: pos.x + (line.start.rotated.y - circle.r - pos.y) / slope,
 					y: line.start.rotated.y - circle.r
@@ -191,6 +192,7 @@ define([
 				//if that collision point is not actually on the line segment, check the edges
 				if(line.start.rotated.x < posOnHit.x || posOnHit.x < line.end.rotated.x) {
 					//the point of contact is just the edge of the line
+					intersectingEndPoint = true;
 					contactPoint.x = (line.start.rotated.x < posOnHit.x ? line.start.rotated.x : line.end.rotated.x);
 					contactPoint.y = (line.start.rotated.y < posOnHit.y ? line.start.rotated.y : line.end.rotated.y);
 
@@ -245,7 +247,8 @@ define([
 						posDuringContact: line.unrotate(posOnHit),
 						posAfterContact: line.unrotate({ x: pos.x, y: posOnHit.y }),
 						velAfterContact: line.unrotate(vel),
-						squareDistTraveledPreContact: (posOnHit.x - prev.x) * (posOnHit.x - prev.x) + (posOnHit.y - prev.y) * (posOnHit.y - prev.y)
+						squareDistTraveledPreContact: (posOnHit.x - prev.x) * (posOnHit.x - prev.x) + (posOnHit.y - prev.y) * (posOnHit.y - prev.y),
+						isIntersectingEndPoint: intersectingEndPoint
 					};
 				}
 			}
@@ -263,9 +266,54 @@ define([
 			return collision;
 		}
 
+		var snapshots = [];
+		function recordSnapshot(name) {
+			var circleSnapshot = {
+				x: circle.x,
+				y: circle.y,
+				r: circle.r,
+				vel: { x: circle.vel.x, y: circle.vel.y },
+				_prev: { x: circle._prev.x, y: circle._prev.y },
+				_force: { x: circle._force.x, y: circle._force.y },
+				_instantForce: { x: circle._instantForce.x, y: circle._instantForce.y },
+				_activeCollision: (circle._activeCollision ? {
+					line: circle._activeCollision.line,
+					pointOfContact: { x: circle._activeCollision.pointOfContact.x, y: circle._activeCollision.pointOfContact.y },
+					posDuringContact: { x: circle._activeCollision.posDuringContact.x, y: circle._activeCollision.posDuringContact.y },
+					posAfterContact: { x: circle._activeCollision.posAfterContact.x, y: circle._activeCollision.posAfterContact.y },
+					velAfterContact: { x: circle._activeCollision.velAfterContact.x, y: circle._activeCollision.velAfterContact.y },
+					squareDistTraveledPreContact: { x: circle._activeCollision.squareDistTraveledPreContact.x, y: circle._activeCollision.squareDistTraveledPreContact.y },
+					isIntersectingEndPoint: circle._activeCollision.isIntersectingEndPoint
+				} : null),
+				_wantsToJump: circle._wantsToJump
+			};
+			snapshots.push({
+				name: name,
+				circle: circleSnapshot
+			});
+		}
+
 		//do this all the time
 		var prevCollisions = [];
+		var f = 0, framesPerFrame = 1;
 		function everyFrame(ms) {
+			if(f++ % framesPerFrame === 0) {
+				if(snapshots.length === 0) {
+					moveStuff(ms);
+				}
+				snapshots = [];
+				if(snapshots.length === 0) {
+					draw(circle, lines, null);
+				}
+				else {
+					var snapshot = snapshots.shift();
+					draw(snapshot.circle, lines, snapshot.name);
+				}
+			}
+		}
+
+		function moveStuff(ms) {
+			recordSnapshot('start');
 			var t = ms / 1000, i;
 
 			//gravity
@@ -280,7 +328,7 @@ define([
 			}
 
 			//apply sticky forces
-			for(var i = 0; i < prevCollisions.length; i++) {
+			for(i = 0; i < prevCollisions.length; i++) {
 				applyForce(circle,
 					1 * prevCollisions[i].line.perpendicular.x,
 					1 * prevCollisions[i].line.perpendicular.y);
@@ -319,12 +367,7 @@ define([
 			circle.x += (circle.vel.x + oldVelX) / 2 * t;
 			circle.y += (circle.vel.y + oldVelY) / 2 * t;
 
-			var toDrawOldVelX = circle.vel.x;
-			var toDrawOldVelY = circle.vel.y;
-			var toDrawOldPrevX = circle._prev.x;
-			var toDrawOldPrevY = circle._prev.y;
-			var toDrawOldX = circle.x;
-			var toDrawOldY = circle.y;
+			recordSnapshot('forces applied');
 
 			//check for collisions
 			prevCollisions = [];
@@ -335,14 +378,17 @@ define([
 			while(collision) {
 				numCollisions++;
 				circle._activeCollision = collision;
-				if(!collisionLookup[collision.line]) {
-					collisionLookup[collision.line] = 0;
+				if(!collisionLookup[collision.line.id]) {
+					collisionLookup[collision.line.id] = 0;
 					prevCollisions.push(collision);
 				}
-				collisionLookup[collision.line]++;
-				if(collisionLookup[collision.line] >= 3) {
+				collisionLookup[collision.line.id]++;
+				if(collisionLookup[collision.line.id] >= 3) {
 					circle.x = prevCollision.posDuringContact.x;
 					circle.y = prevCollision.posDuringContact.y;
+					break;
+				}
+				if(prevCollision && prevCollision.isIntersectingEndPoint && collision.isIntersectingEndPoint) {
 					break;
 				}
 				circle.x = collision.posAfterContact.x;
@@ -351,6 +397,7 @@ define([
 				circle._prev.y = collision.posDuringContact.y;
 				circle.vel.x = collision.velAfterContact.x;
 				circle.vel.y = collision.velAfterContact.y;
+				recordSnapshot("collision");
 				collision = checkForCollisions();
 				prevCollision = collision;
 			}
@@ -371,14 +418,18 @@ define([
 			else if(circle.y < -circle.r / 2) {
 				circle.y = height + circle.r / 2;
 			}
+			recordSnapshot("end");
+		}
 
+		function draw(circle, lines, snapshot) {
 			//draw background
 			ctx.fillStyle = '#fff';
 			ctx.fillRect(0, 0, width, height);
 
 			//draw lines
 			for(i = 0; i < lines.length; i++) {
-				drawLine(lines[i].start.x, lines[i].start.y, lines[i].end.x, lines[i].end.y, '#000', 1);
+				drawLine(lines[i].start.x, lines[i].start.y, lines[i].end.x, lines[i].end.y,
+					(circle._activeCollision && circle._activeCollision.line.id === lines[i].id ? '#f00' : '#000'), 1);
 			}
 
 			//draw line being created
@@ -387,10 +438,31 @@ define([
 			}
 
 			//draw circle
-			ctx.fillStyle = '#090';
+			if(snapshot === 'end') {
+				ctx.fillStyle = '#090';
+			}
+			else if(snapshot === 'collision') {
+				if(circle._activeCollision.isIntersectingEndPoint) {
+					ctx.fillStyle = '#99c';
+				}
+				else {
+					ctx.fillStyle = '#cc3';
+				}
+			}
+			else {
+				ctx.fillStyle = '#6c6';
+			}
 			ctx.beginPath();
 			ctx.arc(circle.x, circle.y, circle.r, 0, 2 * Math.PI, false);
 			ctx.fill();
+
+			//draw velocity vector
+			ctx.strokeStyle = '#000';
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(circle.x, circle.y);
+			ctx.lineTo(circle.x + circle.vel.x / 5, circle.y + circle.vel.y / 5);
+			ctx.stroke();
 		}
 
 		//set up animation frame functionality
