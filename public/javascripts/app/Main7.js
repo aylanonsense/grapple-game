@@ -388,9 +388,6 @@ define([
 					circle.y = prevCollision.posDuringContact.y;
 					break;
 				}
-				if(prevCollision && prevCollision.isIntersectingEndPoint && collision.isIntersectingEndPoint) {
-					break;
-				}
 				circle.x = collision.posAfterContact.x;
 				circle.y = collision.posAfterContact.y;
 				circle._prev.x = collision.posDuringContact.x;
