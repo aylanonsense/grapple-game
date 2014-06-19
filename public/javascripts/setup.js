@@ -7,6 +7,6 @@ requirejs.config({
 	}
 });
 
-requirejs([ 'app/Main7' ], function(Main) {
+requirejs([ 'app/Main8' ], function(Main) {
 	Main();
 });
