@@ -12,40 +12,97 @@ define([
 
 		//create circle (the player)
 		var circle = {
-			x: 744,
-			y: 79,
+			x: width / 2,
+			y: height / 4,
 			r: 20,
 			vel: { x: 30, y: 0 },
 			_prev: { x: width / 2, y: height / 4 },
 			_force: { x: 0, y: 0 },
 			_instantForce: { x: 0, y: 0 },
 			_activeCollision: null,
-			_wantsToJump: false
+			_wantsToJump: false,
+			applyForce: function(forceX, forceY) {
+				if(arguments.length === 4) {
+					var force = arguments[1];
+					var dirX = arguments[2];
+					var dirY = arguments[3];
+					var dir = Math.sqrt(dirX * dirX + dirY * dirY);
+					forceX += force * dirX / dir;
+					forceY += force * dirY / dir;
+				}
+				this._force.x += forceX;
+				this._force.y += forceY;
+			},
+			applyInstantaneousForce: function(forceX, forceY) {
+				if(arguments.length === 4) {
+					var force = arguments[1];
+					var dirX = arguments[2];
+					var dirY = arguments[3];
+					var dir = Math.sqrt(dirX * dirX + dirY * dirY);
+					forceX += force * dirX / dir;
+					forceY += force * dirY / dir;
+				}
+				this._instantForce.x += forceX;
+				this._instantForce.y += forceY;
+			},
+			tick: function(ms, friction) {
+				var t = ms / 1000;
+				var oldVel = { x: this.vel.x, y: this.vel.y };
+				this.vel.x += this._force.x * t + this._instantForce.x / 60;
+				this.vel.y += this._force.y * t + this._instantForce.y / 60;
+				this._force.x = 0;
+				this._force.y = 0;
+				this._instantForce.x = 0;
+				this._instantForce.y = 0;
+				this.vel.x *= friction;
+				this.vel.y *= friction;
+				//oldVel.x *= friction; //TODO see if it matters that we're not frictioning ret
+				//oldVel.y *= friction; //TODO see if it matters that we're not frictioning ret
+				this._prev.x = this.x;
+				this._prev.y = this.y;
+				this.x += (this.vel.x + oldVel.x * friction) / 2 * t;
+				this.y += (this.vel.y + oldVel.y * friction) / 2 * t;
+				return oldVel;
+			}
 		};
 
 		//WASD to move the circle
+		var allowedToJump = true;
 		var keys = {};
 		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, R: 82, SHIFT: 16, SPACE: 32 };
 		$(document).on('keydown', function(evt) {
 			keys[evt.which] = true;
-			if(evt.which === KEY_MAP.SPACE && circle._activeCollision) {
+			if(evt.which === KEY_MAP.SPACE && allowedToJump) {
 				circle._wantsToJump = true;
+				allowedToJump = false;
 			}
 		});
 		$(document).on('keyup', function(evt) {
 			keys[evt.which] = false;
+			if(evt.which === KEY_MAP.SPACE) {
+				circle._wantsToJump = false;
+				allowedToJump = true;
+			}
 		});
 
-		//click the canvas to create new lines
-		var lines = [];
+		//click the canvas to create new obstacles
+		var obstacles = [];
 		var newLineEnd = null;
 		var mouse = { x: 0, y: 0 };
+		var timeOfMouseDown = 0;
 		$(document).on('mousedown', function(evt) {
+			timeOfMouseDown = Date.now();
 			newLineEnd = { x: evt.clientX, y: evt.clientY };
 		});
 		$(document).on('mouseup', function(evt) {
 			if(newLineEnd) {
-				createLine(evt.clientX, evt.clientY, newLineEnd.x, newLineEnd.y);
+				if(Date.now() - timeOfMouseDown < 110) {
+					createPoint(newLineEnd.x, newLineEnd.y);
+				}
+				else {
+					createLine(evt.clientX, evt.clientY, newLineEnd.x, newLineEnd.y);
+				}
+				timeOfMouseDown = 0;
 				newLineEnd = null;
 			}
 		});
@@ -53,13 +110,14 @@ define([
 			mouse.x = evt.clientX;
 			mouse.y = evt.clientY;
 		});
-		var nextLineId = 0;
-		function createLine(x1, y1, x2, y2) {
+		var nextObstacleId = 0;
+		function createLine(x1, y1, x2, y2, createPoints) {
 			var angle = Math.atan2(y2 - y1, x2 - x1);
 			var cosAngle = Math.cos(angle);
 			var sinAngle = Math.sin(angle);
 			var line = {
-				id: nextLineId++,
+				id: nextObstacleId++,
+				type: 'line',
 				start: {
 					x: x1,
 					y: y1,
@@ -94,77 +152,62 @@ define([
 					};
 				}
 			};
-			lines.push(line);
+			obstacles.push(line);
+			if(createPoints !== false) {
+				createPoint(x1, y1 [ line ]);
+				createPoint(x2, y2 [ line ]);
+			}
+			return line;
+		}
+		function createPoint(x, y, parents) {
+			var point = {
+				id: nextObstacleId++,
+				type: 'point',
+				x: x,
+				y: y,
+				parentIds: (parents || []).map(function(p) { return p.id; })
+			};
+			obstacles.push(point);
+			return point;
 		}
 		function createPoly(points) {
-			for(var i = 0; i + 2 < points.length; i += 2) {
-				createLine(points[i], points[i + 1], points[i + 2], points[i + 3]);
+			var lines = [];
+			for(var i = 0; i < points.length - 2; i += 2) {
+				lines.push(createLine(points[i], points[i + 1], points[i + 2], points[i + 3], false));
 			}
-			createLine(points[points.length - 2], points[points.length - 1], points[0], points[1]);
+			lines.push(createLine(points[points.length - 2], points[points.length - 1], points[0], points[1]), false);
+			for(i = 0; i < lines.length - 1; i++) {
+				createPoint(lines[i].end.x, lines[i].end.y, [ lines[i], lines[i + 1] ]);
+			}
+			createPoint(lines[0].start.x, lines[0].start.y, [ lines[0], lines[lines.length - 1] ]);
 		}
 
 		//create starting lines
-		var x = 250, y = 400;
-		for(var i = 0; i < 30; i++) {
-			createLine(x + 10, y + (14.5 - i) / 2, x, y);
-			x += 10;
-			y += (14.5 - i) / 2;
-		}
-		createLine(250, 400, 100, 400);
-		createLine(700, 400, 550, 400);
-		createLine(700, 500, 700, 400);
-		createLine(100, 500, 700, 500);
-		createLine(100, 400, 100, 500);
-		createLine(650, 200, 350, 200);
-		createLine(750, 100, 650, 200);
-		createLine(750, 215, 750, 100);
-		createLine(350, 215, 750, 215);
-		createLine(350, 200, 350, 215);
-		createLine(350, 350, 320, 220);
-		createLine(320, 220, 220, 240);
-		createLine(220, 240, 240, 160);
-		createLine(120, 350, 120, 200);
-		createLine(240, 350, 120, 350);
+		createPoint(300, 300);
+		createPoly([ 350,210,  450,210,  450,200,  350,200 ]);
+		createPoly([ 525,350,  550,350,  550,100,  525,100 ]);
 
-		function drawLine(x1, y1, x2, y2, color, width) {
-			ctx.strokeStyle = color;
-			ctx.lineWidth = width;
+		function drawLine(x1, y1, x2, y2, color, thickness) {
+			ctx.strokeStyle = color || '#000';
+			ctx.lineWidth = thickness || 1;
 			ctx.beginPath();
-			//draw line
 			ctx.moveTo(x1, y1);
 			ctx.lineTo(x2, y2);
-			//draw pip
 			var pipAngle = Math.atan2((x1 - x2), (y2 - y1));
 			ctx.moveTo((x1 + x2) / 2, (y1 + y2) / 2);
 			ctx.lineTo((x1 + x2) / 2 + 10 * Math.cos(pipAngle),
 				(y1 + y2) / 2 + 10 * Math.sin(pipAngle));
 			ctx.stroke();
 		}
-
-		function applyForce(obj, forceX, forceY) {
-			if(arguments.length === 4) {
-				var force = arguments[1];
-				var dirX = arguments[2];
-				var dirY = arguments[3];
-				var dir = Math.sqrt(dirX * dirX + dirY * dirY);
-				forceX += force * dirX / dir;
-				forceY += force * dirY / dir;
-			}
-			obj._force.x += forceX;
-			obj._force.y += forceY;
+		function drawPoint(x, y, color, thickness) {
+			ctx.fillStyle = color || '#000';
+			ctx.beginPath();
+			ctx.arc(x, y, (thickness || 3) / 2, 0, 2 * Math.PI, false);
+			ctx.fill();
 		}
 
-		function applyInstantaneousForce(obj, forceX, forceY) {
-			if(arguments.length === 4) {
-				var force = arguments[1];
-				var dirX = arguments[2];
-				var dirY = arguments[3];
-				var dir = Math.sqrt(dirX * dirX + dirY * dirY);
-				forceX += force * dirX / dir;
-				forceY += force * dirY / dir;
-			}
-			obj._instantForce.x += forceX;
-			obj._instantForce.y += forceY;
+		function checkForCollisionWithPoint(circle, point) {
+			
 		}
 
 		function checkForCollisionWithLine(circle, line) {
@@ -189,43 +232,9 @@ define([
 					y: posOnHit.y + circle.r
 				};
 
-				//if that collision point is not actually on the line segment, check the edges
+				//if that collision point is not actually on the line segment, then it's not colliding!
 				if(line.start.rotated.x < posOnHit.x || posOnHit.x < line.end.rotated.x) {
-					//the point of contact is just the edge of the line
-					intersectingEndPoint = true;
-					contactPoint.x = (line.start.rotated.x < posOnHit.x ? line.start.rotated.x : line.end.rotated.x);
-					contactPoint.y = (line.start.rotated.y < posOnHit.y ? line.start.rotated.y : line.end.rotated.y);
-
-					if(slope === Infinity) {
-						//if the circle is moving straight down, the collision point is easier to calculate
-						posOnHit.y = contactPoint.y - Math.sqrt(circle.r * circle.r - (posOnHit.x - contactPoint.x) * (posOnHit.x - contactPoint.x));
-					}
-					else {
-						//calculate the slope perpendicular to the circle's path
-						var perpendicularSlope = -1 / slope;
-						var perpendicularLineAt0 = contactPoint.y - (perpendicularSlope * contactPoint.x);
-
-						//find intersection of the circle's path and the extension perpendicular to it from the line endpoint
-						var intersectionX = (pos.y - pos.x * slope - perpendicularLineAt0) / (perpendicularSlope - slope);
-						var intersectionY = perpendicularSlope * intersectionX + perpendicularLineAt0;
-
-						//move up the circle's path to the collision point
-						var distFromIntersectionToEndpoint = Math.sqrt((intersectionX - contactPoint.x) * (intersectionX - contactPoint.x) + (intersectionY - contactPoint.y) * (intersectionY - contactPoint.y));
-						var distAlongCirclePath = Math.sqrt(circle.r * circle.r - distFromIntersectionToEndpoint * distFromIntersectionToEndpoint);
-						var horizontalDistAlongCirclePath = distAlongCirclePath / Math.sqrt(1 + slope * slope) * (slope < 0 ? 1 : -1);
-						var verticalDistAlongCirclePath = slope * horizontalDistAlongCirclePath;
-						posOnHit.x = intersectionX + horizontalDistAlongCirclePath;
-						posOnHit.y = intersectionY + verticalDistAlongCirclePath;
-					}
-
-					//calculate the angle from the line endpoint to the collision point
-					//rotate the circle's velocity, negate its velocity towards the point, then unrotate it
-					var angleToPointOfContact = -Math.PI - Math.atan2(contactPoint.x - posOnHit.x, contactPoint.y - posOnHit.y);
-					var cosAngle = Math.cos(angleToPointOfContact);
-					var sinAngle = Math.sin(angleToPointOfContact);
-					var horizontalVelRelativeToPointOfContact = vel.x * -cosAngle + vel.y * -sinAngle;
-					vel.x = horizontalVelRelativeToPointOfContact * -cosAngle;
-					vel.y = horizontalVelRelativeToPointOfContact * -sinAngle;
+					return false;
 				}
 				else {
 					//collisions directly on the line sement are easy-peasy to handle
@@ -242,7 +251,7 @@ define([
 
 					//there was a collision!
 					return {
-						line: line,
+						obstacle: line,
 						pointOfContact: line.unrotate(contactPoint), //unused
 						posDuringContact: line.unrotate(posOnHit),
 						posAfterContact: line.unrotate({ x: pos.x, y: posOnHit.y }),
@@ -257,150 +266,88 @@ define([
 
 		function checkForCollisions() {
 			var collision = null;
-			for(var i = 0; i < lines.length; i++) {
-				var collisionWithLine = checkForCollisionWithLine(circle, lines[i]);
-				if(collisionWithLine && (!collision || collisionWithLine.squareDistTraveledPreContact < collision.squareDistTraveledPreContact)) {
-					collision = collisionWithLine;
+			for(var i = 0; i < obstacles.length; i++) {
+				if(obstacles[i].type === 'line') {
+					var collisionWithLine = checkForCollisionWithLine(circle, obstacles[i]);
+					if(collisionWithLine && (!collision || collisionWithLine.squareDistTraveledPreContact < collision.squareDistTraveledPreContact)) {
+						collision = collisionWithLine;
+					}
+				}
+				else {
+					//TODO
 				}
 			}
 			return collision;
 		}
 
-		var snapshots = [];
-		function recordSnapshot(name) {
-			var circleSnapshot = {
-				x: circle.x,
-				y: circle.y,
-				r: circle.r,
-				vel: { x: circle.vel.x, y: circle.vel.y },
-				_prev: { x: circle._prev.x, y: circle._prev.y },
-				_force: { x: circle._force.x, y: circle._force.y },
-				_instantForce: { x: circle._instantForce.x, y: circle._instantForce.y },
-				_activeCollision: (circle._activeCollision ? {
-					line: circle._activeCollision.line,
-					pointOfContact: { x: circle._activeCollision.pointOfContact.x, y: circle._activeCollision.pointOfContact.y },
-					posDuringContact: { x: circle._activeCollision.posDuringContact.x, y: circle._activeCollision.posDuringContact.y },
-					posAfterContact: { x: circle._activeCollision.posAfterContact.x, y: circle._activeCollision.posAfterContact.y },
-					velAfterContact: { x: circle._activeCollision.velAfterContact.x, y: circle._activeCollision.velAfterContact.y },
-					squareDistTraveledPreContact: { x: circle._activeCollision.squareDistTraveledPreContact.x, y: circle._activeCollision.squareDistTraveledPreContact.y },
-					isIntersectingEndPoint: circle._activeCollision.isIntersectingEndPoint
-				} : null),
-				_wantsToJump: circle._wantsToJump
-			};
-			snapshots.push({
-				name: name,
-				circle: circleSnapshot
-			});
-		}
-
 		//do this all the time
-		var prevCollisions = [];
-		var f = 0, framesPerFrame = 1;
 		function everyFrame(ms) {
-			if(f++ % framesPerFrame === 0) {
-				if(snapshots.length === 0) {
-					moveStuff(ms);
-				}
-				snapshots = [];
-				if(snapshots.length === 0) {
-					draw(circle, lines, null);
-				}
-				else {
-					var snapshot = snapshots.shift();
-					draw(snapshot.circle, lines, snapshot.name);
-				}
-			}
+			moveStuff(ms);
+			render();
 		}
 
+		var obstaclesCollidedWithLastFrame = [];
 		function moveStuff(ms) {
-			recordSnapshot('start');
 			var t = ms / 1000, i;
 
-			//gravity
-			applyForce(circle, 0, 600);
-
-			//move circle
+			//apply gravity and user input
+			circle.applyForce(0, 600);
 			if(keys[KEY_MAP.A]) {
-				applyForce(circle, -400, 0);
+				circle.applyForce(-400, 0);
 			}
 			if(keys[KEY_MAP.D]) {
-				applyForce(circle, 400, 0);
+				circle.applyForce(400, 0);
 			}
-
-			//apply sticky forces
-			for(i = 0; i < prevCollisions.length; i++) {
-				applyForce(circle,
-					1 * prevCollisions[i].line.perpendicular.x,
-					1 * prevCollisions[i].line.perpendicular.y);
-			}
-
-			//jump!
 			if(circle._wantsToJump) {
 				if(circle._activeCollision) {
-					applyInstantaneousForce(circle,
-						-15000 * circle._activeCollision.line.perpendicular.x,
-						-15000 * circle._activeCollision.line.perpendicular.y);
+					circle.applyInstantaneousForce(
+						-15000 * circle._activeCollision.obstacle.perpendicular.x,
+						-15000 * circle._activeCollision.obstacle.perpendicular.y);
 				}
 				circle._wantsToJump = false;
 			}
 
-			//apply forces
-			var oldVelX = circle.vel.x;
-			var oldVelY = circle.vel.y;
-			circle.vel.x += circle._force.x * t + circle._instantForce.x / 60;
-			circle.vel.y += circle._force.y * t + circle._instantForce.y / 60;
-			circle._force.x = 0;
-			circle._force.y = 0;
-			circle._instantForce.x = 0;
-			circle._instantForce.y = 0;
+			//apply sticky forces
+			for(i = 0; i < obstaclesCollidedWithLastFrame.length; i++) {
+				circle.applyForce(
+					1 * obstaclesCollidedWithLastFrame[i].perpendicular.x,
+					1 * obstaclesCollidedWithLastFrame[i].perpendicular.y);
+			}
 
-			//apply friction
+			//evaluate forces into movement
 			var friction = Math.pow(Math.E, Math.log(1 - 0.3) * t);
-			circle.vel.x *= friction;
-			circle.vel.y *= friction;
-			oldVelX *= friction;
-			oldVelY *= friction;
-
-			//update circle position
-			circle._prev.x = circle.x;
-			circle._prev.y = circle.y;
-			circle.x += (circle.vel.x + oldVelX) / 2 * t;
-			circle.y += (circle.vel.y + oldVelY) / 2 * t;
-
-			recordSnapshot('forces applied');
+			var oldVel = circle.tick(ms, friction);
 
 			//check for collisions
-			prevCollisions = [];
 			var numCollisions = 0;
+			var numCollisionsPerObstacle = {};
+			var obstaclesCollidedWithThisFrame = [];
 			var collision = checkForCollisions();
-			var prevCollision;
-			var collisionLookup = {};
 			while(collision) {
 				numCollisions++;
 				circle._activeCollision = collision;
-				if(!collisionLookup[collision.line.id]) {
-					collisionLookup[collision.line.id] = 0;
-					prevCollisions.push(collision);
+				if(!numCollisionsPerObstacle[collision.obstacle.id]) {
+					obstaclesCollidedWithThisFrame.push(collision.obstacle);
+					numCollisionsPerObstacle[collision.obstacle.id] = 0;
 				}
-				collisionLookup[collision.line.id]++;
-				if(collisionLookup[collision.line.id] >= 3) {
+				numCollisionsPerObstacle[collision.obstacle.id]++;
+				/*if(numCollisionsPerObstacle[collision.line.id] >= 3) {
 					circle.x = prevCollision.posDuringContact.x;
 					circle.y = prevCollision.posDuringContact.y;
 					break;
-				}
+				}*/
 				circle.x = collision.posAfterContact.x;
 				circle.y = collision.posAfterContact.y;
 				circle._prev.x = collision.posDuringContact.x;
 				circle._prev.y = collision.posDuringContact.y;
 				circle.vel.x = collision.velAfterContact.x;
 				circle.vel.y = collision.velAfterContact.y;
-				recordSnapshot("collision");
 				collision = checkForCollisions();
-				prevCollision = collision;
 			}
 			if(numCollisions === 0) {
 				circle._activeCollision = null;
 			}
+			obstaclesCollidedWithLastFrame = obstaclesCollidedWithThisFrame;
 
 			//keep player in bounds
 			if(circle.x > width + circle.r / 2) {
@@ -415,40 +362,30 @@ define([
 			else if(circle.y < -circle.r / 2) {
 				circle.y = height + circle.r / 2;
 			}
-			recordSnapshot("end");
 		}
 
-		function draw(circle, lines, snapshot) {
+		function render() {
 			//draw background
 			ctx.fillStyle = '#fff';
 			ctx.fillRect(0, 0, width, height);
 
 			//draw lines
-			for(i = 0; i < lines.length; i++) {
-				drawLine(lines[i].start.x, lines[i].start.y, lines[i].end.x, lines[i].end.y,
-					(circle._activeCollision && circle._activeCollision.line.id === lines[i].id ? '#f00' : '#000'), 1);
+			for(i = 0; i < obstacles.length; i++) {
+				if(obstacles[i].type === 'line') {
+					drawLine(obstacles[i].start.x, obstacles[i].start.y, obstacles[i].end.x, obstacles[i].end.y);
+				}
+				else {
+					drawPoint(obstacles[i].x, obstacles[i].y);
+				}
 			}
 
 			//draw line being created
 			if(newLineEnd) {
-				drawLine(mouse.x, mouse.y, newLineEnd.x, newLineEnd.y, '#999', 1);
+				drawLine(mouse.x, mouse.y, newLineEnd.x, newLineEnd.y, '#999');
 			}
 
 			//draw circle
-			if(snapshot === 'end') {
-				ctx.fillStyle = '#090';
-			}
-			else if(snapshot === 'collision') {
-				if(circle._activeCollision.isIntersectingEndPoint) {
-					ctx.fillStyle = '#99c';
-				}
-				else {
-					ctx.fillStyle = '#cc3';
-				}
-			}
-			else {
-				ctx.fillStyle = '#6c6';
-			}
+			ctx.fillStyle = '#6c6';
 			ctx.beginPath();
 			ctx.arc(circle.x, circle.y, circle.r, 0, 2 * Math.PI, false);
 			ctx.fill();
@@ -475,4 +412,4 @@ define([
 			requestAnimationFrame(loop);
 		}
 	};
-});f
+});
