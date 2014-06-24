@@ -69,7 +69,8 @@ define([
 		//WASD to move the circle
 		var allowedToJump = true;
 		var keys = {};
-		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, R: 82, SHIFT: 16, SPACE: 32 };
+		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, R: 82, SHIFT: 16, SPACE: 32, G: 71 };
+		var gravityItr = 0;
 		$(document).on('keydown', function(evt) {
 			keys[evt.which] = true;
 			if(evt.which === KEY_MAP.SPACE && allowedToJump) {
@@ -82,6 +83,9 @@ define([
 			if(evt.which === KEY_MAP.SPACE) {
 				circle._wantsToJump = false;
 				allowedToJump = true;
+			}
+			if(evt.which === KEY_MAP.G) {
+				gravityItr++;
 			}
 		});
 
@@ -183,9 +187,12 @@ define([
 		}
 
 		//create starting lines
-		createPoint(300, 300);
+		/*createPoint(300, 300);
 		createPoly([ 350,210,  450,210,  450,200,  350,200 ]);
-		createPoly([ 525,350,  550,350,  550,100,  525,100 ]);
+		createPoly([ 525,350,  550,350,  550,100,  525,100 ]);*/
+		for(var i = 0; i < 80; i++) {
+			createPoint(Math.random() * 700 + 50, Math.random() * 500 + 50);
+		}
 
 		function drawLine(x1, y1, x2, y2, color, thickness) {
 			ctx.strokeStyle = color || '#000';
@@ -206,8 +213,73 @@ define([
 			ctx.fill();
 		}
 
+		var thing = 0;
 		function checkForCollisionWithPoint(circle, point) {
-			
+			var vel = { x: circle.vel.x, y: circle.vel.y };
+			var prev = { x: circle._prev.x, y: circle._prev.y };
+			var mult = (prev.y > circle.y ? -1 : 1);
+			var mult2 = (prev.x > circle.x ? -1 : 1);
+			var mult3 = (vel.x < 0 ? 1 : -1) * (vel.y < 0 ? 1 : -1);
+
+			//the point of contact is just the point itself
+			var contactPoint = { x: point.x, y: point.y };
+
+			//slope of circle's path
+			var slope = (circle.y - prev.y) / (circle.x - prev.x); //can be Infinity
+			var perpendicularSlope = -1 / slope;
+			var perpendicularLineAt0 = contactPoint.y - (perpendicularSlope * contactPoint.x);
+
+			//find intersection of the circle's path and the extension perpendicular to it from the point
+			var intersectionX = (circle.y - circle.x * slope - perpendicularLineAt0) / (perpendicularSlope - slope);
+			var intersectionY = perpendicularSlope * intersectionX + perpendicularLineAt0;
+
+			//if the intersection point is too far from the circle no matter where it is along the path... no way it'll collide
+			var distFromIntersectionToPoint = Math.sqrt((intersectionX - contactPoint.x) * (intersectionX - contactPoint.x) + (intersectionY - contactPoint.y) * (intersectionY - contactPoint.y));
+			if(distFromIntersectionToPoint > circle.r) {
+				return false;
+			}
+
+			//move up the circle's path to the collision point
+			var distAlongCirclePath = mult * Math.sqrt(circle.r * circle.r - distFromIntersectionToPoint * distFromIntersectionToPoint);
+			var horizontalDistAlongCirclePath = distAlongCirclePath / Math.sqrt(1 + slope * slope) * (slope < 0 ? 1 : -1);
+			var verticalDistAlongCirclePath = slope * horizontalDistAlongCirclePath;
+			posOnHit = { x: intersectionX + horizontalDistAlongCirclePath, y: intersectionY + verticalDistAlongCirclePath };
+			var mult4 = (posOnHit.x > circle.x ? -1 : 1) * (posOnHit.y > circle.y ? -1 : 1);
+
+
+			//calculate the angle from the point to the position on contact
+			//rotate the circle's velocity, zero out its velocity towards the point, then unrotate it
+			var angleToPointOfContact = mult * -Math.PI - Math.atan2(contactPoint.x - posOnHit.x, contactPoint.y - posOnHit.y);
+			var cosAngle = Math.cos(angleToPointOfContact);
+			var sinAngle = Math.sin(angleToPointOfContact);
+			var horizontalVelRelativeToPointOfContact = vel.x * -cosAngle + vel.y * -sinAngle;
+			vel.x = horizontalVelRelativeToPointOfContact * -cosAngle;
+			vel.y = horizontalVelRelativeToPointOfContact * -sinAngle;
+
+			//determine if collision point is on the current path (have to account for a bit of error here, hence the 0.005)
+			if(((prev.x - 0.005 <= posOnHit.x && posOnHit.x <= circle.x + 0.005) ||
+				(circle.x - 0.005 <= posOnHit.x && posOnHit.x <= prev.x + 0.005)) &&
+				((prev.y - 0.005 <= posOnHit.y && posOnHit.y <= circle.y + 0.005) ||
+				(circle.y - 0.005 <= posOnHit.y && posOnHit.y <= prev.y + 0.005))) {
+				//need to determine which collision happened first--we can do that by looking at how far it went before colliding
+				var squareDistTraveledPreContact = (posOnHit.x - prev.x) * (posOnHit.x - prev.x) + (posOnHit.y - prev.y) * (posOnHit.y - prev.y);
+				var squareDistTraveledInTotal = (circle.x - prev.x) * (circle.x - prev.x) + (circle.y - prev.y) * (circle.y - prev.y);
+				var distTraveledPostContact = Math.sqrt(squareDistTraveledInTotal) - Math.sqrt(squareDistTraveledPreContact);
+
+				//there was a collision!
+				thing = mult4;
+				return {
+					obstacle: point,
+					pointOfContact: contactPoint, //unused
+					posDuringContact: posOnHit,
+					posAfterContact: {
+						x: posOnHit.x + (vel.x > 0 ? 1 : -1) * Math.abs(distTraveledPostContact * -cosAngle),
+						y: posOnHit.y + (vel.y > 0 ? 1 : -1) * Math.abs(distTraveledPostContact * -sinAngle) },
+					velAfterContact: vel,
+					squareDistTraveledPreContact: squareDistTraveledPreContact
+				};
+			}
+			return false;
 		}
 
 		function checkForCollisionWithLine(circle, line) {
@@ -222,7 +294,6 @@ define([
 				var slope = (pos.y - prev.y) / (pos.x - prev.x); //can be Infinity
 
 				//find collision point if circle were to intersect bulk of the line
-				var intersectingEndPoint = false;
 				var posOnHit = {
 					x: pos.x + (line.start.rotated.y - circle.r - pos.y) / slope,
 					y: line.start.rotated.y - circle.r
@@ -250,14 +321,14 @@ define([
 					var squareDistTraveledPreContact = (posOnHit.x - prev.x) * (posOnHit.x - prev.x) + (posOnHit.y - prev.y) * (posOnHit.y - prev.y);
 
 					//there was a collision!
+					thing = mult4;
 					return {
 						obstacle: line,
 						pointOfContact: line.unrotate(contactPoint), //unused
 						posDuringContact: line.unrotate(posOnHit),
 						posAfterContact: line.unrotate({ x: pos.x, y: posOnHit.y }),
 						velAfterContact: line.unrotate(vel),
-						squareDistTraveledPreContact: (posOnHit.x - prev.x) * (posOnHit.x - prev.x) + (posOnHit.y - prev.y) * (posOnHit.y - prev.y),
-						isIntersectingEndPoint: intersectingEndPoint
+						squareDistTraveledPreContact: squareDistTraveledPreContact
 					};
 				}
 			}
@@ -273,8 +344,11 @@ define([
 						collision = collisionWithLine;
 					}
 				}
-				else {
-					//TODO
+				else if(obstacles[i].type === 'point') {
+					var collisionWithPoint = checkForCollisionWithPoint(circle, obstacles[i]);
+					if(collisionWithPoint && (!collision || collisionWithPoint.squareDistTraveledPreContact < collision.squareDistTraveledPreContact)) {
+						collision = collisionWithPoint;
+					}
 				}
 			}
 			return collision;
@@ -291,12 +365,18 @@ define([
 			var t = ms / 1000, i;
 
 			//apply gravity and user input
-			circle.applyForce(0, 600);
+			circle.applyForce(200 * [0, 1, 0, -1][gravityItr % 4], 200 * [1, 0, -1, 0][gravityItr % 4]);
 			if(keys[KEY_MAP.A]) {
 				circle.applyForce(-400, 0);
 			}
 			if(keys[KEY_MAP.D]) {
 				circle.applyForce(400, 0);
+			}
+			if(keys[KEY_MAP.W]) {
+				circle.applyForce(0, -400);
+			}
+			if(keys[KEY_MAP.S]) {
+				circle.applyForce(0, 400);
 			}
 			if(circle._wantsToJump) {
 				if(circle._activeCollision) {
@@ -309,9 +389,11 @@ define([
 
 			//apply sticky forces
 			for(i = 0; i < obstaclesCollidedWithLastFrame.length; i++) {
-				circle.applyForce(
-					1 * obstaclesCollidedWithLastFrame[i].perpendicular.x,
-					1 * obstaclesCollidedWithLastFrame[i].perpendicular.y);
+				if(obstaclesCollidedWithLastFrame.type === 'line') {
+					circle.applyForce(
+						1 * obstaclesCollidedWithLastFrame[i].perpendicular.x,
+						1 * obstaclesCollidedWithLastFrame[i].perpendicular.y);
+				}
 			}
 
 			//evaluate forces into movement
@@ -319,6 +401,7 @@ define([
 			var oldVel = circle.tick(ms, friction);
 
 			//check for collisions
+			thing = 0;
 			var numCollisions = 0;
 			var numCollisionsPerObstacle = {};
 			var obstaclesCollidedWithThisFrame = [];
@@ -342,7 +425,13 @@ define([
 				circle._prev.y = collision.posDuringContact.y;
 				circle.vel.x = collision.velAfterContact.x;
 				circle.vel.y = collision.velAfterContact.y;
-				collision = checkForCollisions();
+				if(numCollisions > 5) {
+					console.warn("6+ collisions!");
+					collision = null;
+				}
+				else {
+					collision = checkForCollisions();
+				}
 			}
 			if(numCollisions === 0) {
 				circle._activeCollision = null;
@@ -387,16 +476,16 @@ define([
 			//draw circle
 			ctx.fillStyle = '#6c6';
 			ctx.beginPath();
-			ctx.arc(circle.x, circle.y, circle.r, 0, 2 * Math.PI, false);
+			ctx.arc(circle.x, circle.y, circle.r - 1, 0, 2 * Math.PI, false);
 			ctx.fill();
 
 			//draw velocity vector
-			ctx.strokeStyle = '#000';
+			/*ctx.strokeStyle = '#000';
 			ctx.lineWidth = 1;
 			ctx.beginPath();
 			ctx.moveTo(circle.x, circle.y);
 			ctx.lineTo(circle.x + circle.vel.x / 5, circle.y + circle.vel.y / 5);
-			ctx.stroke();
+			ctx.stroke();*/
 		}
 
 		//set up animation frame functionality
