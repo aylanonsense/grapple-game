@@ -405,6 +405,7 @@ define([
 			var numCollisions = 0;
 			var numCollisionsPerObstacle = {};
 			var obstaclesCollidedWithThisFrame = [];
+			var prevCollision;
 			var collision = checkForCollisions();
 			while(collision) {
 				numCollisions++;
@@ -414,24 +415,19 @@ define([
 					numCollisionsPerObstacle[collision.obstacle.id] = 0;
 				}
 				numCollisionsPerObstacle[collision.obstacle.id]++;
-				/*if(numCollisionsPerObstacle[collision.line.id] >= 3) {
+				if(numCollisionsPerObstacle[collision.obstacle.id] >= 3) {
 					circle.x = prevCollision.posDuringContact.x;
 					circle.y = prevCollision.posDuringContact.y;
 					break;
-				}*/
+				}
 				circle.x = collision.posAfterContact.x;
 				circle.y = collision.posAfterContact.y;
 				circle._prev.x = collision.posDuringContact.x;
 				circle._prev.y = collision.posDuringContact.y;
 				circle.vel.x = collision.velAfterContact.x;
 				circle.vel.y = collision.velAfterContact.y;
-				if(numCollisions > 5) {
-					console.warn("6+ collisions!");
-					collision = null;
-				}
-				else {
-					collision = checkForCollisions();
-				}
+				prevCollision = collision;
+				collision = checkForCollisions();
 			}
 			if(numCollisions === 0) {
 				circle._activeCollision = null;
