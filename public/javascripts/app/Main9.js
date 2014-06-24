@@ -15,7 +15,7 @@ define([
 			x: width / 2,
 			y: height / 4,
 			r: 20,
-			vel: { x: 30, y: 0 },
+			vel: { x: 0, y: 0 },
 			_prev: { x: width / 2, y: height / 4 },
 			_force: { x: 0, y: 0 },
 			_instantForce: { x: 0, y: 0 },
@@ -187,12 +187,14 @@ define([
 		}
 
 		//create starting lines
-		/*createPoint(300, 300);
-		createPoly([ 350,210,  450,210,  450,200,  350,200 ]);
-		createPoly([ 525,350,  550,350,  550,100,  525,100 ]);*/
-		for(var i = 0; i < 80; i++) {
-			createPoint(Math.random() * 700 + 50, Math.random() * 500 + 50);
-		}
+		createPoly([ 350,210,  450,210,  450,200,  350,200 ]); //first platform
+		createPoly([ 520,350,  530,350,  530,100,  520,100 ]); //right wall
+		createPoly([ 340,210,  340,200,  250,250,  250,260 ]); //left slide
+		createPoly([ 240,250,  230,250,  230,500,  240,500 ]); //right pipe wall
+		createPoly([ 140,250,  130,250,  130,500,  140,500 ]); //left pipe wall
+		createPoly([ 200,190,  250,75,   200,150,  150,75  ]); //top bucket
+		createPoly([ 250,410,  450,410,  450,400,  250,400 ]); //bottom platform
+		createPoly([ 250,371,  300,371,  300,361,  250,361 ]); //bottom ceiling
 
 		function drawLine(x1, y1, x2, y2, color, thickness) {
 			ctx.strokeStyle = color || '#000';
@@ -213,7 +215,6 @@ define([
 			ctx.fill();
 		}
 
-		var thing = 0;
 		function checkForCollisionWithPoint(circle, point) {
 			var vel = { x: circle.vel.x, y: circle.vel.y };
 			var prev = { x: circle._prev.x, y: circle._prev.y };
@@ -267,7 +268,6 @@ define([
 				var distTraveledPostContact = Math.sqrt(squareDistTraveledInTotal) - Math.sqrt(squareDistTraveledPreContact);
 
 				//there was a collision!
-				thing = mult4;
 				return {
 					obstacle: point,
 					pointOfContact: contactPoint, //unused
@@ -321,7 +321,6 @@ define([
 					var squareDistTraveledPreContact = (posOnHit.x - prev.x) * (posOnHit.x - prev.x) + (posOnHit.y - prev.y) * (posOnHit.y - prev.y);
 
 					//there was a collision!
-					thing = mult4;
 					return {
 						obstacle: line,
 						pointOfContact: line.unrotate(contactPoint), //unused
@@ -365,7 +364,7 @@ define([
 			var t = ms / 1000, i;
 
 			//apply gravity and user input
-			circle.applyForce(200 * [0, 1, 0, -1][gravityItr % 4], 200 * [1, 0, -1, 0][gravityItr % 4]);
+			circle.applyForce(600 * [0, 1, 0, -1][gravityItr % 4], 600 * [1, 0, -1, 0][gravityItr % 4]);
 			if(keys[KEY_MAP.A]) {
 				circle.applyForce(-400, 0);
 			}
@@ -380,6 +379,7 @@ define([
 			}
 			if(circle._wantsToJump) {
 				if(circle._activeCollision) {
+					//TODO handle jumping off of points
 					circle.applyInstantaneousForce(
 						-15000 * circle._activeCollision.obstacle.perpendicular.x,
 						-15000 * circle._activeCollision.obstacle.perpendicular.y);
@@ -389,7 +389,7 @@ define([
 
 			//apply sticky forces
 			for(i = 0; i < obstaclesCollidedWithLastFrame.length; i++) {
-				if(obstaclesCollidedWithLastFrame.type === 'line') {
+				if(obstaclesCollidedWithLastFrame[i].type === 'line') {
 					circle.applyForce(
 						1 * obstaclesCollidedWithLastFrame[i].perpendicular.x,
 						1 * obstaclesCollidedWithLastFrame[i].perpendicular.y);
@@ -401,7 +401,6 @@ define([
 			var oldVel = circle.tick(ms, friction);
 
 			//check for collisions
-			thing = 0;
 			var numCollisions = 0;
 			var numCollisionsPerObstacle = {};
 			var obstaclesCollidedWithThisFrame = [];
