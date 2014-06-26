@@ -195,6 +195,7 @@ define([
 		createPoly([ 200,190,  250,75,   200,150,  150,75  ]); //top bucket
 		createPoly([ 250,410,  450,410,  450,400,  250,400 ]); //bottom platform
 		createPoly([ 250,371,  300,371,  300,361,  250,361 ]); //bottom ceiling
+		createPoly([ 700,150,  650,150,  600,200,  600,250,  650,300,  700,300,  750,250,  750,200 ]);
 
 		function drawLine(x1, y1, x2, y2, color, thickness) {
 			ctx.strokeStyle = color || '#000';
@@ -374,7 +375,7 @@ define([
 			var t = ms / 1000, i;
 
 			//apply gravity and user input
-			circle.applyForce(600 * [0, 1, 0, -1][gravityItr % 4], 600 * [1, 0, -1, 0][gravityItr % 4]);
+			circle.applyForce(600 * [0, 0, 1, 0, -1][gravityItr % 5], 600 * [0, 1, 0, -1, 0][gravityItr % 5]);
 			if(keys[KEY_MAP.A]) {
 				circle.applyForce(-400, 0);
 			}
@@ -389,10 +390,14 @@ define([
 			}
 			if(circle._wantsToJump) {
 				if(circle._activeCollision) {
-					//TODO handle jumping off of points
-					circle.applyInstantaneousForce(
-						-15000 * circle._activeCollision.obstacle.perpendicular.x,
-						-15000 * circle._activeCollision.obstacle.perpendicular.y);
+					if(circle._activeCollision.obstacle.type === 'line') {
+						circle.applyInstantaneousForce(
+							-15000 * circle._activeCollision.obstacle.perpendicular.x,
+							-15000 * circle._activeCollision.obstacle.perpendicular.y);
+					}
+					else { //point
+						//TODO
+					}
 				}
 				circle._wantsToJump = false;
 			}
