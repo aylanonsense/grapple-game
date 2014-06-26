@@ -300,7 +300,8 @@ define([
 						x: posOnHit.x + (vel.x > 0 ? 1 : -1) * Math.abs(distTraveledPostContact * -cosAngle),
 						y: posOnHit.y + (vel.y > 0 ? 1 : -1) * Math.abs(distTraveledPostContact * -sinAngle) },
 					velAfterContact: vel,
-					squareDistTraveledPreContact: squareDistTraveledPreContact
+					squareDistTraveledPreContact: squareDistTraveledPreContact,
+					angleToPointOfContact: angleToPointOfContact
 				};
 			}
 			return false;
@@ -390,7 +391,7 @@ define([
 			var t = ms / 1000, i;
 
 			//apply gravity and user input
-			circle.applyForce(600 * [0, 0, 1, 0, -1][gravityItr % 5], 600 * [0, 1, 0, -1, 0][gravityItr % 5]);
+			circle.applyForce(600 * [0, 0][gravityItr % 2], 600 * [1, 0][gravityItr % 2]);
 			if(keys[KEY_MAP.A]) {
 				circle.applyForce(-400, 0);
 			}
@@ -412,11 +413,16 @@ define([
 							-15000 * circle._activeCollision.obstacle.jump.y);
 					}
 					else { //point
-						//TODO
+						var angle = transformAngle(Math.atan2(circle._activeCollision.obstacle.y - circle.y, circle._activeCollision.obstacle.x - circle.x) + Math.PI) - Math.PI;
+						circle.vel.y = 0;
+						circle.applyInstantaneousForce(
+							-15000 * Math.cos(angle),
+							-15000 * Math.sin(angle));
 					}
+					circle._wantsToJump = false;
 				}
-				circle._wantsToJump = false;
 			}
+			//TODO points aren't collidable if velx = 0!!
 
 			//apply sticky forces
 			for(i = 0; i < obstaclesCollidedWithLastFrame.length; i++) {
@@ -424,6 +430,12 @@ define([
 					circle.applyForce(
 						1 * obstaclesCollidedWithLastFrame[i].perpendicular.x,
 						1 * obstaclesCollidedWithLastFrame[i].perpendicular.y);
+				}
+				else { //point
+					var angleToPoint = Math.atan2(obstaclesCollidedWithLastFrame[i].y - circle.y, obstaclesCollidedWithLastFrame[i].x - circle.x);
+					circle.applyForce(
+						1 * Math.cos(angleToPoint),
+						1 * Math.sin(angleToPoint));
 				}
 			}
 
