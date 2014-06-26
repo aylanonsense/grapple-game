@@ -115,10 +115,25 @@ define([
 			mouse.y = evt.clientY;
 		});
 		var nextObstacleId = 0;
+
+		function transformAngle(angle) {
+			var distFromTop = (angle + Math.PI / 2) % (2 * Math.PI);
+			if(distFromTop > Math.PI) {
+				distFromTop = distFromTop - 2 * Math.PI;
+			}
+			var squareDistFromTop = distFromTop * distFromTop;
+			var const1 = -0.9;
+			var const2 = -const1 / Math.PI;
+			return angle + const1 * distFromTop + const2 * (distFromTop > 0 ? 1 : -1) * squareDistFromTop;
+		}
+
 		function createLine(x1, y1, x2, y2, createPoints) {
 			var angle = Math.atan2(y2 - y1, x2 - x1);
 			var cosAngle = Math.cos(angle);
 			var sinAngle = Math.sin(angle);
+			var jumpAngle = transformAngle(angle + Math.PI * 1 / 2);
+			var cosJumpAngle = Math.cos(jumpAngle);
+			var sinJumpAngle = Math.sin(jumpAngle);
 			var line = {
 				id: nextObstacleId++,
 				type: 'line',
@@ -141,6 +156,10 @@ define([
 				perpendicular: {
 					x: sinAngle,
 					y: -cosAngle
+				},
+				jump: {
+					x: -cosJumpAngle,
+					y: -sinJumpAngle
 				},
 				angle: angle,
 				rotate: function(pos) {
@@ -231,10 +250,6 @@ define([
 				//if the circle is moving horizontally, this calculation is easier
 				intersection.x = point.x;
 				intersection.y = circle.y;
-				if(point.id === 3) {
-
-				}
-				//return false;
 			}
 			else {
 				var perpendicularSlope = -1 / slope;
@@ -391,9 +406,10 @@ define([
 			if(circle._wantsToJump) {
 				if(circle._activeCollision) {
 					if(circle._activeCollision.obstacle.type === 'line') {
+						circle.vel.y = 0;
 						circle.applyInstantaneousForce(
-							-15000 * circle._activeCollision.obstacle.perpendicular.x,
-							-15000 * circle._activeCollision.obstacle.perpendicular.y);
+							-15000 * circle._activeCollision.obstacle.jump.x,
+							-15000 * circle._activeCollision.obstacle.jump.y);
 					}
 					else { //point
 						//TODO
