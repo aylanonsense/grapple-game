@@ -219,34 +219,42 @@ define([
 			var vel = { x: circle.vel.x, y: circle.vel.y };
 			var prev = { x: circle._prev.x, y: circle._prev.y };
 			var mult = (prev.y > circle.y ? -1 : 1);
-			var mult2 = (prev.x > circle.x ? -1 : 1);
-			var mult3 = (vel.x < 0 ? 1 : -1) * (vel.y < 0 ? 1 : -1);
 
 			//the point of contact is just the point itself
 			var contactPoint = { x: point.x, y: point.y };
 
 			//slope of circle's path
 			var slope = (circle.y - prev.y) / (circle.x - prev.x); //can be Infinity
-			var perpendicularSlope = -1 / slope;
-			var perpendicularLineAt0 = contactPoint.y - (perpendicularSlope * contactPoint.x);
+			var intersection = { x: null, y: null };
+			if(slope === 0) {
+				//if the circle is moving horizontally, this calculation is easier
+				intersection.x = point.x;
+				intersection.y = circle.y;
+				if(point.id === 3) {
 
-			//find intersection of the circle's path and the extension perpendicular to it from the point
-			var intersectionX = (circle.y - circle.x * slope - perpendicularLineAt0) / (perpendicularSlope - slope);
-			var intersectionY = perpendicularSlope * intersectionX + perpendicularLineAt0;
+				}
+				//return false;
+			}
+			else {
+				var perpendicularSlope = -1 / slope;
+				var perpendicularLineAt0 = contactPoint.y - (perpendicularSlope * contactPoint.x);
+
+				//find intersection of the circle's path and the extension perpendicular to it from the point
+				intersection.x = (circle.y - circle.x * slope - perpendicularLineAt0) / (perpendicularSlope - slope);
+				intersection.y = perpendicularSlope * intersection.x + perpendicularLineAt0;
+			}
 
 			//if the intersection point is too far from the circle no matter where it is along the path... no way it'll collide
-			var distFromIntersectionToPoint = Math.sqrt((intersectionX - contactPoint.x) * (intersectionX - contactPoint.x) + (intersectionY - contactPoint.y) * (intersectionY - contactPoint.y));
+			var distFromIntersectionToPoint = Math.sqrt((intersection.x - contactPoint.x) * (intersection.x - contactPoint.x) + (intersection.y - contactPoint.y) * (intersection.y - contactPoint.y));
 			if(distFromIntersectionToPoint > circle.r) {
 				return false;
 			}
 
 			//move up the circle's path to the collision point
 			var distAlongCirclePath = mult * Math.sqrt(circle.r * circle.r - distFromIntersectionToPoint * distFromIntersectionToPoint);
-			var horizontalDistAlongCirclePath = distAlongCirclePath / Math.sqrt(1 + slope * slope) * (slope < 0 ? 1 : -1);
+			var horizontalDistAlongCirclePath = distAlongCirclePath / Math.sqrt(1 + slope * slope) * (slope <= 0 ? 1 : -1);
 			var verticalDistAlongCirclePath = slope * horizontalDistAlongCirclePath;
-			posOnHit = { x: intersectionX + horizontalDistAlongCirclePath, y: intersectionY + verticalDistAlongCirclePath };
-			var mult4 = (posOnHit.x > circle.x ? -1 : 1) * (posOnHit.y > circle.y ? -1 : 1);
-
+			posOnHit = { x: intersection.x + horizontalDistAlongCirclePath, y: intersection.y + verticalDistAlongCirclePath };
 
 			//calculate the angle from the point to the position on contact
 			//rotate the circle's velocity, zero out its velocity towards the point, then unrotate it
@@ -334,19 +342,21 @@ define([
 			return false;
 		}
 
-		function checkForCollisions() {
+		function checkForCollisions(immunity) {
 			var collision = null;
 			for(var i = 0; i < obstacles.length; i++) {
-				if(obstacles[i].type === 'line') {
-					var collisionWithLine = checkForCollisionWithLine(circle, obstacles[i]);
-					if(collisionWithLine && (!collision || collisionWithLine.squareDistTraveledPreContact < collision.squareDistTraveledPreContact)) {
-						collision = collisionWithLine;
+				if(obstacles[i].id !== immunity) {
+					if(obstacles[i].type === 'line') {
+						var collisionWithLine = checkForCollisionWithLine(circle, obstacles[i]);
+						if(collisionWithLine && (!collision || collisionWithLine.squareDistTraveledPreContact < collision.squareDistTraveledPreContact)) {
+							collision = collisionWithLine;
+						}
 					}
-				}
-				else if(obstacles[i].type === 'point') {
-					var collisionWithPoint = checkForCollisionWithPoint(circle, obstacles[i]);
-					if(collisionWithPoint && (!collision || collisionWithPoint.squareDistTraveledPreContact < collision.squareDistTraveledPreContact)) {
-						collision = collisionWithPoint;
+					else if(obstacles[i].type === 'point' && obstacles[i].parentIds.indexOf(immunity) < 0) {
+						var collisionWithPoint = checkForCollisionWithPoint(circle, obstacles[i]);
+						if(collisionWithPoint && (!collision || collisionWithPoint.squareDistTraveledPreContact < collision.squareDistTraveledPreContact)) {
+							collision = collisionWithPoint;
+						}
 					}
 				}
 			}
@@ -405,9 +415,11 @@ define([
 			var numCollisionsPerObstacle = {};
 			var obstaclesCollidedWithThisFrame = [];
 			var prevCollision;
-			var collision = checkForCollisions();
+			var immunity = null;
+			var collision = checkForCollisions(immunity);
 			while(collision) {
 				numCollisions++;
+				immunity = collision.obstacle.id;
 				circle._activeCollision = collision;
 				if(!numCollisionsPerObstacle[collision.obstacle.id]) {
 					obstaclesCollidedWithThisFrame.push(collision.obstacle);
@@ -426,7 +438,7 @@ define([
 				circle.vel.x = collision.velAfterContact.x;
 				circle.vel.y = collision.velAfterContact.y;
 				prevCollision = collision;
-				collision = checkForCollisions();
+				collision = checkForCollisions(immunity);
 			}
 			if(numCollisions === 0) {
 				circle._activeCollision = null;
@@ -453,13 +465,24 @@ define([
 			ctx.fillStyle = '#fff';
 			ctx.fillRect(0, 0, width, height);
 
+			//draw circle
+			ctx.fillStyle = '#6c6';
+			ctx.beginPath();
+			ctx.arc(circle.x, circle.y, circle.r - 1, 0, 2 * Math.PI, false);
+			ctx.fill();
+
 			//draw lines
+			var obstacleIds = obstaclesCollidedWithLastFrame.map(function(obstacle) { return obstacle.id; });
 			for(i = 0; i < obstacles.length; i++) {
 				if(obstacles[i].type === 'line') {
-					drawLine(obstacles[i].start.x, obstacles[i].start.y, obstacles[i].end.x, obstacles[i].end.y);
+					drawLine(
+						obstacles[i].start.x, obstacles[i].start.y,
+						obstacles[i].end.x, obstacles[i].end.y,
+						(obstacleIds.indexOf(obstacles[i].id) >= 0 ? '#f00' : '#000'));
 				}
 				else {
-					drawPoint(obstacles[i].x, obstacles[i].y);
+					drawPoint(obstacles[i].x, obstacles[i].y,
+						(obstacleIds.indexOf(obstacles[i].id) >= 0 ? '#f00' : '#000'));
 				}
 			}
 
@@ -467,12 +490,6 @@ define([
 			if(newLineEnd) {
 				drawLine(mouse.x, mouse.y, newLineEnd.x, newLineEnd.y, '#999');
 			}
-
-			//draw circle
-			ctx.fillStyle = '#6c6';
-			ctx.beginPath();
-			ctx.arc(circle.x, circle.y, circle.r - 1, 0, 2 * Math.PI, false);
-			ctx.fill();
 
 			//draw velocity vector
 			/*ctx.strokeStyle = '#000';
