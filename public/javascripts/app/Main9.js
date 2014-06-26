@@ -179,7 +179,7 @@ define([
 			for(var i = 0; i < points.length - 2; i += 2) {
 				lines.push(createLine(points[i], points[i + 1], points[i + 2], points[i + 3], false));
 			}
-			lines.push(createLine(points[points.length - 2], points[points.length - 1], points[0], points[1]), false);
+			lines.push(createLine(points[points.length - 2], points[points.length - 1], points[0], points[1], false));
 			for(i = 0; i < lines.length - 1; i++) {
 				createPoint(lines[i].end.x, lines[i].end.y, [ lines[i], lines[i + 1] ]);
 			}
