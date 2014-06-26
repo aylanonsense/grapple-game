@@ -251,6 +251,11 @@ define([
 				intersection.x = point.x;
 				intersection.y = circle.y;
 			}
+			else if(slope === Infinity || slope === -Infinity) {
+				//if the circle is moving vertically, this calculation is also easier
+				intersection.x = circle.x;
+				intersection.y = point.y;
+			}
 			else {
 				var perpendicularSlope = -1 / slope;
 				var perpendicularLineAt0 = contactPoint.y - (perpendicularSlope * contactPoint.x);
@@ -268,8 +273,8 @@ define([
 
 			//move up the circle's path to the collision point
 			var distAlongCirclePath = mult * Math.sqrt(circle.r * circle.r - distFromIntersectionToPoint * distFromIntersectionToPoint);
-			var horizontalDistAlongCirclePath = distAlongCirclePath / Math.sqrt(1 + slope * slope) * (slope <= 0 ? 1 : -1);
-			var verticalDistAlongCirclePath = slope * horizontalDistAlongCirclePath;
+			var horizontalDistAlongCirclePath = (slope === Infinity || slope === -Infinity ? 0 : distAlongCirclePath / Math.sqrt(1 + slope * slope) * (slope <= 0 ? 1 : -1));
+			var verticalDistAlongCirclePath = (slope === Infinity || slope === -Infinity ? -distAlongCirclePath : slope * horizontalDistAlongCirclePath);
 			posOnHit = { x: intersection.x + horizontalDistAlongCirclePath, y: intersection.y + verticalDistAlongCirclePath };
 
 			//calculate the angle from the point to the position on contact
@@ -422,7 +427,6 @@ define([
 					circle._wantsToJump = false;
 				}
 			}
-			//TODO points aren't collidable if velx = 0!!
 
 			//apply sticky forces
 			for(i = 0; i < obstaclesCollidedWithLastFrame.length; i++) {
