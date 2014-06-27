@@ -56,8 +56,6 @@ define([
 				this._instantForce.y = 0;
 				this.vel.x *= friction;
 				this.vel.y *= friction;
-				//oldVel.x *= friction; //TODO see if it matters that we're not frictioning ret
-				//oldVel.y *= friction; //TODO see if it matters that we're not frictioning ret
 				this._prev.x = this.x;
 				this._prev.y = this.y;
 				this.x += (this.vel.x + oldVel.x * friction) / 2 * t;
@@ -72,10 +70,19 @@ define([
 		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, R: 82, SHIFT: 16, SPACE: 32, G: 71 };
 		var gravityItr = 0;
 		$(document).on('keydown', function(evt) {
-			keys[evt.which] = true;
-			if(evt.which === KEY_MAP.SPACE && allowedToJump) {
-				circle._wantsToJump = true;
-				allowedToJump = false;
+			if(!keys[evt.which]) {
+				keys[evt.which] = true;
+				if(evt.which === KEY_MAP.SPACE) {
+					if(allowedToJump) {
+						circle._wantsToJump = true;
+						allowedToJump = false;
+					}
+					for(var i = 0; i < grapples.length; i++) {
+						if(grapples[i]._collided) {
+							grapples[i].dead = true;
+						}
+					}
+				}
 			}
 		});
 		$(document).on('keyup', function(evt) {
@@ -89,32 +96,49 @@ define([
 			}
 		});
 
-		//click the canvas to create new obstacles
+		//click the canvas to create new grapples
+		var grapples = [];
 		var obstacles = [];
-		var newLineEnd = null;
 		var mouse = { x: 0, y: 0 };
-		var timeOfMouseDown = 0;
 		$(document).on('mousedown', function(evt) {
-			timeOfMouseDown = Date.now();
-			newLineEnd = { x: evt.clientX, y: evt.clientY };
+			shootGrapple(circle.x, circle.y, evt.clientX, evt.clientY);
 		});
-		$(document).on('mouseup', function(evt) {
-			if(newLineEnd) {
-				if(Date.now() - timeOfMouseDown < 110) {
-					createPoint(newLineEnd.x, newLineEnd.y);
-				}
-				else {
-					createLine(evt.clientX, evt.clientY, newLineEnd.x, newLineEnd.y);
-				}
-				timeOfMouseDown = 0;
-				newLineEnd = null;
-			}
-		});
+		$(document).on('mouseup', function(evt) {});
 		$(document).on('mousemove', function(evt) {
 			mouse.x = evt.clientX;
 			mouse.y = evt.clientY;
 		});
 		var nextObstacleId = 0;
+		var nextGrappleId = 0;
+		function shootGrapple(fromX, fromY, toX, toY) {
+			var distX = toX - fromX;
+			var distY = toY - fromY;
+			var dist = Math.sqrt(distX * distX + distY * distY);
+			var vect = { x: 0, y: -1 };
+			if(dist > 0) {
+				vect.x = distX / dist;
+				vect.y = distY / dist;
+			}
+			grapples.push({
+				id: nextGrappleId,
+				x: fromX,
+				y: fromY,
+				_prev: { x: fromX, y: fromY },
+				dist: null,
+				vel: { x: 700 * vect.x, y: 700 * vect.y },
+				_collided: false,
+				dead: false,
+				tick: function(ms, friction) {
+					var t = ms / 1000;
+					if(!this._collided && !this.dead) {
+						this._prev.x = this.x;
+						this._prev.y = this.y;
+						this.x += this.vel.x * t;
+						this.y += this.vel.y * t; 
+					}
+				}
+			});
+		}
 
 		function transformAngle(angle) {
 			var distFromTop = (angle + Math.PI / 2) % (2 * Math.PI);
@@ -216,6 +240,19 @@ define([
 		createPoly([ 250,371,  300,371,  300,361,  250,361 ]); //bottom ceiling
 		createPoly([ 700,150,  650,150,  600,200,  600,250,  650,300,  700,300,  750,250,  750,200 ]);
 
+		function drawGrapple(x1, y1, x2, y2, color, thickness) {
+			ctx.strokeStyle = color || '#6c6';
+			ctx.lineWidth = thickness || 1;
+			ctx.beginPath();
+			ctx.moveTo(x1, y1);
+			ctx.lineTo(x2, y2);
+			ctx.moveTo(x2 + 3, y2 + 3);
+			ctx.lineTo(x2 - 3, y2 + 3);
+			ctx.lineTo(x2 - 3, y2 - 3);
+			ctx.lineTo(x2 + 3, y2 - 3);
+			ctx.lineTo(x2 + 3, y2 + 3);
+			ctx.stroke();
+		}
 		function drawLine(x1, y1, x2, y2, color, thickness) {
 			ctx.strokeStyle = color || '#000';
 			ctx.lineWidth = thickness || 1;
@@ -287,10 +324,10 @@ define([
 			vel.y = horizontalVelRelativeToPointOfContact * -sinAngle;
 
 			//determine if collision point is on the current path (have to account for a bit of error here, hence the 0.005)
-			if(((prev.x - 0.005 <= posOnHit.x && posOnHit.x <= circle.x + 0.005) ||
-				(circle.x - 0.005 <= posOnHit.x && posOnHit.x <= prev.x + 0.005)) &&
-				((prev.y - 0.005 <= posOnHit.y && posOnHit.y <= circle.y + 0.005) ||
-				(circle.y - 0.005 <= posOnHit.y && posOnHit.y <= prev.y + 0.005))) {
+			if(((prev.x <= circle.x && prev.x - 0.005 <= posOnHit.x && posOnHit.x <= circle.x + 0.005) ||
+				(prev.x > circle.x && circle.x - 0.005 <= posOnHit.x && posOnHit.x <= prev.x + 0.005)) &&
+				((prev.y <= circle.y && prev.y - 0.005 <= posOnHit.y && posOnHit.y <= circle.y + 0.005) ||
+				(prev.y > circle.y && circle.y - 0.005 <= posOnHit.y && posOnHit.y <= prev.y + 0.005))) {
 				//need to determine which collision happened first--we can do that by looking at how far it went before colliding
 				var squareDistTraveledPreContact = (posOnHit.x - prev.x) * (posOnHit.x - prev.x) + (posOnHit.y - prev.y) * (posOnHit.y - prev.y);
 				var squareDistTraveledInTotal = (circle.x - prev.x) * (circle.x - prev.x) + (circle.y - prev.y) * (circle.y - prev.y);
@@ -343,9 +380,9 @@ define([
 				}
 
 				//determine if collision point is on the current path (have to account for a bit of error here, hence the 0.005)
-				if(((prev.x - 0.005 <= posOnHit.x && posOnHit.x <= pos.x + 0.005) ||
-					(pos.x - 0.005 <= posOnHit.x && posOnHit.x <= prev.x + 0.005)) &&
-					(prev.y - 0.005 <= posOnHit.y && posOnHit.y <= pos.y + 0.005) &&
+				if(((prev.x <= pos.x && prev.x - 0.005 <= posOnHit.x && posOnHit.x <= pos.x + 0.005) ||
+					(prev.x > pos.x && pos.x - 0.005 <= posOnHit.x && posOnHit.x <= prev.x + 0.005)) &&
+					(prev.y <= pos.y && prev.y - 0.005 <= posOnHit.y && posOnHit.y <= pos.y + 0.005) &&
 					pos.y > posOnHit.y) {
 					//need to determine which collision happened first--we can do that by looking at how far it went before colliding
 					var squareDistTraveledPreContact = (posOnHit.x - prev.x) * (posOnHit.x - prev.x) + (posOnHit.y - prev.y) * (posOnHit.y - prev.y);
@@ -364,6 +401,64 @@ define([
 			return false;
 		}
 
+		function checkForGrappleCollisionWithLine(grapple, line) {
+			var grappleSlope = (grapple.y - grapple._prev.y) / (grapple.x - grapple._prev.x); //can be Infinity
+			var lineSlope = (line.start.y - line.end.y) / (line.start.x - line.end.x); //can be Infinity
+			if(lineSlope === grappleSlope) {
+				return false; //parallel lines can't cross
+			}
+			var grappleAt0 = grapple.y - grappleSlope * grapple.x;
+			var lineAt0 = line.start.y - lineSlope * line.start.x;
+			var intersection = { x: null, y: null };
+
+			//determine horizontal intersection
+			if(line.start.x === line.end.x) {
+				intersection.x = line.start.x;
+			}
+			else if(grapple.x === grapple._prev.x) {
+				intersection.x = grapple.x;
+			}
+			else {
+				intersection.x = (grappleAt0 - lineAt0) / (lineSlope - grappleSlope);
+			}
+
+			//determine vertical intersection
+			if(line.start.y === line.end.y) {
+				intersection.y = line.start.y;
+			}
+			else if(grapple.y === grapple._prev.y) {
+				intersection.y = grapple.y;
+			}
+			else {
+				intersection.y = grappleSlope * intersection.x + grappleAt0;
+			}
+
+			//determine if collision point is on the current path (have to account for a bit of error here, hence the 0.005)
+			var mid = intersection;
+			var pos = grapple;
+			var prev = grapple._prev;
+			var start = line.start;
+			var end = line.end;
+			if(((prev.x <= pos.x && prev.x - 0.005 <= mid.x && mid.x <= pos.x + 0.005) ||
+				(prev.x > pos.x && pos.x - 0.005 <= mid.x && mid.x <= prev.x + 0.005)) &&
+				((prev.y <= pos.y && prev.y - 0.005 <= mid.y && mid.y <= pos.y + 0.005) ||
+				(prev.y > pos.y && pos.y - 0.005 <= mid.y && mid.y <= prev.y + 0.005)) &&
+				((start.x <= end.x && start.x - 0.005 <= mid.x && mid.x <= end.x + 0.005) ||
+				(start.x > end.x && end.x - 0.005 <= mid.x && mid.x <= start.x + 0.005)) &&
+				((start.y <= end.y && start.y - 0.005 <= mid.y && mid.y <= end.y + 0.005) ||
+				(start.y > end.y && end.y - 0.005 <= mid.y && mid.y <= start.y + 0.005))) {
+				//collision is valid!
+				var squareDistTraveledPreContact = (mid.x - prev.x) * (mid.x - prev.x) + (mid.y - prev.y) * (mid.y - prev.y);
+				return {
+					obstacle: line,
+					pointOfContact: intersection,
+					squareDistTraveledPreContact: squareDistTraveledPreContact
+				};
+			}
+
+			return false;
+		}
+
 		function checkForCollisions(immunity) {
 			var collision = null;
 			for(var i = 0; i < obstacles.length; i++) {
@@ -379,6 +474,19 @@ define([
 						if(collisionWithPoint && (!collision || collisionWithPoint.squareDistTraveledPreContact < collision.squareDistTraveledPreContact)) {
 							collision = collisionWithPoint;
 						}
+					}
+				}
+			}
+			return collision;
+		}
+
+		function checkForGrappleCollision(grapple) {
+			var collision = null;
+			for(var i = 0; i < obstacles.length; i++) {
+				if(obstacles[i].type === 'line') {
+					var collisionWithLine = checkForGrappleCollisionWithLine(grapple, obstacles[i]);
+					if(collisionWithLine && (!collision || collisionWithLine.squareDistTraveledPreContact < collision.squareDistTraveledPreContact)) {
+						collision = collisionWithLine;
 					}
 				}
 			}
@@ -444,8 +552,39 @@ define([
 			}
 
 			//evaluate forces into movement
-			var friction = Math.pow(Math.E, Math.log(1 - 0.3) * t);
+			var friction = 1;//Math.pow(Math.E, Math.log(1 - 0.3) * t);
 			var oldVel = circle.tick(ms, friction);
+			for(i = 0; i < grapples.length; i++) {
+				grapples[i].tick(ms, friction);
+			}
+
+			//apply grapple forces
+			for(i = 0; i < grapples.length; i++) {
+				if(grapples[i]._collided && !grapples[i].dead) {
+					var grapple = grapples[i];
+					var distX = grapple.x - circle.x;
+					var distY = grapple.y - circle.y;
+					var dist = Math.sqrt(distX * distX + distY * distY);
+					if(dist >= grapple.dist) {
+						var angleToGrapple = Math.atan2(distY, distX);
+						var cosAngleToGrapple = Math.cos(angleToGrapple);
+						var sinAngleToGrapple = Math.sin(angleToGrapple);
+						var rotatedVel = {
+							x: circle.vel.x * -cosAngleToGrapple + circle.vel.y * -sinAngleToGrapple,
+							y: circle.vel.x * sinAngleToGrapple + circle.vel.y * -cosAngleToGrapple
+						};
+						if(rotatedVel.x > 0) {
+							rotatedVel.x = 0;
+						}
+						circle.vel = {
+							x: rotatedVel.x * -cosAngleToGrapple + rotatedVel.y * sinAngleToGrapple,
+							y: rotatedVel.x * -sinAngleToGrapple + rotatedVel.y * -cosAngleToGrapple
+						};
+						circle.x = grapple.x - cosAngleToGrapple * grapple.dist;
+						circle.y = grapple.y - sinAngleToGrapple * grapple.dist;
+					}
+				}
+			}
 
 			//check for collisions
 			var numCollisions = 0;
@@ -481,6 +620,23 @@ define([
 				circle._activeCollision = null;
 			}
 			obstaclesCollidedWithLastFrame = obstaclesCollidedWithThisFrame;
+
+			//check for grapple collisions
+			for(i = 0; i < grapples.length; i++) {
+				if(!grapples[i]._collided && !grapples[i].dead) {
+					var grappleCollision = checkForGrappleCollision(grapples[i]);
+					if(grappleCollision) {
+						grapples[i]._collided = true;
+						grapples[i].x = grappleCollision.pointOfContact.x;
+						grapples[i].y = grappleCollision.pointOfContact.y;
+						grapples[i]._prev.x = grappleCollision.pointOfContact.x;
+						grapples[i]._prev.y = grappleCollision.pointOfContact.y;
+						var dx = circle.x - grapples[i].x;
+						var dy = circle.y - grapples[i].y;
+						grapples[i].dist = Math.sqrt(dx * dx + dy * dy);
+					}
+				}
+			}
 
 			//keep player in bounds
 			if(circle.x > width + circle.r / 2) {
@@ -523,18 +679,19 @@ define([
 				}
 			}
 
-			//draw line being created
-			if(newLineEnd) {
-				drawLine(mouse.x, mouse.y, newLineEnd.x, newLineEnd.y, '#999');
+			for(i = 0; i < grapples.length; i++) {
+				if(!grapples[i].dead) {
+					drawGrapple(circle.x, circle.y, grapples[i].x, grapples[i].y);
+				}
 			}
 
 			//draw velocity vector
-			/*ctx.strokeStyle = '#000';
+			ctx.strokeStyle = '#000';
 			ctx.lineWidth = 1;
 			ctx.beginPath();
 			ctx.moveTo(circle.x, circle.y);
 			ctx.lineTo(circle.x + circle.vel.x / 5, circle.y + circle.vel.y / 5);
-			ctx.stroke();*/
+			ctx.stroke();
 		}
 
 		//set up animation frame functionality
