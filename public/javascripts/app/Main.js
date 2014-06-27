@@ -64,6 +64,13 @@ define([
 			}
 		};
 
+		//create camera
+		var camera = {
+			x: circle.x,
+			y: circle.y
+		};
+
+
 		//WASD to move the circle
 		var allowedToJump = true;
 		var keys = {};
@@ -101,12 +108,12 @@ define([
 		var obstacles = [];
 		var mouse = { x: 0, y: 0 };
 		$(document).on('mousedown', function(evt) {
-			shootGrapple(circle.x, circle.y, evt.clientX, evt.clientY);
+			shootGrapple(circle.x, circle.y, evt.clientX + camera.x, evt.clientY + camera.y);
 		});
 		$(document).on('mouseup', function(evt) {});
 		$(document).on('mousemove', function(evt) {
-			mouse.x = evt.clientX;
-			mouse.y = evt.clientY;
+			mouse.x = evt.clientX + camera.x;
+			mouse.y = evt.clientY + camera.y;
 		});
 		var nextObstacleId = 0;
 		var nextGrappleId = 0;
@@ -654,6 +661,10 @@ define([
 		}
 
 		function render() {
+			//move camera
+			camera.x = circle.x - width / 2;
+			camera.y = circle.y - height / 2;
+
 			//draw background
 			ctx.fillStyle = '#fff';
 			ctx.fillRect(0, 0, width, height);
@@ -661,7 +672,7 @@ define([
 			//draw circle
 			ctx.fillStyle = '#6c6';
 			ctx.beginPath();
-			ctx.arc(circle.x, circle.y, circle.r - 1, 0, 2 * Math.PI, false);
+			ctx.arc(circle.x - camera.x, circle.y - camera.y, circle.r - 1, 0, 2 * Math.PI, false);
 			ctx.fill();
 
 			//draw lines
@@ -669,19 +680,20 @@ define([
 			for(i = 0; i < obstacles.length; i++) {
 				if(obstacles[i].type === 'line') {
 					drawLine(
-						obstacles[i].start.x, obstacles[i].start.y,
-						obstacles[i].end.x, obstacles[i].end.y,
+						obstacles[i].start.x - camera.x, obstacles[i].start.y - camera.y,
+						obstacles[i].end.x - camera.x, obstacles[i].end.y - camera.y,
 						(obstacleIds.indexOf(obstacles[i].id) >= 0 ? '#f00' : '#000'));
 				}
 				else {
-					drawPoint(obstacles[i].x, obstacles[i].y,
+					drawPoint(obstacles[i].x - camera.x, obstacles[i].y - camera.y,
 						(obstacleIds.indexOf(obstacles[i].id) >= 0 ? '#f00' : '#000'));
 				}
 			}
 
 			for(i = 0; i < grapples.length; i++) {
 				if(!grapples[i].dead) {
-					drawGrapple(circle.x, circle.y, grapples[i].x, grapples[i].y);
+					drawGrapple(circle.x - camera.x, circle.y - camera.y,
+						grapples[i].x - camera.x, grapples[i].y - camera.y);
 				}
 			}
 
@@ -689,8 +701,8 @@ define([
 			ctx.strokeStyle = '#000';
 			ctx.lineWidth = 1;
 			ctx.beginPath();
-			ctx.moveTo(circle.x, circle.y);
-			ctx.lineTo(circle.x + circle.vel.x / 5, circle.y + circle.vel.y / 5);
+			ctx.moveTo(circle.x - camera.x, circle.y - camera.y);
+			ctx.lineTo(circle.x + circle.vel.x / 5 - camera.x, circle.y + circle.vel.y / 5 - camera.y);
 			ctx.stroke();
 		}
 
