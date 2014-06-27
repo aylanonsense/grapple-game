@@ -85,9 +85,7 @@ define([
 						allowedToJump = false;
 					}
 					for(var i = 0; i < grapples.length; i++) {
-						if(grapples[i]._collided) {
-							grapples[i].dead = true;
-						}
+						grapples[i].dead = true;
 					}
 				}
 			}
