@@ -22,25 +22,25 @@ define([
 			_activeCollision: null,
 			_wantsToJump: false,
 			applyForce: function(forceX, forceY) {
-				if(arguments.length === 4) {
-					var force = arguments[1];
-					var dirX = arguments[2];
-					var dirY = arguments[3];
+				if(arguments.length === 3) {
+					var force = arguments[0];
+					var dirX = arguments[1];
+					var dirY = arguments[2];
 					var dir = Math.sqrt(dirX * dirX + dirY * dirY);
-					forceX += force * dirX / dir;
-					forceY += force * dirY / dir;
+					forceX = force * dirX / dir;
+					forceY = force * dirY / dir;
 				}
 				this._force.x += forceX;
 				this._force.y += forceY;
 			},
 			applyInstantaneousForce: function(forceX, forceY) {
-				if(arguments.length === 4) {
-					var force = arguments[1];
-					var dirX = arguments[2];
-					var dirY = arguments[3];
+				if(arguments.length === 3) {
+					var force = arguments[0];
+					var dirX = arguments[1];
+					var dirY = arguments[2];
 					var dir = Math.sqrt(dirX * dirX + dirY * dirY);
-					forceX += force * dirX / dir;
-					forceY += force * dirY / dir;
+					forceX = force * dirX / dir;
+					forceY = force * dirY / dir;
 				}
 				this._instantForce.x += forceX;
 				this._instantForce.y += forceY;
@@ -77,6 +77,9 @@ define([
 		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, R: 82, SHIFT: 16, SPACE: 32, G: 71 };
 		var BREAK_GRAPPLE_KEY = KEY_MAP.SPACE;
 		var JUMP_KEY = KEY_MAP.SPACE;
+		var PULL_GRAPPLE_KEY = KEY_MAP.G;
+		var GRAPPLE_PULL_SPEED = 700;
+		var GRAPPLE_PULL_FORCE = 3000;
 		$(document).on('keydown', function(evt) {
 			if(!keys[evt.which]) {
 				keys[evt.which] = true;
@@ -563,6 +566,28 @@ define([
 				}
 			}
 
+			if(keys[PULL_GRAPPLE_KEY]) {
+				for(i = 0; i < grapples.length; i++) {
+					if(grapples[i]._collided && !grapples[i].dead) {
+						grapple = grapples[i];
+						distX = grapple.x - circle.x;
+						distY = grapple.y - circle.y;
+						dist = Math.sqrt(distX * distX + distY * distY);
+						//if even after we reel in we have a lot of slack, do not tug
+						if(grapple.dist - GRAPPLE_PULL_SPEED * t > dist) {
+							grapple.dist -= GRAPPLE_PULL_SPEED * t;
+						}
+						//otherwise reel in all the slack and apply a force
+						else {
+							if(grapple.dist > dist) {
+								grapple.dist = dist;
+							}
+							circle.applyForce(GRAPPLE_PULL_FORCE, distX, distY);
+						}
+					}
+				}
+			}
+
 			//evaluate forces into movement
 			var friction = 1;//Math.pow(Math.E, Math.log(1 - 0.3) * t);
 			var oldVel = circle.tick(ms, friction);
@@ -632,6 +657,16 @@ define([
 				circle._activeCollision = null;
 			}
 			obstaclesCollidedWithLastFrame = obstaclesCollidedWithThisFrame;
+
+			if(keys[PULL_GRAPPLE_KEY]) {
+				for(i = 0; i < grapples.length; i++) {
+					if(grapples[i]._collided && !grapples[i].dead) {
+						if(grapple.dist - GRAPPLE_PULL_SPEED * t <= dist && grapple.dist > dist) {
+							grapple.dist = dist;
+						}
+					}
+				}
+			}
 
 			//check for grapple collisions
 			for(i = 0; i < grapples.length; i++) {
