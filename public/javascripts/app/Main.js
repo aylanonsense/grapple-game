@@ -12,8 +12,8 @@ define([
 
 		//create circle (the player)
 		var circle = {
-			x: width / 2,
-			y: height / 4,
+			x: 1000,
+			y: 1000,
 			r: 20,
 			vel: { x: 0, y: 0 },
 			_prev: { x: width / 2, y: height / 4 },
@@ -75,15 +75,18 @@ define([
 		var allowedToJump = true;
 		var keys = {};
 		var KEY_MAP = { W: 87, A: 65, S: 83, D: 68, R: 82, SHIFT: 16, SPACE: 32, G: 71 };
-		var gravityItr = 0;
+		var BREAK_GRAPPLE_KEY = KEY_MAP.SPACE;
+		var JUMP_KEY = KEY_MAP.SPACE;
 		$(document).on('keydown', function(evt) {
 			if(!keys[evt.which]) {
 				keys[evt.which] = true;
-				if(evt.which === KEY_MAP.SPACE) {
+				if(evt.which === JUMP_KEY) {
 					if(allowedToJump) {
 						circle._wantsToJump = true;
 						allowedToJump = false;
 					}
+				}
+				if(evt.which === BREAK_GRAPPLE_KEY) {
 					for(var i = 0; i < grapples.length; i++) {
 						grapples[i].dead = true;
 					}
@@ -92,12 +95,9 @@ define([
 		});
 		$(document).on('keyup', function(evt) {
 			keys[evt.which] = false;
-			if(evt.which === KEY_MAP.SPACE) {
+			if(evt.which === JUMP_KEY) {
 				circle._wantsToJump = false;
 				allowedToJump = true;
-			}
-			if(evt.which === KEY_MAP.G) {
-				gravityItr++;
 			}
 		});
 
@@ -130,7 +130,7 @@ define([
 				y: fromY,
 				_prev: { x: fromX, y: fromY },
 				dist: null,
-				vel: { x: 700 * vect.x, y: 700 * vect.y },
+				vel: { x: 1500 * vect.x, y: 1500 * vect.y },
 				_collided: false,
 				dead: false,
 				tick: function(ms, friction) {
@@ -139,7 +139,7 @@ define([
 						this._prev.x = this.x;
 						this._prev.y = this.y;
 						this.x += this.vel.x * t;
-						this.y += this.vel.y * t; 
+						this.y += this.vel.y * t;
 					}
 				}
 			});
@@ -222,9 +222,17 @@ define([
 			obstacles.push(point);
 			return point;
 		}
-		function createPoly(points) {
-			var lines = [];
-			for(var i = 0; i < points.length - 2; i += 2) {
+		function createPoly(points, reverse) {
+			var i, lines = [];
+			if(reverse) {
+				var reversedPoints = [];
+				for(i = 0; i < points.length; i += 2) {
+					reversedPoints[i] = points[points.length - i - 2];
+					reversedPoints[i+1] = points[points.length - i - 1];
+				}
+				points = reversedPoints;
+			}
+			for(i = 0; i < points.length - 2; i += 2) {
 				lines.push(createLine(points[i], points[i + 1], points[i + 2], points[i + 3], false));
 			}
 			lines.push(createLine(points[points.length - 2], points[points.length - 1], points[0], points[1], false));
@@ -235,15 +243,13 @@ define([
 		}
 
 		//create starting lines
-		createPoly([ 350,210,  450,210,  450,200,  350,200 ]); //first platform
-		createPoly([ 520,350,  530,350,  530,100,  520,100 ]); //right wall
-		createPoly([ 340,210,  340,200,  250,250,  250,260 ]); //left slide
-		createPoly([ 240,250,  230,250,  230,500,  240,500 ]); //right pipe wall
-		createPoly([ 140,250,  130,250,  130,500,  140,500 ]); //left pipe wall
-		createPoly([ 200,190,  250,75,   200,150,  150,75  ]); //top bucket
-		createPoly([ 250,410,  450,410,  450,400,  250,400 ]); //bottom platform
-		createPoly([ 250,371,  300,371,  300,361,  250,361 ]); //bottom ceiling
-		createPoly([ 700,150,  650,150,  600,200,  600,250,  650,300,  700,300,  750,250,  750,200 ]);
+		createPoly([900,1100,  1100,1100, 1100,1110,  900,1110],  true); //first platform
+		createPoly([600,1210,  600,1220,  710,1220,   710,1210]); //left platform
+		createPoly([1300,900,  1400,1000, 1300,1000], true); //right triangle
+		createPoly([1500,900,  1510,900,  1510,600,   1500,600]); //right wall lefter
+		createPoly([1600,860,  1590,860,  1590,600,   1600,600], true); //right wall righter
+		createPoly([980,1220,  900,1180,  900,1170,   1100,1170, 1100,1180, 1020,1220], true); //pedestal
+		createPoly([200,1510,  200,1500,  2000,1500,  2000,1510],  true); //ground
 
 		function drawGrapple(x1, y1, x2, y2, color, thickness) {
 			ctx.strokeStyle = color || '#6c6';
@@ -507,9 +513,10 @@ define([
 		var obstaclesCollidedWithLastFrame = [];
 		function moveStuff(ms) {
 			var t = ms / 1000, i;
+			var grapple, distX, distY, dist;
 
 			//apply gravity and user input
-			circle.applyForce(600 * [0, 0][gravityItr % 2], 600 * [1, 0][gravityItr % 2]);
+			circle.applyForce(0, 600);
 			if(keys[KEY_MAP.A]) {
 				circle.applyForce(-400, 0);
 			}
@@ -527,15 +534,15 @@ define([
 					if(circle._activeCollision.obstacle.type === 'line') {
 						circle.vel.y = 0;
 						circle.applyInstantaneousForce(
-							-15000 * circle._activeCollision.obstacle.jump.x,
-							-15000 * circle._activeCollision.obstacle.jump.y);
+							-20000 * circle._activeCollision.obstacle.jump.x,
+							-20000 * circle._activeCollision.obstacle.jump.y);
 					}
 					else { //point
 						var angle = transformAngle(Math.atan2(circle._activeCollision.obstacle.y - circle.y, circle._activeCollision.obstacle.x - circle.x) + Math.PI) - Math.PI;
 						circle.vel.y = 0;
 						circle.applyInstantaneousForce(
-							-15000 * Math.cos(angle),
-							-15000 * Math.sin(angle));
+							-20000 * Math.cos(angle),
+							-20000 * Math.sin(angle));
 					}
 					circle._wantsToJump = false;
 				}
@@ -566,10 +573,10 @@ define([
 			//apply grapple forces
 			for(i = 0; i < grapples.length; i++) {
 				if(grapples[i]._collided && !grapples[i].dead) {
-					var grapple = grapples[i];
-					var distX = grapple.x - circle.x;
-					var distY = grapple.y - circle.y;
-					var dist = Math.sqrt(distX * distX + distY * distY);
+					grapple = grapples[i];
+					distX = grapple.x - circle.x;
+					distY = grapple.y - circle.y;
+					dist = Math.sqrt(distX * distX + distY * distY);
 					if(dist >= grapple.dist) {
 						var angleToGrapple = Math.atan2(distY, distX);
 						var cosAngleToGrapple = Math.cos(angleToGrapple);
@@ -641,20 +648,6 @@ define([
 						grapples[i].dist = Math.sqrt(dx * dx + dy * dy);
 					}
 				}
-			}
-
-			//keep player in bounds
-			if(circle.x > width + circle.r / 2) {
-				circle.x = -circle.r / 2;
-			}
-			else if(circle.x < -circle.r / 2) {
-				circle.x = width + circle.r / 2;
-			}
-			if(circle.y > height + circle.r / 2) {
-				circle.y = -circle.r / 2;
-			}
-			else if(circle.y < -circle.r / 2) {
-				circle.y = height + circle.r / 2;
 			}
 		}
 
