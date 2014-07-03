@@ -128,7 +128,7 @@ define([
 				vect.y = distY / dist;
 			}
 			grapples.push({
-				id: nextGrappleId,
+				id: nextGrappleId++,
 				x: fromX,
 				y: fromY,
 				_prev: { x: fromX, y: fromY },
@@ -136,6 +136,7 @@ define([
 				vel: { x: 1500 * vect.x, y: 1500 * vect.y },
 				_collided: false,
 				dead: false,
+				segments: [],
 				tick: function(ms, friction) {
 					var t = ms / 1000;
 					if(!this._collided && !this.dead) {
@@ -515,7 +516,7 @@ define([
 
 		var obstaclesCollidedWithLastFrame = [];
 		function moveStuff(ms) {
-			var t = ms / 1000, i;
+			var t = ms / 1000, i, j;
 			var grapple, point, distX, distY, dist;
 			var distToPointX, distToPointY, slopeToPoint, at0ToPoint, circleWasAbovePoint, circleIsAbovePoint;
 			var circleActualPrev = { x: circle.x, y: circle.y };
@@ -694,7 +695,7 @@ define([
 					//for each grapple
 					grapple = grapples[i];
 					wrapPointPerGrapple[grapple.id] = null;
-					for(var j = 0; j < obstacles.length; j++) {
+					for(j = 0; j < obstacles.length; j++) {
 						if(obstacles[j].type === 'point') {
 							//for each point (other than the point the grapple is connected to)
 							point = obstacles[j];
@@ -712,8 +713,10 @@ define([
 										((point.y > grapple.y) === (circle.y > grapple.y) || point.y === grapple.y)) {
 										slopeToPoint = distToPointY / distToPointX;
 										at0ToPoint = point.y - slopeToPoint * point.x;
-										circleWasAbovePoint = false; //TODO
+										circleWasAbovePoint = false;
 										circleIsAbovePoint = false;
+										//TODO prioritize which point the grapple gets wrapped to (closest angle)
+										//TODO wrap grapples as they're going out too?
 										if(distToPointX === 0) {
 											circleIsAbovePoint = (circle.x < point.x);
 											circleWasAbovePoint = (circle._prev.x < point.x);
@@ -734,24 +737,58 @@ define([
 					}
 				}
 			}
-			for(i = 0; i < grapples.length; i++) {
-				if(grapples[i]._collided && !grapples[i].dead) {
-					//for each grapple
-					grapple = grapples[i];
+			grapples.forEach(function(grapple) {
+				if(grapple._collided && !grapple.dead) {
+					for(j = grapple.segments.length - 1; j >= 0; j--) {
+						point = grapple.segments[j].point;
+						distToPointX = grapple.x - point.x;
+						distToPointY = grapple.y - point.y;
+						slopeToPoint = distToPointY / distToPointX;
+						at0ToPoint = point.y - slopeToPoint * point.x;
+						distToPoint = Math.sqrt(distToPointX * distToPointX + distToPointY * distToPointY);
+						circleWasAbovePoint = false;
+						circleIsAbovePoint = false;
+						if(distToPointX === 0) {
+							circleIsAbovePoint = (circle.x < point.x);
+							circleWasAbovePoint = (circle._prev.x < point.x);
+						}
+						else {
+							circleIsAbovePoint = (circle.y > slopeToPoint * circle.x + at0ToPoint);
+							circleWasAbovePoint = (circle._prev.y > slopeToPoint * circle._prev.x + at0ToPoint);
+						}
+						if(circleWasAbovePoint !== circleIsAbovePoint) {
+							grapple.x = point.x;
+							grapple.y = point.y;
+							grapple.dist += distToPoint;
+							grapple.segments.pop();
+						}
+						else {
+							break;
+						}
+					}
+				}
+			});
+			grapples.forEach(function(grapple) {
+				if(grapple._collided && !grapple.dead) {
 					if(wrapPointPerGrapple[grapple.id]) {
 						point = wrapPointPerGrapple[grapple.id].point;
 						distToPointX = grapple.x - point.x;
 						distToPointY = grapple.y - point.y;
 						distToPoint = Math.sqrt(distToPointX * distToPointX + distToPointY * distToPointY);
+						grapple.segments.push({
+							point: { x: grapple.x, y: grapple.y },
+							end: { x: point.x, y: point.y }
+						});
 						grapple.x = point.x;
 						grapple.y = point.y;
 						grapple.dist -= distToPoint;
 					}
 				}
-			}
+			});
 		}
 
 		function render() {
+			var i, j;
 			//move camera
 			camera.x = circle.x - width / 2;
 			camera.y = circle.y - height / 2;
@@ -785,6 +822,11 @@ define([
 				if(!grapples[i].dead) {
 					drawGrapple(circle.x - camera.x, circle.y - camera.y,
 						grapples[i].x - camera.x, grapples[i].y - camera.y);
+					for(j = 0; j < grapples[i].segments.length; j++) {
+						var s = grapples[i].segments[j];
+						drawGrapple(s.end.x - camera.x, s.end.y - camera.y,
+							s.point.x - camera.x, s.point.y - camera.y, '#cc0');
+					}
 				}
 			}
 
