@@ -516,7 +516,9 @@ define([
 		var obstaclesCollidedWithLastFrame = [];
 		function moveStuff(ms) {
 			var t = ms / 1000, i;
-			var grapple, distX, distY, dist;
+			var grapple, point, distX, distY, dist;
+			var distToPointX, distToPointY, slopeToPoint, at0ToPoint, circleWasAbovePoint, circleIsAbovePoint;
+			var circleActualPrev = { x: circle.x, y: circle.y };
 
 			//apply gravity and user input
 			circle.applyForce(0, 600);
@@ -681,6 +683,69 @@ define([
 						var dx = circle.x - grapples[i].x;
 						var dy = circle.y - grapples[i].y;
 						grapples[i].dist = Math.sqrt(dx * dx + dy * dy);
+					}
+				}
+			}
+
+			//wrap around
+			var wrapPointPerGrapple = {};
+			for(i = 0; i < grapples.length; i++) {
+				if(grapples[i]._collided && !grapples[i].dead) {
+					//for each grapple
+					grapple = grapples[i];
+					wrapPointPerGrapple[grapple.id] = null;
+					for(var j = 0; j < obstacles.length; j++) {
+						if(obstacles[j].type === 'point') {
+							//for each point (other than the point the grapple is connected to)
+							point = obstacles[j];
+							if(grapple.x !== point.x || grapple.y !== point.y) {
+								distToPointX = grapple.x - point.x;
+								distToPointY = grapple.y - point.y;
+								distToPoint = Math.sqrt(distToPointX * distToPointX + distToPointY * distToPointY);
+								distToCircleX = grapple.x - circle.x;
+								distToCircleY = grapple.y - circle.y;
+								distToCircle = Math.sqrt(distToCircleX * distToCircleX + distToCircleY * distToCircleY);
+								//if the circle's farther than the point is from the grapple
+								if(distToCircle > distToPoint) {
+									//if the point and grapple are on the same side of the grapple
+									if(((point.x > grapple.x) === (circle.x > grapple.x) || point.x === grapple.x) && 
+										((point.y > grapple.y) === (circle.y > grapple.y) || point.y === grapple.y)) {
+										slopeToPoint = distToPointY / distToPointX;
+										at0ToPoint = point.y - slopeToPoint * point.x;
+										circleWasAbovePoint = false; //TODO
+										circleIsAbovePoint = false;
+										if(distToPointX === 0) {
+											circleIsAbovePoint = (circle.x < point.x);
+											circleWasAbovePoint = (circle._prev.x < point.x);
+										}
+										else {
+											circleIsAbovePoint = (circle.y > slopeToPoint * circle.x + at0ToPoint);
+											circleWasAbovePoint = (circle._prev.y > slopeToPoint * circle._prev.x + at0ToPoint);
+										}
+										if(circleWasAbovePoint !== circleIsAbovePoint) {
+											wrapPointPerGrapple[grapple.id] = {
+												point: point
+											};
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			for(i = 0; i < grapples.length; i++) {
+				if(grapples[i]._collided && !grapples[i].dead) {
+					//for each grapple
+					grapple = grapples[i];
+					if(wrapPointPerGrapple[grapple.id]) {
+						point = wrapPointPerGrapple[grapple.id].point;
+						distToPointX = grapple.x - point.x;
+						distToPointY = grapple.y - point.y;
+						distToPoint = Math.sqrt(distToPointX * distToPointX + distToPointY * distToPointY);
+						grapple.x = point.x;
+						grapple.y = point.y;
+						grapple.dist -= distToPoint;
 					}
 				}
 			}
