@@ -55,5 +55,11 @@ define(function() {
 		this._instantForce.x = 0;
 		this._instantForce.y = 0;
 	};
+	Player.prototype.render = function(ctx, camera) {
+		ctx.fillStyle = '#6c6';
+		ctx.beginPath();
+		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.radius, 0, 2 * Math.PI, false);
+		ctx.fill();
+	};
 	return Player;
 });

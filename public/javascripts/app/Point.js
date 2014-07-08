@@ -96,5 +96,11 @@ define([
 		}
 		return false;
 	};
+	Point.prototype.render = function(ctx, camera) {
+		ctx.fillStyle = '#000';
+		ctx.beginPath();
+		ctx.arc(this.x - camera.x, this.y - camera.y, 1.5, 0, 2 * Math.PI, false);
+		ctx.fill();
+	};
 	return Point;
 });

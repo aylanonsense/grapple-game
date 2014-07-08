@@ -60,5 +60,16 @@ define([
 		}
 		return false;
 	};
+	Line.prototype.render = function(ctx, camera) {
+		ctx.strokeStyle = '#000';
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(this.start.x - camera.x, this.start.y - camera.y);
+		ctx.lineTo(this.end.x - camera.x, this.end.y - camera.y);
+		var pipAngle = Math.atan2((this.start.x - this.end.x), (this.end.y - this.start.y));
+		ctx.moveTo((this.start.x + this.end.x) / 2 - camera.x, (this.start.y + this.end.y) / 2 - camera.y);
+		ctx.lineTo((this.start.x + this.end.x) / 2 + 10 * Math.cos(pipAngle) - camera.x, (this.start.y + this.end.y) / 2 + 10 * Math.sin(pipAngle) - camera.y);
+		ctx.stroke();
+	};
 	return Line;
 });

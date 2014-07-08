@@ -147,31 +147,10 @@ define([
 			ctx.fillStyle = '#fff';
 			ctx.fillRect(0, 0, width, height);
 
-			//draw player
-			ctx.fillStyle = '#6c6';
-			ctx.beginPath();
-			ctx.arc(player.pos.x - camera.x, player.pos.y - camera.y, player.radius, 0, 2 * Math.PI, false);
-			ctx.fill();
-
-			//draw obstacles
-			ctx.fillStyle = '#000';
-			ctx.strokeStyle = '#000';
-			ctx.lineWidth = 1;
-			obstacles.forEach(function(o) {
-				if(o.type === 'line') {
-					ctx.beginPath();
-					ctx.moveTo(o.start.x - camera.x, o.start.y - camera.y);
-					ctx.lineTo(o.end.x - camera.x, o.end.y - camera.y);
-					var pipAngle = Math.atan2((o.start.x - o.end.x), (o.end.y - o.start.y));
-					ctx.moveTo((o.start.x + o.end.x) / 2 - camera.x, (o.start.y + o.end.y) / 2 - camera.y);
-					ctx.lineTo((o.start.x + o.end.x) / 2 + 10 * Math.cos(pipAngle) - camera.x, (o.start.y + o.end.y) / 2 + 10 * Math.sin(pipAngle) - camera.y);
-					ctx.stroke();
-				}
-				else if(o.type === 'point') {
-					ctx.beginPath();
-					ctx.arc(o.x - camera.x, o.y - camera.y, 1.5, 0, 2 * Math.PI, false);
-					ctx.fill();
-				}
+			//draw objects
+			player.render(ctx, camera);
+			obstacles.forEach(function(obstacle) {
+				obstacle.render(ctx, camera);
 			});
 		}
 
