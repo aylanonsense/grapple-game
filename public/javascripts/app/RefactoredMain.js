@@ -60,16 +60,19 @@ define([
 		createPoly([200,1510,  200,1500,  2000,1500,  2000,1510],  true);
 
 		//add key bindings
-		var keys = {};
+		var keys = { pressed: {} };
 		var KEY = { W: 87, A: 65, S: 83, D: 68, R: 82, G: 71, SHIFT: 16, SPACE: 32 };
+		var JUMP_KEY = KEY.SPACE;
 		$(document).on('keydown', function(evt) {
 			if(!keys[evt.which]) {
 				keys[evt.which] = true;
+				keys.pressed[evt.which] = true;
 			}
 		});
 		$(document).on('keyup', function(evt) {
 			if(keys[evt.which]) {
 				keys[evt.which] = false;
+				keys.pressed[evt.which] = false;
 			}
 		});
 
@@ -85,17 +88,30 @@ define([
 			render();
 		}
 
+		var interruptionsLastFrame = [];
 		function tick(ms) {
-			var friction = 1;
+			var i, interruption, friction = 1;
 			player.applyForce(0, 600); //gravity
 			if(keys[KEY.A]) { player.applyForce(-400, 0); }
 			if(keys[KEY.D]) { player.applyForce(400, 0); }
 			if(keys[KEY.W]) { player.applyForce(0, -400); }
 			if(keys[KEY.S]) { player.applyForce(0, 400); }
+			if(keys.pressed[JUMP_KEY]) {
+				for(i = 0; i < interruptionsLastFrame.length; i++) {
+					interruption = interruptionsLastFrame[i];
+					if(interruption.interruptionType === 'collision') {
+						keys.pressed[JUMP_KEY] = false;
+						player.applyInstantaneousForce(15000, interruption.jumpDir.x, interruption.jumpDir.y);
+						break;
+					}
+				}
+			}
 			player.tick(ms, friction);
-			for(var i = 0; i < 5; i++) {
-				var interruption = findInterruption();
+			var interruptionsThisFrame = [];
+			for(i = 0; i < 5; i++) {
+				interruption = findInterruption();
 				if(interruption) {
+					interruptionsThisFrame.push(interruption);
 					player.pos.x = interruption.posAfterContact.x;
 					player.pos.y = interruption.posAfterContact.y;
 					player.pos.prev.x = interruption.posOnContact.x;
@@ -107,11 +123,13 @@ define([
 					break;
 				}
 			}
+			interruptionsLastFrame = interruptionsThisFrame;
 		}
 
 		function findInterruption() {
-			//find any interruptions
 			var earliestInterruption = null;
+
+			//check lines and points to see if there was a collision
 			obstacles.forEach(function(o) {
 				var collision = o.checkForCollision(player);
 				if(collision) {

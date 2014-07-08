@@ -1,8 +1,10 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define([
-	'app/Obstacle'
+	'app/Obstacle',
+	'app/Utils'
 ], function(
-	Obstacle
+	Obstacle,
+	Utils
 ) {
 	function Point(x, y) {
 		Obstacle.apply(this, arguments);
@@ -60,12 +62,12 @@ define([
 
 		//calculate the angle from the point to the position on contact
 		//rotate the player's velocity, zero out its velocity towards the point, then unrotate it
-		var angleToPointOfContact = (prev.y > pos.y ? -1 : 1) * -Math.PI - Math.atan2(this.x - posOnHit.x, this.y - posOnHit.y);
+		var angleToPointOfContact = Math.atan2(posOnHit.y - this.y, posOnHit.x - this.x) + Math.PI / 2;
 		var cosAngle = Math.cos(angleToPointOfContact);
 		var sinAngle = Math.sin(angleToPointOfContact);
-		var horizontalVelRelativeToPointOfContact = vel.x * -cosAngle + vel.y * -sinAngle;
-		vel.x = horizontalVelRelativeToPointOfContact * -cosAngle;
-		vel.y = horizontalVelRelativeToPointOfContact * -sinAngle;
+		var horizontalVelRelativeToPointOfContact = vel.x * cosAngle + vel.y * sinAngle;
+		vel.x = horizontalVelRelativeToPointOfContact * cosAngle;
+		vel.y = horizontalVelRelativeToPointOfContact * sinAngle;
 
 		//determine if collision point is on the current path (have to account for a bit of error here, hence the 0.005)
 		var c = 0.005;
@@ -79,6 +81,7 @@ define([
 			var distTraveledPostContact = Math.sqrt(squareDistTraveledInTotal) - Math.sqrt(squareDistTraveledPreContact);
 
 			//there was a collision!
+			var jumpAngle = Utils.transformToJumpAngle(angleToPointOfContact - Math.PI / 2);
 			return {
 				obstacle: this,
 				posOnContact: posOnHit,
@@ -86,6 +89,7 @@ define([
 					x: posOnHit.x + (vel.x > 0 ? 1 : -1) * Math.abs(distTraveledPostContact * -cosAngle),
 					y: posOnHit.y + (vel.y > 0 ? 1 : -1) * Math.abs(distTraveledPostContact * -sinAngle) },
 				velAfterContact: vel,
+				jumpDir: { x: Math.cos(jumpAngle), y: Math.sin(jumpAngle) },
 				distPreContact: Math.sqrt(squareDistTraveledPreContact),
 				angleToPointOfContact: angleToPointOfContact
 			};

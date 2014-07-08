@@ -19,7 +19,7 @@ define([
 		this.dirParallel = { x: this._cos, y: this._sin };
 		this.dirPerpendicular = { x: this._sin, y: -this._cos };
 		var jumpAngle = Utils.transformToJumpAngle(angle + Math.PI / 2);
-		this.dirJump = { x: -Math.cos(jumpAngle), y: -Math.sin(jumpAngle) };
+		this.dirJump = { x: Math.cos(jumpAngle), y: Math.sin(jumpAngle) };
 	}
 	Line.prototype = Object.create(Obstacle.prototype);
 	Line.prototype.rotatePoint = function(point) {
@@ -54,7 +54,8 @@ define([
 				posAfterContact: this.unrotatePoint({ x: pos.x, y: playerPosOnContact.y }),
 				velAfterContact: this.unrotatePoint({ x: vel.x, y: 0 }),
 				distPreContact: Math.sqrt((playerPosOnContact.x - prev.x) * (playerPosOnContact.x - prev.x) +
-								(playerPosOnContact.y - prev.y) * (playerPosOnContact.y - prev.y))
+								(playerPosOnContact.y - prev.y) * (playerPosOnContact.y - prev.y)),
+				jumpDir: this.dirJump
 			};
 		}
 		return false;
