@@ -156,12 +156,12 @@ define([
 			var i;
 			ctx.fillStyle = '#fff';
 			ctx.fillRect(0, 0, width, height);
+			for(i = 0; i < grapples.length; i++) {
+				grapples[i].render(ctx, camera);
+			}
 			player.render(ctx, camera);
 			for(i = 0; i < obstacles.length; i++) {
 				obstacles[i].render(ctx, camera);
-			}
-			for(i = 0; i < grapples.length; i++) {
-				grapples[i].render(ctx, camera);
 			}
 		}
 
