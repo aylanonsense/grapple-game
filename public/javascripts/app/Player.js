@@ -1,5 +1,9 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
-define(function() {
+define([
+	'app/Grapple'
+], function(
+	Grapple
+) {
 	function Player(x, y) {
 		this.pos = { x: x, y: y, prev: { x: x, y: y } };
 		this.vel = { x: 0, y: 0 };
@@ -60,6 +64,16 @@ define(function() {
 		ctx.beginPath();
 		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.radius, 0, 2 * Math.PI, false);
 		ctx.fill();
+	};
+	Player.prototype.jump = function(dirX, dirY) {
+		this.applyInstantaneousForce(15000, dirX, dirY);
+	};
+	Player.prototype.shootGrapple = function(x, y) {
+		var dirX = x - this.pos.x;
+		var dirY = y - this.pos.y;
+		var dir = Math.sqrt(dirX * dirX + dirY * dirY);
+		return new Grapple(this, this.pos.x + this.radius * dirX / dir,
+			this.pos.y + this.radius * dirY / dir, dirX / dir, dirY / dir);
 	};
 	return Player;
 });

@@ -20,6 +20,7 @@ define([
 		var player = new Player(1000, 1000);
 		var camera = { x: player.pos.x, y: player.pos.y };
 		var obstacles = [];
+		var grapples = [];
 		function createPoly(points, reverse) {
 			var i, line, point, lines = [];
 			if(reverse) {
@@ -59,7 +60,7 @@ define([
 		createPoly([980,1220,  900,1180,  900,1170,   1100,1170, 1100,1180, 1020,1220], true);
 		createPoly([200,1510,  200,1500,  2000,1500,  2000,1510],  true);
 
-		//add key bindings
+		//add input bindings
 		var keys = { pressed: {} };
 		var KEY = { W: 87, A: 65, S: 83, D: 68, R: 82, G: 71, SHIFT: 16, SPACE: 32 };
 		var JUMP_KEY = KEY.SPACE;
@@ -75,16 +76,14 @@ define([
 				keys.pressed[evt.which] = false;
 			}
 		});
+		$(document).on('mousedown', function(evt) {
+			grapples.push(player.shootGrapple(evt.clientX + camera.x, evt.clientY + camera.y));
+		});
 
 		function everyFrame(ms) {
-			//do stuff
 			tick(ms);
-
-			//move camera
 			camera.x = player.pos.x - width / 2;
 			camera.y = player.pos.y - height / 2;
-
-			//render
 			render();
 		}
 
@@ -101,12 +100,15 @@ define([
 					interruption = interruptionsLastFrame[i];
 					if(interruption.interruptionType === 'collision') {
 						keys.pressed[JUMP_KEY] = false;
-						player.applyInstantaneousForce(15000, interruption.jumpDir.x, interruption.jumpDir.y);
+						player.jump(interruption.jumpDir.x, interruption.jumpDir.y);
 						break;
 					}
 				}
 			}
 			player.tick(ms, friction);
+			for(i = 0; i < grapples.length; i++) {
+				grapples[i].tick(ms, friction);
+			}
 			var interruptionsThisFrame = [];
 			for(i = 0; i < 5; i++) {
 				interruption = findInterruption();
@@ -128,8 +130,6 @@ define([
 
 		function findInterruption() {
 			var earliestInterruption = null;
-
-			//check lines and points to see if there was a collision
 			obstacles.forEach(function(o) {
 				var collision = o.checkForCollision(player);
 				if(collision) {
@@ -143,15 +143,16 @@ define([
 		}
 
 		function render() {
-			//draw background
+			var i;
 			ctx.fillStyle = '#fff';
 			ctx.fillRect(0, 0, width, height);
-
-			//draw objects
 			player.render(ctx, camera);
-			obstacles.forEach(function(obstacle) {
-				obstacle.render(ctx, camera);
-			});
+			for(i = 0; i < obstacles.length; i++) {
+				obstacles[i].render(ctx, camera);
+			}
+			for(i = 0; i < grapples.length; i++) {
+				grapples[i].render(ctx, camera);
+			}
 		}
 
 		//set up animation frame functionality
