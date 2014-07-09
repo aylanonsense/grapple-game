@@ -89,7 +89,22 @@ define([
 
 		var interruptionsLastFrame = [];
 		function tick(ms) {
-			var i, interruption, friction = 1;
+			var i, j, interruption, friction = 1;
+			for(i = 0; i < grapples.length; i++) {
+				if(!grapples[i].isDead && !grapples[i].isLatched) {
+					var earliestGrappleCollision = null;
+					grapples[i].tick(ms, friction);
+					for(j = 0; j < obstacles.length; j++) {
+						var collision = obstacles[j].checkForCollisionWithMovingPoint(grapples[i]);
+						if(collision && (!earliestGrappleCollision || earliestGrappleCollision.distPreContact > collision.distPreContact)) {
+							earliestGrappleCollision = collision;
+						}
+					}
+					if(earliestGrappleCollision) {
+						grapples[i].latchTo(earliestGrappleCollision.posOnContact.x, earliestGrappleCollision.posOnContact.y);
+					}
+				}
+			}
 			player.applyForce(0, 600); //gravity
 			if(keys[KEY.A]) { player.applyForce(-400, 0); }
 			if(keys[KEY.D]) { player.applyForce(400, 0); }
@@ -106,9 +121,6 @@ define([
 				}
 			}
 			player.tick(ms, friction);
-			for(i = 0; i < grapples.length; i++) {
-				grapples[i].tick(ms, friction);
-			}
 			var interruptionsThisFrame = [];
 			for(i = 0; i < 5; i++) {
 				interruption = findInterruption();
@@ -130,15 +142,13 @@ define([
 
 		function findInterruption() {
 			var earliestInterruption = null;
-			obstacles.forEach(function(o) {
-				var collision = o.checkForCollision(player);
-				if(collision) {
-					if(!earliestInterruption || earliestInterruption.distPreContact > collision.distPreContact) {
-						collision.interruptionType = 'collision';
-						earliestInterruption = collision;
-					}
+			for(var i = 0; i < obstacles.length; i++) {
+				var collision = obstacles[i].checkForCollisionWithMovingCircle(player);
+				if(collision && (!earliestInterruption || earliestInterruption.distPreContact > collision.distPreContact)) {
+					collision.interruptionType = 'collision';
+					earliestInterruption = collision;
 				}
-			});
+			}
 			return earliestInterruption;
 		}
 

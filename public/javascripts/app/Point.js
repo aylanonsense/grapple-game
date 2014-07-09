@@ -25,12 +25,12 @@ define([
 		}
 		return false;
 	};
-	Point.prototype.checkForCollision = function(player) {
-		var pos = { x: player.pos.x, y: player.pos.y };
-		var vel = { x: player.vel.x, y: player.vel.y };
-		var prev = { x: player.pos.prev.x, y: player.pos.prev.y };
+	Point.prototype.checkForCollisionWithMovingCircle = function(circle) {
+		var pos = { x: circle.pos.x, y: circle.pos.y };
+		var vel = { x: circle.vel.x, y: circle.vel.y };
+		var prev = { x: circle.pos.prev.x, y: circle.pos.prev.y };
 
-		//find the player's position during collision
+		//find the circle's position during collision
 		var slope = (pos.y - prev.y) / (pos.x - prev.x); //can be Infinity
 		var intersection = { x: null, y: null };
 		if(slope === 0) {
@@ -48,20 +48,20 @@ define([
 			intersection.y = perpendicularSlope * intersection.x + perpendicularLineAt0;
 		}
 
-		//if the intersection point is too far from the player no matter where it is along the path... no way it'll collide
+		//if the intersection point is too far from the circle no matter where it is along the path... no way it'll collide
 		var distFromIntersectionToPoint = Math.sqrt((intersection.x - this.x) * (intersection.x - this.x) + (intersection.y - this.y) * (intersection.y - this.y));
-		if(distFromIntersectionToPoint > player.radius) {
+		if(distFromIntersectionToPoint > circle.radius) {
 			return false;
 		}
 
-		//move up the player's path to the collision point
-		var distAlongCirclePath = (prev.y > pos.y ? -1 : 1) * Math.sqrt(player.radius * player.radius - distFromIntersectionToPoint * distFromIntersectionToPoint);
+		//move up the circle's path to the collision point
+		var distAlongCirclePath = (prev.y > pos.y ? -1 : 1) * Math.sqrt(circle.radius * circle.radius - distFromIntersectionToPoint * distFromIntersectionToPoint);
 		var horizontalDistAlongCirclePath = (slope === Infinity || slope === -Infinity ? 0 : distAlongCirclePath / Math.sqrt(1 + slope * slope) * (slope <= 0 ? 1 : -1));
 		var verticalDistAlongCirclePath = (slope === Infinity || slope === -Infinity ? -distAlongCirclePath : slope * horizontalDistAlongCirclePath);
 		posOnHit = { x: intersection.x + horizontalDistAlongCirclePath, y: intersection.y + verticalDistAlongCirclePath };
 
 		//calculate the angle from the point to the position on contact
-		//rotate the player's velocity, zero out its velocity towards the point, then unrotate it
+		//rotate the circle's velocity, zero out its velocity towards the point, then unrotate it
 		var angleToPointOfContact = Math.atan2(posOnHit.y - this.y, posOnHit.x - this.x) + Math.PI / 2;
 		var cosAngle = Math.cos(angleToPointOfContact);
 		var sinAngle = Math.sin(angleToPointOfContact);
@@ -94,6 +94,9 @@ define([
 				angleToPointOfContact: angleToPointOfContact
 			};
 		}
+		return false;
+	};
+	Point.prototype.checkForCollisionWithMovingPoint = function(point) {
 		return false;
 	};
 	Point.prototype.render = function(ctx, camera) {

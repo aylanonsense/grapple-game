@@ -34,27 +34,53 @@ define([
 			y: point.x * -this._sin + point.y * -this._cos
 		};
 	};
-	Line.prototype.checkForCollision = function(player) {
-		var pos = this.rotatePoint(player.pos);
-		var vel = this.rotatePoint(player.vel);
-		var prev = this.rotatePoint(player.pos.prev);
-		var playerPosOnContact = {
-			x: pos.x + (this.start.rotated.y - player.radius - pos.y) / ((pos.y - prev.y) / (pos.x - prev.x)),
-			y: this.start.rotated.y - player.radius
+	Line.prototype.checkForCollisionWithMovingCircle = function(circle) {
+		var pos = this.rotatePoint(circle.pos);
+		var vel = this.rotatePoint(circle.vel);
+		var prev = this.rotatePoint(circle.pos.prev);
+		var circlePosOnContact = {
+			x: pos.x + (this.start.rotated.y - circle.radius - pos.y) / ((pos.y - prev.y) / (pos.x - prev.x)),
+			y: this.start.rotated.y - circle.radius
 		};
 		var c = 0.005; //error +/-
-		if(this.start.rotated.x >= playerPosOnContact.x && playerPosOnContact.x >= this.end.rotated.x &&
-			((prev.x <= pos.x && prev.x - c <= playerPosOnContact.x && playerPosOnContact.x <= pos.x + c) ||
-			(prev.x > pos.x && pos.x - c <= playerPosOnContact.x && playerPosOnContact.x <= prev.x + c)) &&
-			(prev.y <= pos.y && prev.y - c <= playerPosOnContact.y && playerPosOnContact.y <= pos.y + c) &&
-			pos.y > playerPosOnContact.y && pos.y > prev.y) {
+		if(this.start.rotated.x >= circlePosOnContact.x && circlePosOnContact.x >= this.end.rotated.x &&
+			((prev.x <= pos.x && prev.x - c <= circlePosOnContact.x && circlePosOnContact.x <= pos.x + c) ||
+			(prev.x > pos.x && pos.x - c <= circlePosOnContact.x && circlePosOnContact.x <= prev.x + c)) &&
+			(prev.y <= pos.y && prev.y - c <= circlePosOnContact.y && circlePosOnContact.y <= pos.y + c) &&
+			pos.y > circlePosOnContact.y && pos.y > prev.y) {
 			return {
 				obstacle: this,
-				posOnContact: this.unrotatePoint(playerPosOnContact),
-				posAfterContact: this.unrotatePoint({ x: pos.x, y: playerPosOnContact.y }),
+				posOnContact: this.unrotatePoint(circlePosOnContact),
+				posAfterContact: this.unrotatePoint({ x: pos.x, y: circlePosOnContact.y }),
 				velAfterContact: this.unrotatePoint({ x: vel.x, y: 0 }),
-				distPreContact: Math.sqrt((playerPosOnContact.x - prev.x) * (playerPosOnContact.x - prev.x) +
-								(playerPosOnContact.y - prev.y) * (playerPosOnContact.y - prev.y)),
+				distPreContact: Math.sqrt((circlePosOnContact.x - prev.x) * (circlePosOnContact.x - prev.x) +
+								(circlePosOnContact.y - prev.y) * (circlePosOnContact.y - prev.y)),
+				jumpDir: this.dirJump
+			};
+		}
+		return false;
+	};
+	Line.prototype.checkForCollisionWithMovingPoint = function(point) {
+		var pos = this.rotatePoint(point.pos);
+		var vel = this.rotatePoint(point.vel);
+		var prev = this.rotatePoint(point.pos.prev);
+		var pointPosOnContact = {
+			x: pos.x + (this.start.rotated.y - pos.y) / ((pos.y - prev.y) / (pos.x - prev.x)),
+			y: this.start.rotated.y
+		};
+		var c = 0.005; //error +/-
+		if(this.start.rotated.x >= pointPosOnContact.x && pointPosOnContact.x >= this.end.rotated.x &&
+			((prev.x <= pos.x && prev.x - c <= pointPosOnContact.x && pointPosOnContact.x <= pos.x + c) ||
+			(prev.x > pos.x && pos.x - c <= pointPosOnContact.x && pointPosOnContact.x <= prev.x + c)) &&
+			(prev.y <= pos.y && prev.y - c <= pointPosOnContact.y && pointPosOnContact.y <= pos.y + c) &&
+			pos.y > pointPosOnContact.y && pos.y > prev.y) {
+			return {
+				obstacle: this,
+				posOnContact: this.unrotatePoint(pointPosOnContact),
+				posAfterContact: this.unrotatePoint({ x: pos.x, y: pointPosOnContact.y }),
+				velAfterContact: this.unrotatePoint({ x: vel.x, y: 0 }),
+				distPreContact: Math.sqrt((pointPosOnContact.x - prev.x) * (pointPosOnContact.x - prev.x) +
+								(pointPosOnContact.y - prev.y) * (pointPosOnContact.y - prev.y)),
 				jumpDir: this.dirJump
 			};
 		}
