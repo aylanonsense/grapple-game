@@ -141,12 +141,19 @@ define([
 		}
 
 		function findInterruption() {
-			var earliestInterruption = null;
-			for(var i = 0; i < obstacles.length; i++) {
+			var i, earliestInterruption = null;
+			for(i = 0; i < obstacles.length; i++) {
 				var collision = obstacles[i].checkForCollisionWithMovingCircle(player);
 				if(collision && (!earliestInterruption || earliestInterruption.distPreContact > collision.distPreContact)) {
 					collision.interruptionType = 'collision';
 					earliestInterruption = collision;
+				}
+			}
+			for(i = 0; i < grapples.length; i++) {
+				var violation = grapples[i].checkForMaxTether();
+				if(violation && (!earliestInterruption || earliestInterruption.distPreContact > violation.distPreContact)) {
+					violation.interruptionType = 'grapple';
+					earliestInterruption = violation;
 				}
 			}
 			return earliestInterruption;

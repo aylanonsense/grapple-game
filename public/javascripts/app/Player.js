@@ -60,6 +60,22 @@ define([
 		this._instantForce.y = 0;
 	};
 	Player.prototype.render = function(ctx, camera) {
+		if(this.pos.x !== this.pos.prev.x || this.pos.y !== this.pos.prev.y) {
+			ctx.strokeStyle = '#ddd';
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			if(this.pos.x === this.pos.prev.x) {
+				ctx.moveTo(this.pos.x - camera.x, -9999);
+				ctx.lineTo(this.pos.x - camera.x, 9999);
+			}
+			else {
+				var slope = (this.pos.y - this.pos.prev.y) / (this.pos.x - this.pos.prev.x);
+				var at0 = this.pos.y - slope * this.pos.x;
+				ctx.moveTo(-9999 - camera.x, slope * -9999 + at0 - camera.y);
+				ctx.lineTo(9999 - camera.x, slope * 9999 + at0 - camera.y);
+			}
+			ctx.stroke();
+		}
 		ctx.fillStyle = '#6c6';
 		ctx.beginPath();
 		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.radius, 0, 2 * Math.PI, false);
