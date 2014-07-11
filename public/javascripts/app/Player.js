@@ -76,6 +76,14 @@ define([
 			}
 			ctx.stroke();
 		}
+		if(this.vel.x !== 0 || this.vel.y !== 0) {
+			ctx.strokeStyle = '#000';
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(this.pos.x - camera.x, this.pos.y - camera.y);
+			ctx.lineTo(this.pos.x - camera.x + this.vel.x, this.pos.y - camera.y + this.vel.y);
+			ctx.stroke();
+		}
 		ctx.fillStyle = '#6c6';
 		ctx.beginPath();
 		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.radius, 0, 2 * Math.PI, false);

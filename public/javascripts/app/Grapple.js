@@ -1,7 +1,9 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define(function() {
+	var nextGrappleId = 0;
 	var GRAPPLE_MOVE_SPEED = 1200;
 	function Grapple(parent, x, y, dirX, dirY) {
+		this._id = nextGrappleId++;
 		this._parent = parent;
 		var dir = Math.sqrt(dirX * dirX + dirY * dirY);
 		this.pos = { x: x, y: y, prev: { x: x, y: y } };
@@ -10,6 +12,9 @@ define(function() {
 		this.isLatched = false;
 		this.isDead = false;
 	}
+	Grapple.prototype.sameAs = function(other) {
+		return this._id === other._id;
+	};
 	Grapple.prototype.tick = function(ms, friction) {
 		if(!this.isDead && !this.isLatched) {
 			var t = ms / 1000;
@@ -70,17 +75,11 @@ define(function() {
 			var distXToPrev = this._parent.pos.prev.x - this.pos.x;
 			var distYToPrev = this._parent.pos.prev.y - this.pos.y;
 			var distToPrev = Math.sqrt(distXToPrev * distXToPrev + distYToPrev * distYToPrev);
+			var intersection, distToIntersection;
 			if(distToPrev > this.maxDist) {
 				//the parent started the frame beyond the max tether distance
-				//TODO reached max tether at very start of frame
-				return false;/*
-				return {
-					grapple: this,
-					posOnContact: null,
-					posAfterContact: null,
-					velAfterContact: null,
-					distPreContact: 0
-				};*/
+				intersection = { x: this._parent.pos.prev.x, y: this._parent.pos.prev.y };
+				distToIntersection = 0;
 			}
 			else if(distToPos > this.maxDist) {
 				//the tether moved out of the max tether range during the frame
@@ -100,9 +99,13 @@ define(function() {
 				var cprim = (c - b) * (c - b) + a * a - r * r;
 
 				var discriminant = bprim * bprim - 4 * aprim * cprim;
+				if(discriminant < 0 && discriminant > -0.0005) {
+					//a very slightly negative discriminant, probably just a rounding error--make it 0
+					discriminant = 0;
+				}
 				if(discriminant < 0) {
 					//no possible intersection, I don't see how this is possible with it starting inside the circle and moving outside the circle
-					console.log("A negative discriminant! I don't know how this is possible!!");
+					console.log("A negative discriminant! I don't know how this is possible!!", discriminant);
 					return false;
 				}
 				var xA = (-bprim + Math.sqrt(discriminant)) / (2 * aprim);
@@ -110,8 +113,7 @@ define(function() {
 				var xB = (-bprim - Math.sqrt(discriminant)) / (2 * aprim);
 				var yB = (m * xB + c);
 
-				var intersection;
-				var err = 0.005;
+				var err = 0.0005;
 				var intersectionAWorks = (((x1 <= x2 && x1 - err < xA && xA < x2 + err) ||
 					(x1 > x2 && x2 - err < xA && xA < x1 + err)) &&
 					((y1 <= y2 && y1 - err < yA && yA < y2 + err) ||
@@ -122,7 +124,6 @@ define(function() {
 					(y1 > y2 && y2 - err < yB && yB < y1 + err)));
 				var squareDistToIntersectionA = (xA - x2) * (xA - x2) + (yA - y2) * (yA - y2);
 				var squareDistToIntersectionB = (xB - x2) * (xB - x2) + (yB - y2) * (yB - y2);
-				var distToIntersection = null;
 				if(intersectionAWorks && intersectionBWorks) {
 					if(squareDistToIntersectionA < squareDistToIntersectionB) {
 						intersection = { x: xA, y: yA };
@@ -145,36 +146,49 @@ define(function() {
 					//the parent's path never crossed the max tether range during its movement
 					return false;
 				}
-				//the parent has definitely crossed path the max tether range, here's where we handle that
-				var angle = Math.atan2(this.pos.y - intersection.y, this.pos.x - intersection.x); //from latch point to intersection
-				var cos = Math.cos(angle);
-				var sin = Math.sin(angle);
-				//rotate intersection point to be to the left of the grapple point
-				var posRotated = {
-					x: cos * (this._parent.pos.x - this.pos.x) + sin * (this._parent.pos.y - this.pos.y) + this.pos.x,
-					y: -sin * (this._parent.pos.x - this.pos.x) + cos * (intersection.y - this.pos.y) + this.pos.y
-				};
-				var posAfterContact = intersection; //TODO
-				var velRotated = {
-					x: cos * this._parent.vel.x + sin * this._parent.vel.y,
-					y: -sin * this._parent.vel.x + cos * this._parent.vel.y
-				};
-				var totalVel = velRotated.y;
-				angle = Math.atan2(this.pos.y - posAfterContact.y, this.pos.x - posAfterContact.x); //from latch point to pos after contact
-				cos = Math.cos(angle);
-				sin = Math.sin(angle);
-				var velAfterContact = {
-					x: -sin * totalVel,
-					y: cos * totalVel
-				};
-				return {
-					grapple: this,
-					posOnContact: intersection,
-					posAfterContact: posAfterContact,
-					velAfterContact: velAfterContact,
-					distPreContact: distToIntersection
-				};
 			}
+			else {
+				return false;
+			}
+			//the parent has definitely crossed path the max tether range, here's where we handle that
+			var angle = Math.atan2(this.pos.y - intersection.y, this.pos.x - intersection.x); //from latch point to intersection
+			var cos = Math.cos(angle);
+			var sin = Math.sin(angle);
+			//rotate intersection point to be to the left of the grapple point
+			var posRotated = {
+				x: cos * (this._parent.pos.x - this.pos.x) + sin * (this._parent.pos.y - this.pos.y) + this.pos.x,
+				y: -sin * (this._parent.pos.x - this.pos.x) + cos * (intersection.y - this.pos.y) + this.pos.y
+			};
+			var velRotated = {
+				x: cos * this._parent.vel.x + sin * this._parent.vel.y,
+				y: -sin * this._parent.vel.x + cos * this._parent.vel.y
+			};
+			var totalVel = velRotated.y;
+			var distXNotTraveled = intersection.x - this._parent.pos.x;
+			var distYNotTraveled = intersection.y - this._parent.pos.y;
+			var distNotTraveled = Math.sqrt(distXNotTraveled * distXNotTraveled + distYNotTraveled * distYNotTraveled);
+			angle += (totalVel < 0 ? 1 : -1) * distNotTraveled / this.maxDist; //from latch point to pos after sliding
+			cos = Math.cos(angle);
+			sin = Math.sin(angle);
+			var d = 0.0005;
+			var posAfterContact = {
+				x: this.pos.x - cos * (this.maxDist - d),
+				y: this.pos.y - sin * (this.maxDist - d)
+			};
+			angle = Math.atan2(this.pos.y - posAfterContact.y, this.pos.x - posAfterContact.x); //from latch point to pos after contact
+			cos = Math.cos(angle);
+			sin = Math.sin(angle);
+			var velAfterContact = {
+				x: -sin * totalVel,
+				y: cos * totalVel
+			};
+			return {
+				grapple: this,
+				posOnContact: intersection,
+				posAfterContact: posAfterContact,
+				velAfterContact: velAfterContact,
+				distPreContact: distToIntersection
+			};
 		}
 		return false;
 	};

@@ -122,8 +122,9 @@ define([
 			}
 			player.tick(ms, friction);
 			var interruptionsThisFrame = [];
+			interruption = null;
 			for(i = 0; i < 5; i++) {
-				interruption = findInterruption();
+				interruption = findInterruption(interruptionsThisFrame);
 				if(interruption) {
 					interruptionsThisFrame.push(interruption);
 					player.pos.x = interruption.posAfterContact.x;
@@ -140,18 +141,21 @@ define([
 			interruptionsLastFrame = interruptionsThisFrame;
 		}
 
-		function findInterruption() {
+		function findInterruption(prevInterruptions) {
 			var i, earliestInterruption = null;
+			var prevInterruption = (prevInterruptions.length > 0 ? prevInterruptions[prevInterruptions.length - 1] : null);
 			for(i = 0; i < obstacles.length; i++) {
 				var collision = obstacles[i].checkForCollisionWithMovingCircle(player);
-				if(collision && (!earliestInterruption || earliestInterruption.distPreContact > collision.distPreContact)) {
+				if(collision && (!earliestInterruption || earliestInterruption.distPreContact > collision.distPreContact) &&
+					(!prevInterruption || prevInterruption.interruptionType !== 'collision' || !prevInterruption.obstacle.sameAs(collision.obstacle))) {
 					collision.interruptionType = 'collision';
 					earliestInterruption = collision;
 				}
 			}
 			for(i = 0; i < grapples.length; i++) {
 				var violation = grapples[i].checkForMaxTether();
-				if(violation && (!earliestInterruption || earliestInterruption.distPreContact > violation.distPreContact)) {
+				if(violation && (!earliestInterruption || earliestInterruption.distPreContact > violation.distPreContact) &&
+					(!prevInterruption || prevInterruption.interruptionType !== 'grapple' || !prevInterruption.grapple.sameAs(violation.grapple))) {
 					violation.interruptionType = 'grapple';
 					earliestInterruption = violation;
 				}
