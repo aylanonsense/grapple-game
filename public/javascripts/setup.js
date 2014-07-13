@@ -7,6 +7,6 @@ requirejs.config({
 	}
 });
 
-requirejs([ 'app/RefactoredMain' ], function(Main) {
+requirejs([ 'app/Main' ], function(Main) {
 	Main();
 });
