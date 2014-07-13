@@ -59,6 +59,11 @@ define([
 		createPoly([1600,860,  1590,860,  1590,600,   1600,600], true);
 		createPoly([980,1220,  900,1180,  900,1170,   1100,1170, 1100,1180, 1020,1220], true);
 		createPoly([200,1510,  200,1500,  2000,1500,  2000,1510],  true);
+		createPoly([1300,1315, 1260,1250, 1300,1340,  1340,1250]);
+		createPoly([1400,1300, 1360,1250, 1400,1320,  1440,1250]);
+		createPoly([1500,1285, 1460,1250, 1500,1320,  1540,1250]);
+		createPoly([1600,1270, 1560,1250, 1600,1320,  1640,1250]);
+		createPoly([1600,1100, 1560,1150, 1600,1080,  1640,1150], true);
 
 		//add input bindings
 		var keys = { pressed: {} };
@@ -123,8 +128,18 @@ define([
 			player.tick(ms, friction);
 			var interruptionsThisFrame = [];
 			interruption = null;
-			for(i = 0; i < 5; i++) {
-				interruption = findInterruption(interruptionsThisFrame);
+			for(i = 0; i <= 6; i++) {
+				if(i === 6) {
+					interruption = {
+						interruptionType: 'limit',
+						posOnContact: { x: player.pos.prev.x, y: player.pos.prev.y },
+						posAfterContact: { x: player.pos.prev.x, y: player.pos.prev.y },
+						velAfterContact: { x: 0, y: 0 }
+					};
+				}
+				else {
+					interruption = findInterruption(interruptionsThisFrame);
+				}
 				if(interruption) {
 					interruptionsThisFrame.push(interruption);
 					player.pos.x = interruption.posAfterContact.x;
@@ -138,11 +153,14 @@ define([
 					break;
 				}
 			}
+			if(interruptionsThisFrame.length > 1) {
+				console.log(interruptionsThisFrame.length + " interruptions");
+			}
 			interruptionsLastFrame = interruptionsThisFrame;
 		}
 
 		function findInterruption(prevInterruptions) {
-			var i, earliestInterruption = null;
+			var i, j, earliestInterruption = null;
 			var prevInterruption = (prevInterruptions.length > 0 ? prevInterruptions[prevInterruptions.length - 1] : null);
 			for(i = 0; i < obstacles.length; i++) {
 				var collision = obstacles[i].checkForCollisionWithMovingCircle(player);

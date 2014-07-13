@@ -76,10 +76,17 @@ define(function() {
 			var distYToPrev = this._parent.pos.prev.y - this.pos.y;
 			var distToPrev = Math.sqrt(distXToPrev * distXToPrev + distYToPrev * distYToPrev);
 			var intersection, distToIntersection;
+			var d = 0.0005;
 			if(distToPrev > this.maxDist) {
 				//the parent started the frame beyond the max tether distance
-				intersection = { x: this._parent.pos.prev.x, y: this._parent.pos.prev.y };
+				var angle2 = Math.atan2(this.pos.y - this._parent.pos.prev.y, this.pos.x - this._parent.pos.prev.x); //from latch point to intersection
+				var cos2 = Math.cos(angle2);
+				var sin2 = Math.sin(angle2);
 				distToIntersection = 0;
+				intersection = {
+					x: this.pos.x - cos2 * (this.maxDist - d),
+					y: this.pos.y - sin2 * (this.maxDist - d)
+				};
 			}
 			else if(distToPos > this.maxDist) {
 				//the tether moved out of the max tether range during the frame
@@ -87,16 +94,28 @@ define(function() {
 				var x2 = this._parent.pos.prev.x;
 				var y1 = this._parent.pos.y;
 				var y2 = this._parent.pos.prev.y;
+				if(x1 === x2 && y1 === y2) {
+					//no movement, we won't handle collision like this
+					console.log("TODO handle collisions with no movement");
+					return false;
+				}
 				var m = (y1 - y2) / (x1 - x2); //can be +/- Infinity
-				if(m === Infinity || m === -Infinity) { console.log("TODO handle infinity slopes"); }
-				var c = y1 - m * x1;
+				var isVertical = (m === Infinity || m === -Infinity);
+				var c = (isVertical ? x1 : y1 - m * x1);
 				var a = this.pos.x;
 				var b = this.pos.y;
 				var r = this.maxDist;
-
-				var aprim = (m * m + 1);
-				var bprim = 2 * (m * (c - b) - a);
-				var cprim = (c - b) * (c - b) + a * a - r * r;
+				var aprim, bprim, cprim;
+				if(isVertical) {
+					aprim = 1;
+					bprim = -2 * b;
+					cprim = (c - a) * (c - a) + b * b - r * r;
+				}
+				else {
+					aprim = (m * m + 1);
+					bprim = 2 * (m * (c - b) - a);
+					cprim = (c - b) * (c - b) + a * a - r * r;
+				}
 
 				var discriminant = bprim * bprim - 4 * aprim * cprim;
 				if(discriminant < 0 && discriminant > -0.0005) {
@@ -108,10 +127,19 @@ define(function() {
 					console.log("A negative discriminant! I don't know how this is possible!!", discriminant);
 					return false;
 				}
-				var xA = (-bprim + Math.sqrt(discriminant)) / (2 * aprim);
-				var yA = (m * xA + c);
-				var xB = (-bprim - Math.sqrt(discriminant)) / (2 * aprim);
-				var yB = (m * xB + c);
+				var xA, yA, xB, yB;
+				if(isVertical) {
+					xA = x1;
+					yA = (-bprim + Math.sqrt(discriminant)) / (2 * aprim);
+					xB = x1;
+					yB = (-bprim - Math.sqrt(discriminant)) / (2 * aprim);
+				}
+				else {
+					xA = (-bprim + Math.sqrt(discriminant)) / (2 * aprim);
+					yA = (m * xA + c);
+					xB = (-bprim - Math.sqrt(discriminant)) / (2 * aprim);
+					yB = (m * xB + c);
+				}
 
 				var err = 0.0005;
 				var intersectionAWorks = (((x1 <= x2 && x1 - err < xA && xA < x2 + err) ||
@@ -170,7 +198,6 @@ define(function() {
 			angle += (totalVel < 0 ? 1 : -1) * distNotTraveled / this.maxDist; //from latch point to pos after sliding
 			cos = Math.cos(angle);
 			sin = Math.sin(angle);
-			var d = 0.0005;
 			var posAfterContact = {
 				x: this.pos.x - cos * (this.maxDist - d),
 				y: this.pos.y - sin * (this.maxDist - d)
