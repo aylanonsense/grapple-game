@@ -153,9 +153,6 @@ define([
 					break;
 				}
 			}
-			if(interruptionsThisFrame.length > 1) {
-				console.log(interruptionsThisFrame.length + " interruptions");
-			}
 			interruptionsLastFrame = interruptionsThisFrame;
 		}
 
