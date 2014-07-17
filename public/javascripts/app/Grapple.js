@@ -219,6 +219,57 @@ define(function() {
 		}
 		return false;
 	};
+	Grapple.prototype.wrapAroundPoints = function(points) {
+		if(this.isLatched && !this.isDead) {
+			var i;
+			var wraps = [];
+			var distXToPos = this._parent.pos.x - this.pos.x;
+			var distYToPos = this._parent.pos.y - this.pos.y;
+			var distToPos = Math.sqrt(distXToPos * distXToPos + distYToPos * distYToPos);
+			var angleToPos = Math.atan2(distYToPos, distXToPos);
+			var angleToPastPos = Math.atan2(this._parent.pos.startOfFrame.y - this.pos.y, this._parent.pos.startOfFrame.x - this.pos.x);
+			var angleAroundClockwise = angleToPos - angleToPastPos;
+			if(angleAroundClockwise > Math.PI) {
+				angleAroundClockwise = angleAroundClockwise - 2 * Math.PI;
+			}
+			else if(angleAroundClockwise < -Math.PI) {
+				angleAroundClockwise = 2 * Math.PI + angleAroundClockwise;
+			}
+			for(i = 0; i < points.length; i++) {
+				var distXToPoint = points[i].x - this.pos.x;
+				var distYToPoint = points[i].y - this.pos.y;
+				var distToPoint = Math.sqrt(distXToPoint * distXToPoint + distYToPoint * distYToPoint);
+				if(0 < distToPoint && distToPoint < distToPos) {
+					var angleToPoint = Math.atan2(distYToPoint, distXToPoint);
+					var angleAroundClockwiseToPoint = angleToPoint - angleToPastPos;
+					if(angleAroundClockwiseToPoint > Math.PI) {
+						angleAroundClockwiseToPoint = angleAroundClockwiseToPoint - 2 * Math.PI;
+					}
+					else if(angleAroundClockwiseToPoint < -Math.PI) {
+						angleAroundClockwiseToPoint = 2 * Math.PI + angleAroundClockwiseToPoint;
+					}
+					if((angleAroundClockwise > 0 && angleAroundClockwiseToPoint > 0 && angleAroundClockwise > angleAroundClockwiseToPoint) ||
+						(angleAroundClockwise < 0 && angleAroundClockwiseToPoint < 0 && angleAroundClockwise < angleAroundClockwiseToPoint)) {
+						wraps.push({
+							point: points[i],
+							angle: (angleAroundClockwiseToPoint < 0 ? -angleAroundClockwiseToPoint : angleAroundClockwiseToPoint)
+						});
+					}
+				}
+			}
+			wraps.sort(function(a, b) {
+				return a.angle - b.angle;
+			});
+			for(i = 0; i < wraps.length; i++) {
+				var distXToNewLatch = wraps[i].point.x - this.pos.x;
+				var distYToNewLatch = wraps[i].point.y - this.pos.y;
+				var distToNewLatch = Math.sqrt(distXToNewLatch * distXToNewLatch + distYToNewLatch * distYToNewLatch);
+				this.pos.x = wraps[i].point.x;
+				this.pos.y = wraps[i].point.y;
+				this.maxDist -= distToNewLatch;
+			}
+		}
+	};
 	Grapple.prototype.kill = function() {
 		this.isDead = true;
 	};

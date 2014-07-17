@@ -5,7 +5,7 @@ define([
 	Grapple
 ) {
 	function Player(x, y) {
-		this.pos = { x: x, y: y, prev: { x: x, y: y } };
+		this.pos = { x: x, y: y, prev: { x: x, y: y }, startOfFrame: { x: x, y: y } };
 		this.vel = { x: 0, y: 0 };
 		this.radius = 20;
 		this.mass = 1;
@@ -52,6 +52,8 @@ define([
 		this.vel.y = (this.vel.y + accY * t + instantAccY / 60) * friction;
 		this.pos.prev.x = this.pos.x;
 		this.pos.prev.y = this.pos.y;
+		this.pos.startOfFrame.x = this.pos.prev.x;
+		this.pos.startOfFrame.y = this.pos.prev.y;
 		this.pos.x += (this.vel.x + oldVelX) / 2 * t;
 		this.pos.y += (this.vel.y + oldVelY) / 2 * t;
 		this._force.x = 0;

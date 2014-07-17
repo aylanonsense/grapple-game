@@ -69,10 +69,16 @@ define([
 		var keys = { pressed: {} };
 		var KEY = { W: 87, A: 65, S: 83, D: 68, R: 82, G: 71, SHIFT: 16, SPACE: 32 };
 		var JUMP_KEY = KEY.SPACE;
+		var BREAK_GRAPPLES_KEY = KEY.R;
 		$(document).on('keydown', function(evt) {
 			if(!keys[evt.which]) {
 				keys[evt.which] = true;
 				keys.pressed[evt.which] = true;
+				if(evt.which === BREAK_GRAPPLES_KEY) {
+					for(var i = 0; i < grapples.length; i++) {
+						grapples[i].kill();
+					}
+				}
 			}
 		});
 		$(document).on('keyup', function(evt) {
@@ -152,6 +158,15 @@ define([
 				else {
 					break;
 				}
+			}
+			var points = [];
+			for(i = 0; i < obstacles.length; i++) {
+				if(obstacles[i].type === 'point') {
+					points.push(obstacles[i]);
+				}
+			}
+			for(i = 0; i < grapples.length; i++) {
+				grapples[i].wrapAroundPoints(points);
 			}
 			interruptionsLastFrame = interruptionsThisFrame;
 		}
