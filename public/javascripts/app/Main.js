@@ -154,12 +154,15 @@ define([
 					player.pos.prev.y = interruption.posOnContact.y;
 					player.vel.x = interruption.velAfterContact.x;
 					player.vel.y = interruption.velAfterContact.y;
+					if(interruption.handle) {
+						interruption.handle();
+					}
 				}
 				else {
 					break;
 				}
 			}
-			var points = [];
+			/*var points = [];
 			for(i = 0; i < obstacles.length; i++) {
 				if(obstacles[i].type === 'point') {
 					points.push(obstacles[i]);
@@ -167,12 +170,13 @@ define([
 			}
 			for(i = 0; i < grapples.length; i++) {
 				grapples[i].wrapAroundPoints(points);
-			}
+			}*/
 			interruptionsLastFrame = interruptionsThisFrame;
 		}
 
 		function findInterruption(prevInterruptions) {
 			var i, j, earliestInterruption = null;
+			var points = [];
 			var prevInterruption = (prevInterruptions.length > 0 ? prevInterruptions[prevInterruptions.length - 1] : null);
 			for(i = 0; i < obstacles.length; i++) {
 				var collision = obstacles[i].checkForCollisionWithMovingCircle(player);
@@ -181,12 +185,20 @@ define([
 					collision.interruptionType = 'collision';
 					earliestInterruption = collision;
 				}
+				if(obstacles[i].type === 'point') {
+					points.push(obstacles[i]);
+				}
 			}
 			for(i = 0; i < grapples.length; i++) {
 				var violation = grapples[i].checkForMaxTether();
 				if(violation && (!earliestInterruption || earliestInterruption.distPreContact > violation.distPreContact) &&
 					(!prevInterruption || prevInterruption.interruptionType !== 'grapple' || !prevInterruption.grapple.sameAs(violation.grapple))) {
 					violation.interruptionType = 'grapple';
+					earliestInterruption = violation;
+				}
+				violation = grapples[i].checkForWraps(points);
+				if(violation && (!earliestInterruption || earliestInterruption.distPreContact > violation.distPreContact)) {
+					violation.interruptionType = 'wrap';
 					earliestInterruption = violation;
 				}
 			}
