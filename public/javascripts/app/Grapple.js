@@ -6,9 +6,9 @@ define([
 ) {
 	var nextGrappleId = 0;
 	var GRAPPLE_MOVE_SPEED = 99999;
-	function Grapple(parent, x, y, dirX, dirY) {
+	function Grapple(player, x, y, dirX, dirY) {
 		this._grappleId = nextGrappleId++;
-		this._parent = parent;
+		this._player = player;
 		var dir = Math.sqrt(dirX * dirX + dirY * dirY);
 		this.pos = { x: x, y: y, prev: { x: x, y: y } };
 		this.vel = { x: GRAPPLE_MOVE_SPEED * dirX / dir, y: GRAPPLE_MOVE_SPEED * dirY / dir };
@@ -51,8 +51,8 @@ define([
 			maxDist = prevLatchPoint.maxDist - distToPrev;
 		}
 		else {
-			var distXToParent = x - this._parent.pos.x;
-			var distYToParent = y - this._parent.pos.y;
+			var distXToParent = x - this._player.pos.x;
+			var distYToParent = y - this._player.pos.y;
 			maxDist = Math.sqrt(distXToParent * distXToParent + distYToParent * distYToParent);
 		}
 		var newLatchPoint = {
@@ -91,7 +91,7 @@ define([
 			ctx.strokeStyle = '#6c6';
 			ctx.lineWidth = 3;
 			ctx.beginPath();
-			ctx.moveTo(this._parent.pos.x - camera.x, this._parent.pos.y - camera.y);
+			ctx.moveTo(this._player.pos.x - camera.x, this._player.pos.y - camera.y);
 			if(this.isLatched) {
 				for(var i = this._latchPoints.length - 1; i >= 0; i--) {
 					ctx.lineTo(this._latchPoints[i].x - camera.x, this._latchPoints[i].y - camera.y);
@@ -124,17 +124,17 @@ define([
 	};
 	Grapple.prototype.checkForMaxTether = function() {
 		if(!this.isDead && this.isLatched) {
-			var distXToPos = this._parent.pos.x - this.pos.x;
-			var distYToPos = this._parent.pos.y - this.pos.y;
+			var distXToPos = this._player.pos.x - this.pos.x;
+			var distYToPos = this._player.pos.y - this.pos.y;
 			var distToPos = Math.sqrt(distXToPos * distXToPos + distYToPos * distYToPos);
-			var distXToPrev = this._parent.pos.prev.x - this.pos.x;
-			var distYToPrev = this._parent.pos.prev.y - this.pos.y;
+			var distXToPrev = this._player.pos.prev.x - this.pos.x;
+			var distYToPrev = this._player.pos.prev.y - this.pos.y;
 			var distToPrev = Math.sqrt(distXToPrev * distXToPrev + distYToPrev * distYToPrev);
 			var intersection, distToIntersection;
 			var d = 0.0005;
 			if(distToPrev > this.maxDist) {
-				//the parent started the frame beyond the max tether distance
-				var angle2 = Math.atan2(this.pos.y - this._parent.pos.prev.y, this.pos.x - this._parent.pos.prev.x); //from latch point to intersection
+				//the player started the frame beyond the max tether distance
+				var angle2 = Math.atan2(this.pos.y - this._player.pos.prev.y, this.pos.x - this._player.pos.prev.x); //from latch point to intersection
 				var cos2 = Math.cos(angle2);
 				var sin2 = Math.sin(angle2);
 				distToIntersection = 0;
@@ -145,10 +145,10 @@ define([
 			}
 			else if(distToPos > this.maxDist) {
 				//the tether moved out of the max tether range during the frame
-				var x1 = this._parent.pos.x;
-				var x2 = this._parent.pos.prev.x;
-				var y1 = this._parent.pos.y;
-				var y2 = this._parent.pos.prev.y;
+				var x1 = this._player.pos.x;
+				var x2 = this._player.pos.prev.x;
+				var y1 = this._player.pos.y;
+				var y2 = this._player.pos.prev.y;
 				if(x1 === x2 && y1 === y2) {
 					//no movement, we won't handle collision like this
 					console.log("TODO handle collisions with no movement");
@@ -226,29 +226,29 @@ define([
 						distToIntersection = Math.sqrt(squareDistToIntersectionB);
 				}
 				else {
-					//the parent's path never crossed the max tether range during its movement
+					//the player's path never crossed the max tether range during its movement
 					return false;
 				}
 			}
 			else {
 				return false;
 			}
-			//the parent has definitely crossed path the max tether range, here's where we handle that
+			//the player has definitely crossed path the max tether range, here's where we handle that
 			var angle = Math.atan2(this.pos.y - intersection.y, this.pos.x - intersection.x); //from latch point to intersection
 			var cos = Math.cos(angle);
 			var sin = Math.sin(angle);
 			//rotate intersection point to be to the left of the grapple point
 			var posRotated = {
-				x: cos * (this._parent.pos.x - this.pos.x) + sin * (this._parent.pos.y - this.pos.y) + this.pos.x,
-				y: -sin * (this._parent.pos.x - this.pos.x) + cos * (intersection.y - this.pos.y) + this.pos.y
+				x: cos * (this._player.pos.x - this.pos.x) + sin * (this._player.pos.y - this.pos.y) + this.pos.x,
+				y: -sin * (this._player.pos.x - this.pos.x) + cos * (intersection.y - this.pos.y) + this.pos.y
 			};
 			var velRotated = {
-				x: cos * this._parent.vel.x + sin * this._parent.vel.y,
-				y: -sin * this._parent.vel.x + cos * this._parent.vel.y
+				x: cos * this._player.vel.x + sin * this._player.vel.y,
+				y: -sin * this._player.vel.x + cos * this._player.vel.y
 			};
 			var totalVel = velRotated.y;
-			var distXNotTraveled = intersection.x - this._parent.pos.x;
-			var distYNotTraveled = intersection.y - this._parent.pos.y;
+			var distXNotTraveled = intersection.x - this._player.pos.x;
+			var distYNotTraveled = intersection.y - this._player.pos.y;
 			var distNotTraveled = Math.sqrt(distXNotTraveled * distXNotTraveled + distYNotTraveled * distYNotTraveled);
 			angle += (totalVel < 0 ? 1 : -1) * distNotTraveled / this.maxDist; //from latch point to pos after sliding
 			cos = Math.cos(angle);
@@ -280,17 +280,17 @@ define([
 			return false;
 		}
 
-		//if the parent isn't moving there's no way it could be wrapping grapples around points
+		//if the player isn't moving there's no way it could be wrapping grapples around points
 		var lineOfParentMovement = Utils.toLine(
-			this._parent.pos.prev.x, this._parent.pos.prev.y,
-			this._parent.pos.x, this._parent.pos.y);
+			this._player.pos.prev.x, this._player.pos.prev.y,
+			this._player.pos.x, this._player.pos.y);
 		if(!lineOfParentMovement) {
 			return false;
 		}
 
-		//find the angle "swath" the parent made as it moved about the grapple
-		var lineToParent = Utils.toLine(this.pos.x, this.pos.y, this._parent.pos.x, this._parent.pos.y);
-		var lineToPastParent = Utils.toLine(this.pos.x, this.pos.y, this._parent.pos.prev.x, this._parent.pos.prev.y);
+		//find the angle "swath" the player made as it moved about the grapple
+		var lineToParent = Utils.toLine(this.pos.x, this.pos.y, this._player.pos.x, this._player.pos.y);
+		var lineToPastParent = Utils.toLine(this.pos.x, this.pos.y, this._player.pos.prev.x, this._player.pos.prev.y);
 		var angleToParent = Math.atan2(lineToParent.diff.y, lineToParent.diff.x);
 		var angleToPastParent = Math.atan2(lineToPastParent.diff.y, lineToPastParent.diff.x);
 		var angleClockwise = simplifyAngle(angleToParent - angleToPastParent);
@@ -312,7 +312,7 @@ define([
 						//so the wrapping DOES occur this frame, we just need to figure out where/when exactly
 						intersection = Utils.findIntersection(lineOfParentMovement, lineToPoint);
 						if(intersection) {
-							lineParentTraveled = Utils.toLine(this._parent.pos.prev.x, this._parent.pos.prev.y, intersection.x, intersection.y);
+							lineParentTraveled = Utils.toLine(this._player.pos.prev.x, this._player.pos.prev.y, intersection.x, intersection.y);
 							wrapsThisFrame.push({
 								point: points[i],
 								posOnContact: intersection,
@@ -333,7 +333,7 @@ define([
 			var mostRecentLatch = this._latchPoints[this._latchPoints.length - 1];
 			var prevLatch = this._latchPoints[this._latchPoints.length - 2];
 			var lineBetweenPreviousLatches = Utils.toLine(prevLatch.x, prevLatch.y, mostRecentLatch.x, mostRecentLatch.y);
-			if(this._parent.vel.y === 0) {
+			if(this._player.vel.y === 0) {
 				//debugger;
 			}
 			if(lineBetweenPreviousLatches) {
@@ -343,7 +343,7 @@ define([
 					(angleClockwise <= 0 && angleClockwiseBetweenLatches <= 0 && angleClockwise < angleClockwiseBetweenLatches)) {
 					intersection = Utils.findIntersection(lineOfParentMovement, lineBetweenPreviousLatches);
 					if(intersection) {
-						lineParentTraveled = Utils.toLine(this._parent.pos.prev.x, this._parent.pos.prev.y, intersection.x, intersection.y);
+						lineParentTraveled = Utils.toLine(this._player.pos.prev.x, this._player.pos.prev.y, intersection.x, intersection.y);
 						wrapsThisFrame.push({
 							point: mostRecentLatch.point,
 							posOnContact: intersection,
@@ -368,12 +368,12 @@ define([
 			return {
 				posOnContact: wrap.posOnContact,
 				posAfterContact: {
-					x: this._parent.pos.x,
-					y: this._parent.pos.y
+					x: this._player.pos.x,
+					y: this._player.pos.y
 				},
 				velAfterContact: {
-					x: this._parent.vel.x,
-					y: this._parent.vel.y
+					x: this._player.vel.x,
+					y: this._player.vel.y
 				},
 				unwrap: wrap.unwrap,
 				distPreContact: wrap.distPreContact,
