@@ -5,7 +5,7 @@ define([
 	Utils
 ) {
 	var nextGrappleId = 0;
-	var GRAPPLE_MOVE_SPEED = 1200;
+	var GRAPPLE_MOVE_SPEED = 99999;
 	function Grapple(parent, x, y, dirX, dirY) {
 		this._grappleId = nextGrappleId++;
 		this._parent = parent;
@@ -18,6 +18,7 @@ define([
 		this._latchPoints = [];
 		this._unwrapsAllowedThisFrame = true;
 		this._unwrapPointsThisFrame = [];
+		this._wrapAngleProhibited = null;
 	}
 	Grapple.prototype.sameAs = function(other) {
 		return this._grappleId === other._grappleId;
@@ -32,6 +33,7 @@ define([
 		}
 		this._unwrapsAllowedThisFrame = true;
 		this._unwrapPointsThisFrame = [];
+		this._wrapAngleProhibited = null;
 	};
 	Grapple.prototype.latchTo = function(x, y) { //or latchTo(point)
 		var point = null;
@@ -294,7 +296,7 @@ define([
 		var angleClockwise = simplifyAngle(angleToParent - angleToPastParent);
 
 		//for each point, check to see if the grapple just wrapped around it
-		var intersection, lineFromPointToIntersection;
+		var intersection, lineParentTraveled;
 		var wrapsThisFrame = [];
 		for(var i = 0; i < points.length; i++) {
 			//you can't unwrap something you just wrapped around
@@ -304,19 +306,21 @@ define([
 					//if the angle to the point is "between" the angle we started and ended at, we do some wrapping!
 					var angleToPoint = Math.atan2(lineToPoint.diff.y, lineToPoint.diff.x);
 					var angleClockwiseToPoint = simplifyAngle(angleToPoint - angleToPastParent);
-					if((angleClockwise > 0 && angleClockwiseToPoint > 0 && angleClockwise > angleClockwiseToPoint) ||
-						(angleClockwise < 0 && angleClockwiseToPoint < 0 && angleClockwise < angleClockwiseToPoint)) {
+					if(angleToPoint !== this._wrapAngleProhibited &&
+						((angleClockwise >= 0 && angleClockwiseToPoint >= 0 && angleClockwise > angleClockwiseToPoint) ||
+						(angleClockwise <= 0 && angleClockwiseToPoint <= 0 && angleClockwise < angleClockwiseToPoint))) {
 						//so the wrapping DOES occur this frame, we just need to figure out where/when exactly
 						intersection = Utils.findIntersection(lineOfParentMovement, lineToPoint);
 						if(intersection) {
-							lineFromPointToIntersection = Utils.toLine(this._parent.pos.prev.x, this._parent.pos.prev.y, intersection.x, intersection.y);
+							lineParentTraveled = Utils.toLine(this._parent.pos.prev.x, this._parent.pos.prev.y, intersection.x, intersection.y);
 							wrapsThisFrame.push({
 								point: points[i],
 								posOnContact: intersection,
-								distPreContact: (lineFromPointToIntersection ? lineFromPointToIntersection.dist : 0),
+								distPreContact: (lineParentTraveled ? lineParentTraveled.dist : 0),
 								priority: (angleClockwiseToPoint < 0 ? -angleClockwiseToPoint : angleClockwiseToPoint),
 								subpriority: -lineToPoint.dist,
-								unwrap: false
+								unwrap: false,
+								angle: angleToPoint
 							});
 						}
 					}
@@ -329,21 +333,25 @@ define([
 			var mostRecentLatch = this._latchPoints[this._latchPoints.length - 1];
 			var prevLatch = this._latchPoints[this._latchPoints.length - 2];
 			var lineBetweenPreviousLatches = Utils.toLine(prevLatch.x, prevLatch.y, mostRecentLatch.x, mostRecentLatch.y);
+			if(this._parent.vel.y === 0) {
+				//debugger;
+			}
 			if(lineBetweenPreviousLatches) {
 				var angleBetweenLatches = Math.atan2(lineBetweenPreviousLatches.diff.y, lineBetweenPreviousLatches.diff.x);
 				var angleClockwiseBetweenLatches = simplifyAngle(angleBetweenLatches - angleToPastParent);
-				if((angleClockwise > 0 && angleClockwiseBetweenLatches > 0 && angleClockwise > angleClockwiseBetweenLatches) ||
-					(angleClockwise < 0 && angleClockwiseBetweenLatches < 0 && angleClockwise < angleClockwiseBetweenLatches)) {
+				if((angleClockwise >= 0 && angleClockwiseBetweenLatches >= 0 && angleClockwise > angleClockwiseBetweenLatches) ||
+					(angleClockwise <= 0 && angleClockwiseBetweenLatches <= 0 && angleClockwise < angleClockwiseBetweenLatches)) {
 					intersection = Utils.findIntersection(lineOfParentMovement, lineBetweenPreviousLatches);
 					if(intersection) {
-						lineFromPointToIntersection = Utils.toLine(this._parent.pos.prev.x, this._parent.pos.prev.y, intersection.x, intersection.y);
+						lineParentTraveled = Utils.toLine(this._parent.pos.prev.x, this._parent.pos.prev.y, intersection.x, intersection.y);
 						wrapsThisFrame.push({
 							point: mostRecentLatch.point,
 							posOnContact: intersection,
-							distPreContact: lineFromPointToIntersection.dist,
+							distPreContact: (lineParentTraveled ? lineParentTraveled.dist : 0),
 							priority: (angleClockwiseBetweenLatches < 0 ? -angleClockwiseBetweenLatches : angleClockwiseBetweenLatches),
 							subpriority: -lineBetweenPreviousLatches.dist,
-							unwrap: true
+							unwrap: true,
+							angle: angleBetweenLatches
 						});
 					}
 				}
@@ -367,11 +375,13 @@ define([
 					x: this._parent.vel.x,
 					y: this._parent.vel.y
 				},
+				unwrap: wrap.unwrap,
 				distPreContact: wrap.distPreContact,
 				handle: (wrap.unwrap ? function() {
 					//unwrap the grapple from its previous latch point
 					self.unlatch();
 					self._unwrapPointsThisFrame.push(wrap.point);
+					self._wrapAngleProhibited = wrap.angle;
 				} : function() {
 					//wrap the grapple around the new latch point
 					self.latchTo(wrap.point);

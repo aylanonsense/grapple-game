@@ -116,7 +116,7 @@ define([
 					}
 				}
 			}
-			player.applyForce(0, 0);//600); //gravity
+			player.applyForce(0, 600); //gravity
 			if(keys[KEY.A]) { player.applyForce(-400, 0); }
 			if(keys[KEY.D]) { player.applyForce(400, 0); }
 			if(keys[KEY.W]) { player.applyForce(0, -400); }
@@ -134,8 +134,8 @@ define([
 			player.tick(ms, friction);
 			var interruptionsThisFrame = [];
 			interruption = null;
-			for(i = 0; i <= 6; i++) {
-				if(i === 6) {
+			for(i = 0; i <= 66; i++) {
+				if(i === 66) {
 					interruption = {
 						interruptionType: 'limit',
 						posOnContact: { x: player.pos.prev.x, y: player.pos.prev.y },
