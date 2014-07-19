@@ -102,9 +102,9 @@ define([
 		function tick(ms) {
 			var i, j, interruption, friction = 1;
 			for(i = 0; i < grapples.length; i++) {
+				grapples[i].tick(ms, friction);
 				if(!grapples[i].isDead && !grapples[i].isLatched) {
 					var earliestGrappleCollision = null;
-					grapples[i].tick(ms, friction);
 					for(j = 0; j < obstacles.length; j++) {
 						var collision = obstacles[j].checkForCollisionWithMovingPoint(grapples[i]);
 						if(collision && (!earliestGrappleCollision || earliestGrappleCollision.distPreContact > collision.distPreContact)) {
@@ -116,7 +116,7 @@ define([
 					}
 				}
 			}
-			player.applyForce(0, 600); //gravity
+			player.applyForce(0, 0);//600); //gravity
 			if(keys[KEY.A]) { player.applyForce(-400, 0); }
 			if(keys[KEY.D]) { player.applyForce(400, 0); }
 			if(keys[KEY.W]) { player.applyForce(0, -400); }
@@ -162,15 +162,6 @@ define([
 					break;
 				}
 			}
-			/*var points = [];
-			for(i = 0; i < obstacles.length; i++) {
-				if(obstacles[i].type === 'point') {
-					points.push(obstacles[i]);
-				}
-			}
-			for(i = 0; i < grapples.length; i++) {
-				grapples[i].wrapAroundPoints(points);
-			}*/
 			interruptionsLastFrame = interruptionsThisFrame;
 		}
 
@@ -196,7 +187,7 @@ define([
 					violation.interruptionType = 'grapple';
 					earliestInterruption = violation;
 				}
-				violation = grapples[i].checkForWraps(points);
+				violation = grapples[i].checkForWrappingAroundPoints(points);
 				if(violation && (!earliestInterruption || earliestInterruption.distPreContact > violation.distPreContact)) {
 					violation.interruptionType = 'wrap';
 					earliestInterruption = violation;

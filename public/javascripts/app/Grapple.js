@@ -1,5 +1,9 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
-define(function() {
+define([
+	'app/Utils'
+], function(
+	Utils
+) {
 	var nextGrappleId = 0;
 	var GRAPPLE_MOVE_SPEED = 1200;
 	function Grapple(parent, x, y, dirX, dirY) {
@@ -7,13 +11,13 @@ define(function() {
 		this._parent = parent;
 		var dir = Math.sqrt(dirX * dirX + dirY * dirY);
 		this.pos = { x: x, y: y, prev: { x: x, y: y } };
-		this._originalLatch = null;
-		this._originalMaxDist = null;
 		this.vel = { x: GRAPPLE_MOVE_SPEED * dirX / dir, y: GRAPPLE_MOVE_SPEED * dirY / dir };
 		this.maxDist = null;
 		this.isLatched = false;
 		this.isDead = false;
-		this._wraps = [];
+		this._latchPoints = [];
+		this._unwrapsAllowedThisFrame = true;
+		this._unwrapPointsThisFrame = [];
 	}
 	Grapple.prototype.sameAs = function(other) {
 		return this._grappleId === other._grappleId;
@@ -26,71 +30,92 @@ define(function() {
 			this.pos.x += this.vel.x * t;
 			this.pos.y += this.vel.y * t;
 		}
+		this._unwrapsAllowedThisFrame = true;
+		this._unwrapPointsThisFrame = [];
 	};
-	Grapple.prototype.latchTo = function(x, y) {
-		this.pos.x = x;
-		this.pos.y = y;
-		this.pos.prev.x = x;
-		this.pos.prev.y = y;
-		var distX = this.pos.x - this._parent.pos.x;
-		var distY = this.pos.y - this._parent.pos.y;
-		this.maxDist = Math.sqrt(distX * distX + distY * distY);
+	Grapple.prototype.latchTo = function(x, y) { //or latchTo(point)
+		var point = null;
+		if(arguments.length === 1) {
+			point = arguments[0];
+			x = point.x;
+			y = point.y;
+		}
+		var maxDist;
+		var prevLatchPoint = this._latchPoints[this._latchPoints.length - 1];
+		if(prevLatchPoint) {
+			var distXToPrev = x - prevLatchPoint.x;
+			var distYToPrev = y - prevLatchPoint.y;
+			var distToPrev = Math.sqrt(distXToPrev * distXToPrev + distYToPrev * distYToPrev);
+			maxDist = prevLatchPoint.maxDist - distToPrev;
+		}
+		else {
+			var distXToParent = x - this._parent.pos.x;
+			var distYToParent = y - this._parent.pos.y;
+			maxDist = Math.sqrt(distXToParent * distXToParent + distYToParent * distYToParent);
+		}
+		var newLatchPoint = {
+			x: x,
+			y: y,
+			maxDist: maxDist,
+			point: point
+		};
+		this.pos.x = newLatchPoint.x;
+		this.pos.y = newLatchPoint.y;
+		this.pos.prev.x = newLatchPoint.x;
+		this.pos.prev.y = newLatchPoint.y;
+		this.maxDist = newLatchPoint.maxDist;
+		this._latchPoints.push(newLatchPoint);
 		this.isLatched = true;
-		this._originalLatch = { x: x, y: y };
-		this._originalMaxDist = this.maxDist;
+	};
+	Grapple.prototype.unlatch = function() {
+		if(this.isLatched) {
+			var prevLatch = this._latchPoints.splice(-1, 1)[0];
+			var currentLatch = this._latchPoints[this._latchPoints.length - 1];
+			if(!currentLatch) {
+				this.isLatched = false;
+				this.isDead = true;
+			}
+			else {
+				this.pos.x = currentLatch.x;
+				this.pos.y = currentLatch.y;
+				this.pos.prev.x = currentLatch.x;
+				this.pos.prev.y = currentLatch.y;
+				this.maxDist = currentLatch.maxDist;
+			}
+		}
 	};
 	Grapple.prototype.render = function(ctx, camera) {
 		if(!this.isDead) {
-			var distX = this._parent.pos.x - this.pos.x;
-			var distY = this._parent.pos.y - this.pos.y;
-			var dist = Math.sqrt(distX * distX + distY * distY);
 			ctx.strokeStyle = '#6c6';
-			if(this.maxDist) {
-				if(dist < 0.5 * this.maxDist) { ctx.strokeStyle = '#000'; }
-				else if(dist < 0.6 * this.maxDist) { ctx.strokeStyle = '#040'; }
-				else if(dist < 0.7 * this.maxDist) { ctx.strokeStyle = '#060'; }
-				else if(dist < 0.8 * this.maxDist) { ctx.strokeStyle = '#282'; }
-				else if(dist < 0.9 * this.maxDist) { ctx.strokeStyle = '#4a4'; }
-				else if(dist <= 1.0 * this.maxDist) { ctx.strokeStyle = '#6c6'; }
-				else { ctx.strokeStyle = '#f00'; }
-			}
-			ctx.lineWidth = 1;
+			ctx.lineWidth = 3;
 			ctx.beginPath();
 			ctx.moveTo(this._parent.pos.x - camera.x, this._parent.pos.y - camera.y);
-			ctx.lineTo(this.pos.x - camera.x, this.pos.y - camera.y);
-			ctx.moveTo(this.pos.x - camera.x + 4, this.pos.y - camera.y + 4);
-			ctx.lineTo(this.pos.x - camera.x - 4, this.pos.y - camera.y + 4);
-			ctx.lineTo(this.pos.x - camera.x - 4, this.pos.y - camera.y - 4);
-			ctx.lineTo(this.pos.x - camera.x + 4, this.pos.y - camera.y - 4);
-			ctx.lineTo(this.pos.x - camera.x + 4, this.pos.y - camera.y + 4);
+			if(this.isLatched) {
+				for(var i = this._latchPoints.length - 1; i >= 0; i--) {
+					ctx.lineTo(this._latchPoints[i].x - camera.x, this._latchPoints[i].y - camera.y);
+					ctx.moveTo(this._latchPoints[i].x - camera.x + 4, this._latchPoints[i].y - camera.y + 4);
+					ctx.lineTo(this._latchPoints[i].x - camera.x - 4, this._latchPoints[i].y - camera.y + 4);
+					ctx.lineTo(this._latchPoints[i].x - camera.x - 4, this._latchPoints[i].y - camera.y - 4);
+					ctx.lineTo(this._latchPoints[i].x - camera.x + 4, this._latchPoints[i].y - camera.y - 4);
+					ctx.lineTo(this._latchPoints[i].x - camera.x + 4, this._latchPoints[i].y - camera.y + 4);
+					ctx.moveTo(this._latchPoints[i].x - camera.x, this._latchPoints[i].y - camera.y);
+				}
+			}
+			else {
+				ctx.lineTo(this.pos.x - camera.x, this.pos.y - camera.y);
+				ctx.moveTo(this.pos.x - camera.x + 4, this.pos.y - camera.y + 4);
+				ctx.lineTo(this.pos.x - camera.x - 4, this.pos.y - camera.y + 4);
+				ctx.lineTo(this.pos.x - camera.x - 4, this.pos.y - camera.y - 4);
+				ctx.lineTo(this.pos.x - camera.x + 4, this.pos.y - camera.y - 4);
+				ctx.lineTo(this.pos.x - camera.x + 4, this.pos.y - camera.y + 4);
+			}
 			ctx.stroke();
+
+			//draw bounding circle made by the grapple
 			if(this.isLatched) {
 				ctx.strokeStyle = '#ddd';
 				ctx.beginPath();
 				ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.maxDist, 0, 2 * Math.PI, false);
-				ctx.stroke();
-			}
-			//draw wrappy bits
-			if(this._wraps.length > 0) {
-				ctx.strokeStyle = '#dc6';
-				ctx.lineWidth = 3;
-				ctx.beginPath();
-				ctx.moveTo(this._originalLatch.x - camera.x, this._originalLatch.y - camera.y);
-				ctx.lineTo(this._wraps[0].point.x - camera.x, this._wraps[0].point.y - camera.y);
-				ctx.moveTo(this._originalLatch.x - camera.x + 4, this._originalLatch.y - camera.y + 4);
-				ctx.lineTo(this._originalLatch.x - camera.x - 4, this._originalLatch.y - camera.y + 4);
-				ctx.lineTo(this._originalLatch.x - camera.x - 4, this._originalLatch.y - camera.y - 4);
-				ctx.lineTo(this._originalLatch.x - camera.x + 4, this._originalLatch.y - camera.y - 4);
-				ctx.lineTo(this._originalLatch.x - camera.x + 4, this._originalLatch.y - camera.y + 4);
-				for(var i = 1; i < this._wraps.length; i++) {
-					ctx.moveTo(this._wraps[i].point.x - camera.x, this._wraps[i].point.y - camera.y);
-					ctx.lineTo(this._wraps[i - 1].point.x - camera.x, this._wraps[i - 1].point.y - camera.y);
-					ctx.moveTo(this._wraps[i - 1].point.x - camera.x + 4, this._wraps[i - 1].point.y - camera.y + 4);
-					ctx.lineTo(this._wraps[i - 1].point.x - camera.x - 4, this._wraps[i - 1].point.y - camera.y + 4);
-					ctx.lineTo(this._wraps[i - 1].point.x - camera.x - 4, this._wraps[i - 1].point.y - camera.y - 4);
-					ctx.lineTo(this._wraps[i - 1].point.x - camera.x + 4, this._wraps[i - 1].point.y - camera.y - 4);
-					ctx.lineTo(this._wraps[i - 1].point.x - camera.x + 4, this._wraps[i - 1].point.y - camera.y + 4);
-				}
 				ctx.stroke();
 			}
 		}
@@ -247,253 +272,128 @@ define(function() {
 		}
 		return false;
 	};
-	Grapple.prototype.checkForWraps = function(points) {
-		if(this.isLatched && !this.isDead) {
-			//movement of parent
-			var slopeOfParentMovement = (this._parent.pos.y - this._parent.pos.prev.y) / (this._parent.pos.x - this._parent.pos.prev.x); //can be Infinity or -Infinity or NaN
-			var at0OfParentMovement = this._parent.pos.y - slopeOfParentMovement * this._parent.pos.x;
-			if(isNaN(slopeOfParentMovement)) {
-				//parent isn't moving--don't bother checking for wraps
-				return false;
-			}
+	Grapple.prototype.checkForWrappingAroundPoints = function(points) {
+		//if the grapple hasn't latched onto anything yet there's no way it's wrapping around points
+		if(!this.isLatched || this.isDead) {
+			return false;
+		}
 
-			//actual wrapping code
-			var i;
-			var wraps = [];
-			var distXToPos = this._parent.pos.x - this.pos.x;
-			var distYToPos = this._parent.pos.y - this.pos.y;
-			var distToPos = Math.sqrt(distXToPos * distXToPos + distYToPos * distYToPos);
-			var angleToPos = Math.atan2(distYToPos, distXToPos);
-			var angleToPastPos = Math.atan2(this._parent.pos.prev.y - this.pos.y, this._parent.pos.prev.x - this.pos.x);
-			var angleAroundClockwise = angleToPos - angleToPastPos;
-			if(angleAroundClockwise > Math.PI) {
-				angleAroundClockwise = angleAroundClockwise - 2 * Math.PI;
-			}
-			else if(angleAroundClockwise < -Math.PI) {
-				angleAroundClockwise = 2 * Math.PI + angleAroundClockwise;
-			}
-			for(i = 0; i < points.length; i++) {
-				var distXToPoint = points[i].x - this.pos.x;
-				var distYToPoint = points[i].y - this.pos.y;
-				var distToPoint = Math.sqrt(distXToPoint * distXToPoint + distYToPoint * distYToPoint);
-				if(0 < distToPoint && distToPoint < distToPos) {
-					var angleToPoint = Math.atan2(distYToPoint, distXToPoint);
-					var angleAroundClockwiseToPoint = angleToPoint - angleToPastPos;
-					if(angleAroundClockwiseToPoint > Math.PI) {
-						angleAroundClockwiseToPoint = angleAroundClockwiseToPoint - 2 * Math.PI;
-					}
-					else if(angleAroundClockwiseToPoint < -Math.PI) {
-						angleAroundClockwiseToPoint = 2 * Math.PI + angleAroundClockwiseToPoint;
-					}
-					//if the point is along the swath made by the parent, the grapple should wrap or unwrap around the point
-					if((angleAroundClockwise > 0 && angleAroundClockwiseToPoint > 0 && angleAroundClockwise > angleAroundClockwiseToPoint) ||
-						(angleAroundClockwise < 0 && angleAroundClockwiseToPoint < 0 && angleAroundClockwise < angleAroundClockwiseToPoint)) {
-						//we need to determine where the parent is at the point of wrapping
-						var slopeToPoint = distYToPoint / distXToPoint; //can be Infinity or -Infinity or NaN
-						var at0ToPoint = this.pos.y - slopeToPoint * this.pos.x;
-						var intersectionY;
-						var intersectionX;
-						var canWrapAroundPoint = true;
-						var typeyThing = '-';
-						if(slopeOfParentMovement === Infinity || slopeOfParentMovement === -Infinity) {
-							if(slopeToPoint === Infinity || slopeToPoint === -Infinity) {
-								canWrapAroundPoint = false;
-								typeyThing = 'both vertical';
-							}
-							else {
-								intersectionX = this._parent.pos.x;
-								intersectionY = (intersectionY - at0ToPoint) / slopeToPoint;
-								typeyThing = 'movement vertical';
-							}
-						}
-						else if(slopeOfParentMovement === 0) {
-							intersectionX = points[i].x;
-							intersectionY = (intersectionY - at0OfParentMovement) / slopeOfParentMovement;
-							typeyThing = 'movement horizontal';
-						}
-						else {
-							if(slopeToPoint === Infinity || slopeToPoint === -Infinity) {
-								intersectionX = points[i].x;
-								intersectionY = slopeOfParentMovement * intersectionX + at0OfParentMovement;
-								typeyThing = 'point vertical';
-							}
-							else if(slopeToPoint === 0) {
-								intersectionY = points[i].y;
-								intersectionX = (intersectionY - at0OfParentMovement) / slopeOfParentMovement;
-								typeyThing = 'point horizontal';
-							}
-							else {
-								intersectionX = (at0ToPoint - at0OfParentMovement) / (slopeOfParentMovement - slopeToPoint);
-								intersectionY = slopeToPoint * intersectionX + at0ToPoint;
-								typeyThing = 'none vertical';
-							}
-						}
-						if(canWrapAroundPoint) {
-							var distXTraveled = intersectionX - this._parent.pos.prev.x;
-							var distYTraveled = intersectionY - this._parent.pos.prev.y;
-							var distTraveled = Math.sqrt(distXTraveled * distXTraveled + distYTraveled * distYTraveled);
-							wraps.push({
+		//if the parent isn't moving there's no way it could be wrapping grapples around points
+		var lineOfParentMovement = Utils.toLine(
+			this._parent.pos.prev.x, this._parent.pos.prev.y,
+			this._parent.pos.x, this._parent.pos.y);
+		if(!lineOfParentMovement) {
+			return false;
+		}
+
+		//find the angle "swath" the parent made as it moved about the grapple
+		var lineToParent = Utils.toLine(this.pos.x, this.pos.y, this._parent.pos.x, this._parent.pos.y);
+		var lineToPastParent = Utils.toLine(this.pos.x, this.pos.y, this._parent.pos.prev.x, this._parent.pos.prev.y);
+		var angleToParent = Math.atan2(lineToParent.diff.y, lineToParent.diff.x);
+		var angleToPastParent = Math.atan2(lineToPastParent.diff.y, lineToPastParent.diff.x);
+		var angleClockwise = simplifyAngle(angleToParent - angleToPastParent);
+
+		//for each point, check to see if the grapple just wrapped around it
+		var intersection, lineFromPointToIntersection;
+		var wrapsThisFrame = [];
+		for(var i = 0; i < points.length; i++) {
+			//you can't unwrap something you just wrapped around
+			if(!points[i].sameAsAny(this._unwrapPointsThisFrame)) {
+				var lineToPoint = Utils.toLine(this.pos.x, this.pos.y, points[i].x, points[i].y);
+				if(lineToPoint && lineToPoint.dist < lineToParent.dist) {
+					//if the angle to the point is "between" the angle we started and ended at, we do some wrapping!
+					var angleToPoint = Math.atan2(lineToPoint.diff.y, lineToPoint.diff.x);
+					var angleClockwiseToPoint = simplifyAngle(angleToPoint - angleToPastParent);
+					if((angleClockwise > 0 && angleClockwiseToPoint > 0 && angleClockwise > angleClockwiseToPoint) ||
+						(angleClockwise < 0 && angleClockwiseToPoint < 0 && angleClockwise < angleClockwiseToPoint)) {
+						//so the wrapping DOES occur this frame, we just need to figure out where/when exactly
+						intersection = Utils.findIntersection(lineOfParentMovement, lineToPoint);
+						if(intersection) {
+							lineFromPointToIntersection = Utils.toLine(this._parent.pos.prev.x, this._parent.pos.prev.y, intersection.x, intersection.y);
+							wrapsThisFrame.push({
 								point: points[i],
-								priority: (angleAroundClockwiseToPoint < 0 ? -angleAroundClockwiseToPoint : angleAroundClockwiseToPoint),
-								priority2: -distToPoint,
-								intersection: {
-									x: intersectionX,
-									y: intersectionY
-								},
-								angle: angleToPoint,
-								distTraveled: distTraveled,
-								thing: typeyThing,
+								posOnContact: intersection,
+								distPreContact: (lineFromPointToIntersection ? lineFromPointToIntersection.dist : 0),
+								priority: (angleClockwiseToPoint < 0 ? -angleClockwiseToPoint : angleClockwiseToPoint),
+								subpriority: -lineToPoint.dist,
 								unwrap: false
 							});
 						}
 					}
 				}
 			}
-			if(this._wraps.length > 0) {
-				var potentialUnwrap = this._hypotheticallyUnwrapLastWrappedPoint(slopeOfParentMovement, at0OfParentMovement, angleToPastPos, angleAroundClockwise);
-				if(potentialUnwrap) {
-					wraps.push(potentialUnwrap);
-				}
-			}
-			wraps.sort(function(a, b) {
-				return (a.priority === b.priority ? a.priority2 - b.priority2 : a.priority - b.priority);
-			});
-			if(wraps.length > 0) {
-				var self = this;
-				return {
-					posOnContact: wraps[0].intersection,
-					posAfterContact: {
-						x: this._parent.pos.x,
-						y: this._parent.pos.y
-					},
-					velAfterContact: {
-						x: this._parent.vel.x,
-						y: this._parent.vel.y
-					},
-					distPreContact: wraps[0].distTraveled,
-					handle: function() {
-						if(wraps[0].unwrap) {
-							//unwrap
-							self._wraps.splice(-1, 1);
-							if(self._wraps.length > 0) {
-								self.pos.x = self._wraps[self._wraps.length - 1].point.x;
-								self.pos.y = self._wraps[self._wraps.length - 1].point.y;
-								self.maxDist = self._wraps[self._wraps.length - 1].dist;
-							}
-							else {
-								self.pos.x = self._originalLatch.x;
-								self.pos.y = self._originalLatch.y;
-								self.maxDist = self._originalMaxDist;
-							}
-						}
-						else {
-							//wrap
-							var distXToNewLatch = wraps[0].point.x - self.pos.x;
-							var distYToNewLatch = wraps[0].point.y - self.pos.y;
-							var distToNewLatch = Math.sqrt(distXToNewLatch * distXToNewLatch + distYToNewLatch * distYToNewLatch);
-							self.pos.x = wraps[0].point.x;
-							self.pos.y = wraps[0].point.y;
-							self.maxDist -= distToNewLatch;
-							self._wraps.push({
-								point: wraps[0].point,
-								dist: self.maxDist,
-								angle: wraps[0].angle
-							});
-						}
-					},
-					thing: wraps[0].thing	
-				};
-			}
-			/*for(i = 0; i < wraps.length; i++) {
-				var distXToNewLatch = wraps[i].point.x - this.pos.x;
-				var distYToNewLatch = wraps[i].point.y - this.pos.y;
-				var distToNewLatch = Math.sqrt(distXToNewLatch * distXToNewLatch + distYToNewLatch * distYToNewLatch);
-				this.pos.x = wraps[i].point.x;
-				this.pos.y = wraps[i].point.y;
-				this.maxDist -= distToNewLatch;
-			}*/
 		}
-		return false;
-	};
-	Grapple.prototype._hypotheticallyUnwrapLastWrappedPoint = function(slopeOfParentMovement, at0OfParentMovement, angleToPastPos, angleAroundClockwise) {
-		var thingToUnwrap = this._wraps[this._wraps.length - 1];
-		var distXToPoint = thingToUnwrap.point.x - this.pos.x;
-		var distYToPoint = thingToUnwrap.point.y - this.pos.y;
-		var distToPoint = Math.sqrt(distXToPoint * distXToPoint + distYToPoint * distYToPoint);
-		var angleToPoint = thingToUnwrap.angle;
-		var angleAroundClockwiseToPoint = angleToPoint - angleToPastPos;
-		if(angleAroundClockwiseToPoint > Math.PI) {
-			angleAroundClockwiseToPoint = angleAroundClockwiseToPoint - 2 * Math.PI;
+
+		//we might want to unwrap the most recent latch
+		if(this._latchPoints.length > 1 && this._unwrapsAllowedThisFrame) {
+			var mostRecentLatch = this._latchPoints[this._latchPoints.length - 1];
+			var prevLatch = this._latchPoints[this._latchPoints.length - 2];
+			var lineBetweenPreviousLatches = Utils.toLine(prevLatch.x, prevLatch.y, mostRecentLatch.x, mostRecentLatch.y);
+			if(lineBetweenPreviousLatches) {
+				var angleBetweenLatches = Math.atan2(lineBetweenPreviousLatches.diff.y, lineBetweenPreviousLatches.diff.x);
+				var angleClockwiseBetweenLatches = simplifyAngle(angleBetweenLatches - angleToPastParent);
+				if((angleClockwise > 0 && angleClockwiseBetweenLatches > 0 && angleClockwise > angleClockwiseBetweenLatches) ||
+					(angleClockwise < 0 && angleClockwiseBetweenLatches < 0 && angleClockwise < angleClockwiseBetweenLatches)) {
+					intersection = Utils.findIntersection(lineOfParentMovement, lineBetweenPreviousLatches);
+					if(intersection) {
+						lineFromPointToIntersection = Utils.toLine(this._parent.pos.prev.x, this._parent.pos.prev.y, intersection.x, intersection.y);
+						wrapsThisFrame.push({
+							point: mostRecentLatch.point,
+							posOnContact: intersection,
+							distPreContact: lineFromPointToIntersection.dist,
+							priority: (angleClockwiseBetweenLatches < 0 ? -angleClockwiseBetweenLatches : angleClockwiseBetweenLatches),
+							subpriority: -lineBetweenPreviousLatches.dist,
+							unwrap: true
+						});
+					}
+				}
+			}
 		}
-		else if(angleAroundClockwiseToPoint < -Math.PI) {
-			angleAroundClockwiseToPoint = 2 * Math.PI + angleAroundClockwiseToPoint;
-		}
-		//if the point is along the swath made by the parent, the grapple should unwrap the point
-		if((angleAroundClockwise > 0 && angleAroundClockwiseToPoint > 0 && angleAroundClockwise > angleAroundClockwiseToPoint) ||
-			(angleAroundClockwise < 0 && angleAroundClockwiseToPoint < 0 && angleAroundClockwise < angleAroundClockwiseToPoint)) {
-			//copied from above
-			var slopeToPoint = distYToPoint / distXToPoint; //can be Infinity or -Infinity or NaN
-			var at0ToPoint = this.pos.y - slopeToPoint * this.pos.x;
-			var intersectionY;
-			var intersectionX;
-			var canUnwrapAroundPoint = true;
-			var typeyThing = '-';
-			if(slopeOfParentMovement === Infinity || slopeOfParentMovement === -Infinity) {
-				if(slopeToPoint === Infinity || slopeToPoint === -Infinity) {
-					canUnwrapAroundPoint = false;
-					typeyThing = 'both vertical';
-				}
-				else {
-					intersectionX = this._parent.pos.x;
-					intersectionY = (intersectionY - at0ToPoint) / slopeToPoint;
-					typeyThing = 'movement vertical';
-				}
-			}
-			else if(slopeOfParentMovement === 0) {
-				intersectionX = thingToUnwrap.point.x;
-				intersectionY = (intersectionY - at0OfParentMovement) / slopeOfParentMovement;
-				typeyThing = 'movement horizontal';
-			}
-			else {
-				if(slopeToPoint === Infinity || slopeToPoint === -Infinity) {
-					intersectionX = thingToUnwrap.point.x;
-					intersectionY = slopeOfParentMovement * intersectionX + at0OfParentMovement;
-					typeyThing = 'point vertical';
-				}
-				else if(slopeToPoint === 0) {
-					intersectionY = thingToUnwrap.point.y;
-					intersectionX = (intersectionY - at0OfParentMovement) / slopeOfParentMovement;
-					typeyThing = 'point horizontal';
-				}
-				else {
-					intersectionX = (at0ToPoint - at0OfParentMovement) / (slopeOfParentMovement - slopeToPoint);
-					intersectionY = slopeToPoint * intersectionX + at0ToPoint;
-					typeyThing = 'none vertical';
-				}
-			}
-			if(canUnwrapAroundPoint) {
-				var distXTraveled = intersectionX - this._parent.pos.prev.x;
-				var distYTraveled = intersectionY - this._parent.pos.prev.y;
-				var distTraveled = Math.sqrt(distXTraveled * distXTraveled + distYTraveled * distYTraveled);
-				return {
-					point: thingToUnwrap.point,
-					priority: (angleAroundClockwiseToPoint < 0 ? -angleAroundClockwiseToPoint : angleAroundClockwiseToPoint),
-					priority2: -distToPoint,
-					intersection: {
-						x: intersectionX,
-						y: intersectionY
-					},
-					angle: angleToPoint,
-					distTraveled: distTraveled,
-					thing: typeyThing,
-					unwrap: true
-				};
-			}
+
+		//now we pick the wrap that happens earliest
+		wrapsThisFrame.sort(function(a, b) {
+			return (a.priority === b.priority ? a.subpriority - b.subpriority : a.priority - b.priority);
+		});
+		if(wrapsThisFrame.length > 0) {
+			var self = this;
+			var wrap = wrapsThisFrame[0];
+			return {
+				posOnContact: wrap.posOnContact,
+				posAfterContact: {
+					x: this._parent.pos.x,
+					y: this._parent.pos.y
+				},
+				velAfterContact: {
+					x: this._parent.vel.x,
+					y: this._parent.vel.y
+				},
+				distPreContact: wrap.distPreContact,
+				handle: (wrap.unwrap ? function() {
+					//unwrap the grapple from its previous latch point
+					self.unlatch();
+					self._unwrapPointsThisFrame.push(wrap.point);
+				} : function() {
+					//wrap the grapple around the new latch point
+					self.latchTo(wrap.point);
+					self._unwrapsAllowedThisFrame = false;
+				})
+			};
 		}
 		return false;
 	};
 	Grapple.prototype.kill = function() {
 		this.isDead = true;
 	};
+	function simplifyAngle(angle) {
+		if(angle > Math.PI) {
+			return angle - 2 * Math.PI;
+		}
+		else if(angle < -Math.PI) {
+			return 2 * Math.PI + angle;
+		}
+		else {
+			return angle;
+		}
+	}
 	return Grapple;
 });
