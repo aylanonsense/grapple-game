@@ -7,14 +7,19 @@ define([
 	Utils
 ) {
 	function Player(x, y) {
-		this.pos = { x: x, y: y, prev: { x: x, y: y }, startOfFrame: { x: x, y: y } };
-		this.vel = { x: 0, y: 0 };
 		this.radius = 20;
 		this.mass = 1;
+		this.adjustMovement({ x: x, y: y }, { x: x, y: y }, { x: 0, y: 0 });
 		this._force = { x: 0, y: 0 };
 		this._instantForce = { x: 0, y: 0 };
-		this.lineOfMovement = null;
 	}
+	Player.prototype.adjustMovement = function(prevPos, pos, vel) {
+		this.pos = { x: pos.x, y: pos.y, prev: { x: prevPos.x, y: prevPos.y } };
+		this.lineOfMovement = Utils.toLine(this.pos.prev, this.pos);
+		if(vel) {
+			this.vel = { x: vel.x, y: vel.y };
+		}
+	};
 	Player.prototype.applyForce = function(forceX, forceY) { //or (force, dirX, dirY)
 		if(arguments.length === 3) {
 			var force = arguments[0];
@@ -45,39 +50,21 @@ define([
 	};
 	Player.prototype.tick = function(ms, friction) {
 		var t = ms / 1000;
-		var accX = this._force.x / this.mass;
-		var accY = this._force.y / this.mass;
-		var instantAccX = this._instantForce.x / this.mass;
-		var instantAccY = this._instantForce.y / this.mass;
-		var oldVelX = this.vel.x;
-		var oldVelY = this.vel.y;
-		this.vel.x = (this.vel.x + accX * t + instantAccX / 60) * friction;
-		this.vel.y = (this.vel.y + accY * t + instantAccY / 60) * friction;
+		var acc = { x: this._force.x / this.mass, y: this._force.y / this.mass };
+		var instantAcc = { x: this._instantForce.x / this.mass, y: this._instantForce.y / this.mass };
+		var oldVel = { x: this.vel.x, y: this.vel.y };
+		this.vel.x = (this.vel.x + acc.x * t + instantAcc.x / 60) * friction;
+		this.vel.y = (this.vel.y + acc.y * t + instantAcc.y / 60) * friction;
 		this.pos.prev.x = this.pos.x;
 		this.pos.prev.y = this.pos.y;
-		this.pos.startOfFrame.x = this.pos.prev.x;
-		this.pos.startOfFrame.y = this.pos.prev.y;
-		this.pos.x += (this.vel.x + oldVelX) / 2 * t;
-		this.pos.y += (this.vel.y + oldVelY) / 2 * t;
-		this._force.x = 0;
-		this._force.y = 0;
-		this._instantForce.x = 0;
-		this._instantForce.y = 0;
+		this.pos.x += (this.vel.x + oldVel.x) / 2 * t;
+		this.pos.y += (this.vel.y + oldVel.y) / 2 * t;
+		this._force = { x: 0, y: 0 };
+		this._instantForce = { x: 0, y: 0 };
 		this.lineOfMovement = Utils.toLine(this.pos.prev, this.pos);
-	};
-	Player.prototype.adjustMovement = function(prevPos, pos, vel) {
-		this.pos.x = pos.x;
-		this.pos.y = pos.y;
-		this.pos.prev.x = prevPos.x;
-		this.pos.prev.y = prevPos.y;
-		this.lineOfMovement = Utils.toLine(this.pos.prev, this.pos);
-		if(vel) {
-			this.vel.x = vel.x;
-			this.vel.y = vel.y;
-		}
 	};
 	Player.prototype.render = function(ctx, camera) {
-		if(this.pos.x !== this.pos.prev.x || this.pos.y !== this.pos.prev.y) {
+		/*if(this.pos.x !== this.pos.prev.x || this.pos.y !== this.pos.prev.y) {
 			ctx.strokeStyle = '#ddd';
 			ctx.lineWidth = 1;
 			ctx.beginPath();
@@ -100,7 +87,7 @@ define([
 			ctx.moveTo(this.pos.x - camera.x, this.pos.y - camera.y);
 			ctx.lineTo(this.pos.x - camera.x + this.vel.x, this.pos.y - camera.y + this.vel.y);
 			ctx.stroke();
-		}
+		}*/
 		ctx.fillStyle = '#6c6';
 		ctx.beginPath();
 		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.radius, 0, 2 * Math.PI, false);
