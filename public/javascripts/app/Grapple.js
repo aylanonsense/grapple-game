@@ -88,8 +88,8 @@ define([
 	};
 	Grapple.prototype.render = function(ctx, camera) {
 		if(!this.isDead) {
-			ctx.strokeStyle = '#6c6';
-			ctx.lineWidth = 3;
+			ctx.strokeStyle = this.isLatched ? '#6c6' : '#9d9';
+			ctx.lineWidth = this.isLatched ? 2 : 0.5;
 			ctx.beginPath();
 			ctx.moveTo(this._player.pos.x - camera.x, this._player.pos.y - camera.y);
 			if(this.isLatched) {
@@ -116,6 +116,7 @@ define([
 			//draw bounding circle made by the grapple
 			if(this.isLatched) {
 				ctx.strokeStyle = '#ddd';
+				ctx.lineWidth = 0.5;
 				ctx.beginPath();
 				ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.maxDist, 0, 2 * Math.PI, false);
 				ctx.stroke();
@@ -280,17 +281,9 @@ define([
 			return false;
 		}
 
-		//if the player isn't moving there's no way it could be wrapping grapples around points
-		var lineOfParentMovement = Utils.toLine(
-			this._player.pos.prev.x, this._player.pos.prev.y,
-			this._player.pos.x, this._player.pos.y);
-		if(!lineOfParentMovement) {
-			return false;
-		}
-
 		//find the angle "swath" the player made as it moved about the grapple
-		var lineToParent = Utils.toLine(this.pos.x, this.pos.y, this._player.pos.x, this._player.pos.y);
-		var lineToPastParent = Utils.toLine(this.pos.x, this.pos.y, this._player.pos.prev.x, this._player.pos.prev.y);
+		var lineToParent = Utils.toLine(this.pos, this._player.pos);
+		var lineToPastParent = Utils.toLine(this.pos, this._player.pos.prev);
 		var angleToParent = Math.atan2(lineToParent.diff.y, lineToParent.diff.x);
 		var angleToPastParent = Math.atan2(lineToPastParent.diff.y, lineToPastParent.diff.x);
 		var angleClockwise = simplifyAngle(angleToParent - angleToPastParent);
@@ -301,7 +294,7 @@ define([
 		for(var i = 0; i < points.length; i++) {
 			//you can't unwrap something you just wrapped around
 			if(!points[i].sameAsAny(this._unwrapPointsThisFrame)) {
-				var lineToPoint = Utils.toLine(this.pos.x, this.pos.y, points[i].x, points[i].y);
+				var lineToPoint = Utils.toLine(this.pos, points[i]);
 				if(lineToPoint && lineToPoint.dist < lineToParent.dist) {
 					//if the angle to the point is "between" the angle we started and ended at, we do some wrapping!
 					var angleToPoint = Math.atan2(lineToPoint.diff.y, lineToPoint.diff.x);
@@ -310,9 +303,9 @@ define([
 						((angleClockwise >= 0 && angleClockwiseToPoint >= 0 && angleClockwise > angleClockwiseToPoint) ||
 						(angleClockwise <= 0 && angleClockwiseToPoint <= 0 && angleClockwise < angleClockwiseToPoint))) {
 						//so the wrapping DOES occur this frame, we just need to figure out where/when exactly
-						intersection = Utils.findIntersection(lineOfParentMovement, lineToPoint);
+						intersection = Utils.findIntersection(this._player.lineOfMovement, lineToPoint);
 						if(intersection) {
-							lineParentTraveled = Utils.toLine(this._player.pos.prev.x, this._player.pos.prev.y, intersection.x, intersection.y);
+							lineParentTraveled = Utils.toLine(this._player.pos.prev, intersection);
 							wrapsThisFrame.push({
 								point: points[i],
 								posOnContact: intersection,
@@ -332,18 +325,19 @@ define([
 		if(this._latchPoints.length > 1 && this._unwrapsAllowedThisFrame) {
 			var mostRecentLatch = this._latchPoints[this._latchPoints.length - 1];
 			var prevLatch = this._latchPoints[this._latchPoints.length - 2];
-			var lineBetweenPreviousLatches = Utils.toLine(prevLatch.x, prevLatch.y, mostRecentLatch.x, mostRecentLatch.y);
-			if(this._player.vel.y === 0) {
-				//debugger;
-			}
+			var lineBetweenPreviousLatches = Utils.toLine(prevLatch, mostRecentLatch);
 			if(lineBetweenPreviousLatches) {
 				var angleBetweenLatches = Math.atan2(lineBetweenPreviousLatches.diff.y, lineBetweenPreviousLatches.diff.x);
 				var angleClockwiseBetweenLatches = simplifyAngle(angleBetweenLatches - angleToPastParent);
 				if((angleClockwise >= 0 && angleClockwiseBetweenLatches >= 0 && angleClockwise > angleClockwiseBetweenLatches) ||
 					(angleClockwise <= 0 && angleClockwiseBetweenLatches <= 0 && angleClockwise < angleClockwiseBetweenLatches)) {
-					intersection = Utils.findIntersection(lineOfParentMovement, lineBetweenPreviousLatches);
+					intersection = Utils.findIntersection(this._player.lineOfMovement, lineBetweenPreviousLatches);
+					if(!intersection) {
+						debugger;
+						intersection = Utils.findIntersection(this._player.lineOfMovement, lineBetweenPreviousLatches);
+					}
 					if(intersection) {
-						lineParentTraveled = Utils.toLine(this._player.pos.prev.x, this._player.pos.prev.y, intersection.x, intersection.y);
+						lineParentTraveled = Utils.toLine(this._player.pos.prev, intersection);
 						wrapsThisFrame.push({
 							point: mostRecentLatch.point,
 							posOnContact: intersection,
@@ -366,7 +360,10 @@ define([
 			var self = this;
 			var wrap = wrapsThisFrame[0];
 			return {
-				posOnContact: wrap.posOnContact,
+				posOnContact: {
+					x: this._player.pos.prev.x,
+					y: this._player.pos.prev.y
+				},//wrap.posOnContact,
 				posAfterContact: {
 					x: this._player.pos.x,
 					y: this._player.pos.y

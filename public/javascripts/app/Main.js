@@ -12,7 +12,7 @@ define([
 ) {
 	return function() {
 		//canvas
-		var width = 800, height = 600;
+		var width = 800, height = 600, isPaused = false;
 		var canvas = $('<canvas width="' + width + 'px" height = "' + height + 'px" />').appendTo(document.body);
 		var ctx = canvas[0].getContext('2d');
 
@@ -64,12 +64,22 @@ define([
 		createPoly([1500,1285, 1460,1250, 1500,1320,  1540,1250]);
 		createPoly([1600,1270, 1560,1250, 1600,1320,  1640,1250]);
 		createPoly([1600,1100, 1560,1150, 1600,1080,  1640,1150], true);
+		createPoly([990,800,   1010,800,  1010,820,   990,820], true);
+		createPoly([1030,880,  1050,880,  1050,900,   1030,900], true);
+		createPoly([950,880,   970,880,   970,900,    950,900], true);
+		createPoly([1030,720,  1050,720,  1050,740,   1030,740], true);
+		createPoly([950,720,   970,720,   970,740,    950,740], true);
+		createPoly([910,840,   930,840,  930,860,   910,860], true);
+		createPoly([910,760,   930,760,  930,780,   910,780], true);
+		createPoly([1070,840,   1090,840,  1090,860,   1070,860], true);
+		createPoly([1070,760,   1090,760,  1090,780,   1070,780], true);
 
 		//add input bindings
 		var keys = { pressed: {} };
 		var KEY = { W: 87, A: 65, S: 83, D: 68, R: 82, G: 71, SHIFT: 16, SPACE: 32 };
 		var JUMP_KEY = KEY.SPACE;
 		var BREAK_GRAPPLES_KEY = KEY.R;
+		var PAUSE_KEY = KEY.SHIFT;
 		$(document).on('keydown', function(evt) {
 			if(!keys[evt.which]) {
 				keys[evt.which] = true;
@@ -78,6 +88,9 @@ define([
 					for(var i = 0; i < grapples.length; i++) {
 						grapples[i].kill();
 					}
+				}
+				if(evt.which === PAUSE_KEY) {
+					isPaused = !isPaused;
 				}
 			}
 		});
@@ -92,9 +105,11 @@ define([
 		});
 
 		function everyFrame(ms) {
-			tick(ms);
-			camera.x = player.pos.x - width / 2;
-			camera.y = player.pos.y - height / 2;
+			if(!isPaused) {
+				tick(ms);
+				camera.x = player.pos.x - width / 2;
+				camera.y = player.pos.y - height / 2;
+			}
 			render();
 		}
 
@@ -134,8 +149,8 @@ define([
 			player.tick(ms, friction);
 			var interruptionsThisFrame = [];
 			interruption = null;
-			for(i = 0; i <= 66; i++) {
-				if(i === 66) {
+			for(i = 0; i <= 100; i++) {
+				if(i === 100) {
 					interruption = {
 						interruptionType: 'limit',
 						posOnContact: { x: player.pos.prev.x, y: player.pos.prev.y },
@@ -148,12 +163,7 @@ define([
 				}
 				if(interruption) {
 					interruptionsThisFrame.push(interruption);
-					player.pos.x = interruption.posAfterContact.x;
-					player.pos.y = interruption.posAfterContact.y;
-					player.pos.prev.x = interruption.posOnContact.x;
-					player.pos.prev.y = interruption.posOnContact.y;
-					player.vel.x = interruption.velAfterContact.x;
-					player.vel.y = interruption.velAfterContact.y;
+					player.adjustMovement(interruption.posOnContact, interruption.posAfterContact, interruption.velAfterContact);
 					if(interruption.handle) {
 						interruption.handle();
 					}
@@ -198,7 +208,7 @@ define([
 
 		function render() {
 			var i;
-			ctx.fillStyle = '#fff';
+			ctx.fillStyle = (interruptionsLastFrame.length >= 99 ? '#ff0' : '#fff');
 			ctx.fillRect(0, 0, width, height);
 			for(i = 0; i < grapples.length; i++) {
 				grapples[i].render(ctx, camera);

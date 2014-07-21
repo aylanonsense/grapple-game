@@ -11,67 +11,172 @@ define(function() {
 			var const2 = -const1 / Math.PI;
 			return angle + const1 * distFromTop + const2 * (distFromTop > 0 ? 1 : -1) * squareDistFromTop;
 		},
-		toLine: function(x1, y1, x2, y2) {
-			if(isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) {
-				//pass in bad points, don't get a line back
-				return null;
-			}
-			var diffX = x2 - x1;
-			var diffY = y2 - y1;
+		toLine: function(start, end) {
+			var diffX = end.x - start.x;
+			var diffY = end.y - start.y;
 			if(diffX === 0 && diffY === 0) {
-				//not a line at all, this is just a point
-				return null;
+				return {
+					isVertical: false,
+					isSinglePoint: true,
+					x: start.x,
+					y: start.y,
+					dist: 0,
+					diff: { x: 0, y: 0 },
+					start: { x: start.x, y: start.y },
+					end: { x: end.x, y: end.y }
+				};
 			}
 			var dist = Math.sqrt(diffX * diffX + diffY * diffY);
 			var slope = diffY / diffX;
 			if(slope === Infinity || slope === -Infinity) {
 				return {
 					isVertical: true,
-					x: x1,
+					isSinglePoint: false,
+					x: start.x,
 					dist: dist,
 					diff: { x: diffX, y: diffY },
-					start: { x: x1, y: y1 },
-					end: { x: x2, y: y2 }
+					start: { x: start.x, y: start.y },
+					end: { x: end.x, y: end.y }
 				};
 			}
 			return {
 				isVertical: false,
+				isSinglePoint: false,
 				m: slope,
-				b: y2 - slope * x2,
+				b: end.y - slope * end.x,
 				dist: dist,
 				diff: { x: diffX, y: diffY },
-				start: { x: x1, y: y1 },
-				end: { x: x2, y: y2 }
+				start: { x: start.x, y: start.y },
+				end: { x: end.x, y: end.y }
 			};
 		},
 		findIntersection: function(line1, line2, err) {
-			var intersection;
-			if(!line1 || !line2) {
-				intersection = null;
-			}
-			else if(line1.isVertical && line2.isVertical) {
-				intersection = null; //either all points are intersections or none are... we don't like either case
+			var c = err || 0;
+			var intersection = null;
+			var k, intersectionX, intersectionY;
+			if(line1.isSinglePoint) {
+				if(line2.isSinglePoint) {
+					//two points intersect iif they are the same point
+					if(line1.x === line2.x && line1.y === line2.y) {
+						intersection = {
+							x: line1.x,
+							y: line1.y
+						};
+					}
+				}
+				else if(line2.isVertical) {
+					//a vertical line intersects a point iff they have the same x coordinate
+					if(line1.x === line2.x) {
+						intersection = {
+							x: line1.x,
+							y: line1.y
+						};
+					}
+				}
+				else {
+					//a point intersects a line iff its x-value satisfies the line equation and equals its y-value
+					if(line1.y - c <= (line2.m * line1.x + line2.b) && (line2.m * line1.x + line2.b) <= line1.y + c) {
+						intersection = {
+							x: line1.x,
+							y: line1.y
+						};
+					}
+				}
 			}
 			else if(line1.isVertical) {
-				intersection = {
-					x: line1.x,
-					y: line2.m * line1.x + line2.b
-				};
-			}
-			else if(line2.isVertical) {
-				intersection = {
-					x: line2.x,
-					y: line1.m * line2.x + line1.b
-				};
+				if(line2.isSinglePoint) {
+					//a vertical line intersects a point iff they have the same x coordinate
+					if(line1.x === line2.x) {
+						intersection = {
+							x: line2.x,
+							y: line2.y
+						};
+					}
+				}
+				else if(line2.isVertical) {
+					//two vertical lines intersect (a lot) iif they have the same x coordinate
+					if(line1.x === line2.x) {
+						k = (line1.start.y < line1.end.y ? 1 : -1); //dir
+						//secondary line starts before the primary line starts
+						if(k * line2.start.y <= k * line1.start.y) {
+							intersectionY = line1.start.y;
+						}
+						//secondary line is moving in the same direction
+						else if(k * line2.start.y < k * line2.end.y) {
+							intersectionY = (k * line2.start.y < k * line1.end.y ? line2.start.y : line1.end.y);
+						}
+						//secondary line ends before primary line starts
+						else if(k * line2.end.y < k * line1.start.y) {
+							intersectionY = line1.start.y;
+						}
+						else {
+							intersectionY = (k * line2.end.y < k * line1.end.y ? line2.end.y : line1.end.y);
+						}
+						intersection = {
+							x: line1.x,
+							y: intersectionY
+						};
+					}
+				}
+				else {
+					//a vertical line will always intersect a non-vertical line somewhere
+					intersection = {
+						x: line1.x,
+						y: line2.m * line1.x + line2.b
+					};
+				}
 			}
 			else {
-				intersection = {
-					x: (line1.b - line2.b) / (line2.m - line1.m),
-					y: line1.m * (line1.b - line2.b) / (line2.m - line1.m) + line1.b
-				};
+				if(line2.isSinglePoint) {
+					//a point intersects a line iff its x-value satisfies the line equation and equals its y-value
+					if(line2.y - c <= (line1.m * line2.x + line1.b) && (line1.m * line2.x + line1.b) <= line2.y + c) {
+						intersection = {
+							x: line2.x,
+							y: line2.y
+						};
+					}
+				}
+				else if(line2.isVertical) {
+					//a vertical line will always intersect a non-vertical line somewhere
+					intersection = {
+						x: line2.x,
+						y: line1.m * line2.x + line1.b
+					};
+				}
+				else if(line1.m === line2.m) {
+					//parallel lines intersect if they have the same y value at x=0
+					if(line1.b === line2.b) {
+						k = (line1.start.x < line1.end.x ? 1 : -1); //dir
+						//secondary line starts before the primary line starts
+						if(k * line2.start.x <= k * line1.start.x) {
+							intersectionX = line1.start.x;
+						}
+						//secondary line is moving in the same direction
+						else if(k * line2.start.x < k * line2.end.x) {
+							intersectionX = (k * line2.start.x < k * line1.end.x ? line2.start.x : line1.end.x);
+						}
+						//secondary line ends before primary line starts
+						else if(k * line2.end.x < k * line1.start.x) {
+							intersectionX = line1.start.x;
+						}
+						else {
+							intersectionX = (k * line2.end.x < k * line1.end.x ? line2.end.x : line1.end.x);
+						}
+						intersection = {
+							x: intersectionX,
+							y: line1.m * intersectionX + line1.b
+						};
+					}
+				}
+				else {
+					//if both lines are "true" lines, (b1 - b2) / (m2 - m1) will give us the intersection x-coordinate
+					intersection = {
+						x: (line1.b - line2.b) / (line2.m - line1.m),
+						y: line1.m * (line1.b - line2.b) / (line2.m - line1.m) + line1.b
+					};
+				}
 			}
 			if(intersection) {
-				var c = err || 0;
 				intersection.intersectsBothSegments =
 					((line1.start.x <= line1.end.x && line1.start.x - c <= intersection.x && intersection.x <= line1.end.x + c) ||
 					(line1.end.x < line1.start.x && line1.end.x - c <= intersection.x && intersection.x <= line1.start.x + c)) &&
