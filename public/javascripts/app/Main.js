@@ -122,34 +122,53 @@ define([
 		}
 
 		function findInterruption(prevInterruptions) {
-			var i, j, earliestInterruption = null;
+			var i, j, interruption, interruptionsThisFrame = [];
 			var points = [];
 			var prevInterruption = (prevInterruptions.length > 0 ? prevInterruptions[prevInterruptions.length - 1] : null);
 			for(i = 0; i < level.obstacles.length; i++) {
-				var collision = level.obstacles[i].checkForCollisionWithMovingCircle(player);
-				if(collision && (!earliestInterruption || earliestInterruption.distPreContact > collision.distPreContact) &&
-					(!prevInterruption || prevInterruption.interruptionType !== 'collision' || !prevInterruption.obstacle.sameAs(collision.obstacle))) {
-					collision.interruptionType = 'collision';
-					earliestInterruption = collision;
+				interruption = level.obstacles[i].checkForCollisionWithMovingCircle(player);
+				if(interruption) {
+					interruption.interruptionType = 'collision';
+					interruption.interruptPriority = 9;
+					interruptionsThisFrame.push(interruption);
 				}
 				if(level.obstacles[i].type === 'point') {
 					points.push(level.obstacles[i]);
 				}
 			}
 			for(i = 0; i < grapples.length; i++) {
-				var violation = grapples[i].checkForMaxTether();
-				if(violation && (!earliestInterruption || earliestInterruption.distPreContact > violation.distPreContact) &&
-					(!prevInterruption || prevInterruption.interruptionType !== 'grapple' || !prevInterruption.grapple.sameAs(violation.grapple))) {
-					violation.interruptionType = 'grapple';
-					earliestInterruption = violation;
+				interruption = grapples[i].checkForMaxTether();
+				if(interruption) {
+					interruption.interruptionType = 'tether';
+					interruption.interruptPriority = 3;
+					interruptionsThisFrame.push(interruption);
 				}
-				violation = grapples[i].checkForWrappingAroundPoints(points);
-				if(violation && (!earliestInterruption || earliestInterruption.distPreContact > violation.distPreContact)) {
-					violation.interruptionType = 'wrap';
-					earliestInterruption = violation;
+				interruption = grapples[i].checkForWrappingAroundPoints(points);
+				if(interruption) {
+					interruption.interruptionType = 'wrap';
+					interruption.interruptPriority = 5;
+					interruptionsThisFrame.push(interruption);
+				}
+				interruption = grapples[i].checkForUnwrapping();
+				if(interruption) {
+					interruption.interruptionType = 'unwrap';
+					interruption.interruptPriority = 7;
+					interruptionsThisFrame.push(interruption);
 				}
 			}
-			return earliestInterruption;
+			interruptionsThisFrame.sort(function(a, b) {
+				return (a.distPreContact === b.distPreContact ?
+					b.interruptPriority - a.interruptPriority :
+					a.distPreContact - b.distPreContact);
+			});
+			for(i = 0; i < interruptionsThisFrame.length; i++) {
+				interruption = interruptionsThisFrame[i];
+				if(!prevInterruption || interruption.interruptionType !== prevInterruption.interruptionType ||
+					!interruption.actor || interruption.actor !== prevInterruption.actor) {
+					return interruption;
+				}
+			}
+			return null;
 		}
 
 		function render() {

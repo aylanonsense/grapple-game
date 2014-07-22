@@ -83,7 +83,7 @@ define([
 			//there was a collision!
 			var jumpAngle = Utils.transformToJumpAngle(angleToPointOfContact - Math.PI / 2);
 			return {
-				obstacle: this,
+				actor: this,
 				posOnContact: posOnHit,
 				posAfterContact: {
 					x: posOnHit.x + (vel.x > 0 ? 1 : -1) * Math.abs(distTraveledPostContact * -cosAngle),

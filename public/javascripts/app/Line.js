@@ -49,7 +49,7 @@ define([
 			(prev.y <= pos.y && prev.y - c <= circlePosOnContact.y && circlePosOnContact.y <= pos.y + c) &&
 			pos.y > circlePosOnContact.y && pos.y > prev.y) {
 			return {
-				obstacle: this,
+				actor: this,
 				posOnContact: this.unrotatePoint(circlePosOnContact),
 				posAfterContact: this.unrotatePoint({ x: pos.x, y: circlePosOnContact.y }),
 				velAfterContact: this.unrotatePoint({ x: vel.x, y: 0 }),
@@ -75,7 +75,7 @@ define([
 			(prev.y <= pos.y && prev.y - c <= pointPosOnContact.y && pointPosOnContact.y <= pos.y + c) &&
 			pos.y > pointPosOnContact.y && pos.y > prev.y) {
 			return {
-				obstacle: this,
+				actor: this,
 				posOnContact: this.unrotatePoint(pointPosOnContact),
 				posAfterContact: this.unrotatePoint({ x: pos.x, y: pointPosOnContact.y }),
 				velAfterContact: this.unrotatePoint({ x: vel.x, y: 0 }),
