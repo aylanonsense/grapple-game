@@ -1,5 +1,6 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define(function() {
+	var START_TIME = Date.now();
 	return {
 		transformToJumpAngle: function(angle) {
 			var distFromTop = (angle + Math.PI / 2) % (2 * Math.PI);
@@ -188,6 +189,10 @@ define(function() {
 					(line2.end.y < line2.start.y && line2.end.y - c <= intersection.y && intersection.y <= line2.start.y + c));
 			}
 			return intersection;
+		},
+		getTimestamp: function() {
+			var ms = Date.now() - START_TIME;
+			return "" + (ms / 1000);
 		}
 	};
 });

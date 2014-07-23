@@ -289,27 +289,27 @@ define([
 		var angleClockwise = simplifyAngle(angleToParent - angleToPastParent);
 
 		//for each point, check to see if the grapple just wrapped around it
-		var intersection, lineParentTraveled;
 		var wrapsThisFrame = [];
 		var currentlyWrappedPoints = this._latchPoints.map(function(latch) { return latch.point; });
 		for(var i = 0; i < points.length; i++) {
 			//you can't wrap around something you just unwrapped or are already wrapped around
 			if(!points[i].sameAsAny(currentlyWrappedPoints) && !points[i].sameAsAny(this._unwrapPointsThisFrame)) {
 				var lineToPoint = Utils.toLine(this.pos, points[i]);
-				if(lineToPoint && lineToPoint.dist < lineToParent.dist) {
+				if(lineToPoint.dist < lineToParent.dist) {
 					//if the angle to the point is "between" the angle we started and ended at, we do some wrapping!
 					var angleToPoint = Math.atan2(lineToPoint.diff.y, lineToPoint.diff.x);
 					var angleClockwiseToPoint = simplifyAngle(angleToPoint - angleToPastParent);
+					var k = 0.000000005;
 					if(angleToPoint !== this._wrapAngleProhibited &&
-						((angleClockwise >= 0 && angleClockwiseToPoint >= 0 && angleClockwise > angleClockwiseToPoint) ||
-						(angleClockwise <= 0 && angleClockwiseToPoint <= 0 && angleClockwise < angleClockwiseToPoint))) {
+						((angleClockwise >= -k && angleClockwiseToPoint >= -k && angleClockwise >= angleClockwiseToPoint) ||
+						(angleClockwise <= k && angleClockwiseToPoint <= k && angleClockwise <= angleClockwiseToPoint))) {
 						//so the wrapping DOES occur this frame, we just need to figure out where/when exactly
-						intersection = Utils.findIntersection(this._player.lineOfMovement, lineToPoint);
+						var intersection = Utils.findIntersection(this._player.lineOfMovement, lineToPoint);
 						if(!intersection) {
 							debugger;
 						}
 						if(intersection) {
-							lineParentTraveled = Utils.toLine(this._player.pos.prev, intersection);
+							var lineParentTraveled = Utils.toLine(this._player.pos.prev, intersection);
 							if(!lineParentTraveled) {
 								debugger;
 							}
@@ -319,7 +319,21 @@ define([
 								distPreContact: (lineParentTraveled ? lineParentTraveled.dist : 0),
 								priority: (angleClockwiseToPoint < 0 ? -angleClockwiseToPoint : angleClockwiseToPoint),
 								subpriority: -lineToPoint.dist,
-								angle: angleToPoint
+								angle: angleToPoint,
+								debug: {
+									lineToParent: lineToParent,
+									lineToPastParent: lineToPastParent,
+									angleToParent: angleToParent,
+									angleToPastParent: angleToPastParent,
+									angleClockwise: angleClockwise,
+									currentlyWrappedPoints: currentlyWrappedPoints,
+									lineToPoint: lineToPoint,
+									angleToPoint: angleToPoint,
+									angleClockwiseToPoint: angleClockwiseToPoint,
+									intersection: intersection,
+									lineParentTraveled: lineParentTraveled,
+									self: this
+								}
 							});
 						}
 					}
@@ -334,10 +348,7 @@ define([
 		if(wrapsThisFrame.length > 0) {
 			var self = this;
 			return {
-				posOnContact: {
-					x: this._player.pos.prev.x,
-					y: this._player.pos.prev.y
-				},//wrapsThisFrame[0].posOnContact,
+				posOnContact: wrapsThisFrame[0].posOnContact,
 				posAfterContact: {
 					x: this._player.pos.x,
 					y: this._player.pos.y
@@ -348,6 +359,7 @@ define([
 				},
 				distPreContact: wrapsThisFrame[0].distPreContact,
 				handle: function() {
+					console.log(Utils.getTimestamp(), "Wrapping grapple " + self._grappleId + " around point " + wrapsThisFrame[0].point._obstacleId + " (" + wrapsThisFrame[0].point.x + "," + wrapsThisFrame[0].point.y + ")", wrapsThisFrame[0].debug);
 					//wrap the grapple around the new latch point
 					self.latchTo(wrapsThisFrame[0].point);
 					self._unwrapsAllowedThisFrame = false;
@@ -378,8 +390,9 @@ define([
 		}
 		var angleBetweenLatches = Math.atan2(lineBetweenPreviousLatches.diff.y, lineBetweenPreviousLatches.diff.x);
 		var angleClockwiseBetweenLatches = simplifyAngle(angleBetweenLatches - angleToPastParent);
-		if((angleClockwise >= 0 && angleClockwiseBetweenLatches >= 0 && angleClockwise > angleClockwiseBetweenLatches) ||
-			(angleClockwise <= 0 && angleClockwiseBetweenLatches <= 0 && angleClockwise < angleClockwiseBetweenLatches)) {
+		var k = 0.000000005;
+		if((angleClockwise >= -k && angleClockwiseBetweenLatches >= -k && angleClockwise > angleClockwiseBetweenLatches) ||
+			(angleClockwise <= k && angleClockwiseBetweenLatches <= k && angleClockwise < angleClockwiseBetweenLatches)) {
 			intersection = Utils.findIntersection(this._player.lineOfMovement, lineBetweenPreviousLatches);
 			if(!intersection) {
 				debugger;
@@ -389,6 +402,20 @@ define([
 			if(!lineParentTraveled) {
 				debugger;
 			}
+			var debug = {
+				lineToParent: lineToParent,
+				lineToPastParent: lineToPastParent,
+				angleToParent: angleToParent,
+				angleToPastParent: angleToPastParent,
+				angleClockwise: angleClockwise,
+				mostRecentLatch: mostRecentLatch,
+				prevLatch: prevLatch,
+				lineBetweenPreviousLatches: lineBetweenPreviousLatches,
+				angleBetweenLatches: angleBetweenLatches,
+				angleClockwiseBetweenLatches: angleClockwiseBetweenLatches,
+				lineParentTraveled: lineParentTraveled,
+				self: this
+			};
 			return {
 				posOnContact: intersection, /*{
 					x: this._player.pos.prev.x,
@@ -404,12 +431,29 @@ define([
 				},
 				distPreContact: lineParentTraveled.dist,
 				handle: function() {
+					console.log(Utils.getTimestamp(), "Unwrapping grapple " + self._grappleId + " from point " + mostRecentLatch.point._obstacleId + " (" + mostRecentLatch.point.x + "," + mostRecentLatch.point.y + ")", debug);
 					//unwrap the grapple from its previous latch point
 					self.unlatch();
 					self._unwrapPointsThisFrame.push(mostRecentLatch.point);
 					self._wrapAngleProhibited = angleBetweenLatches;
 				}
 			};
+		}
+		else {
+			console.log(Utils.getTimestamp(), "  NOT unwrapping grapple " + this._grappleId + " from point " + mostRecentLatch.point._obstacleId + " (" + mostRecentLatch.point.x + "," + mostRecentLatch.point.y + ") due to angle", {
+				lineToParent: lineToParent,
+				lineToPastParent: lineToPastParent,
+				angleToParent: angleToParent,
+				angleToPastParent: angleToPastParent,
+				angleClockwise: angleClockwise,
+				mostRecentLatch: mostRecentLatch,
+				prevLatch: prevLatch,
+				lineBetweenPreviousLatches: lineBetweenPreviousLatches,
+				angleBetweenLatches: angleBetweenLatches,
+				angleClockwiseBetweenLatches: angleClockwiseBetweenLatches,
+				lineParentTraveled: lineParentTraveled,
+				self: this
+			});
 		}
 
 		return false;

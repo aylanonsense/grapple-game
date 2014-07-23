@@ -52,6 +52,7 @@ define([
 
 		function everyFrame(ms) {
 			if(!isPaused) {
+				console.log("---");
 				tick(ms);
 				camera.x = player.pos.x - width / 2;
 				camera.y = player.pos.y - height / 2;
@@ -118,8 +119,16 @@ define([
 					break;
 				}
 			}
+			/*if(interruptionsThisFrame.length > 0) {
+				console.log(interruptionsThisFrame.map(function(i) { return i.interruptionType; }).join(" "));
+			}*/
 			interruptionsLastFrame = interruptionsThisFrame;
 		}
+		/*for(var p = 0; p < level.obstacles.length; p++) {
+			if(level.obstacles[p].type === 'point') {
+				console.log(level.obstacles[p]._obstacleId, level.obstacles[p].x, level.obstacles[p].y);
+			}
+		}*/
 
 		function findInterruption(prevInterruptions) {
 			var i, j, interruption, interruptionsThisFrame = [];
