@@ -115,10 +115,10 @@ define([
 
 			//draw bounding circle made by the grapple
 			if(this.isLatched) {
-				ctx.strokeStyle = '#ddd';
+				ctx.strokeStyle = this.maxDist < 0 ? '#f66' : '#ddd';
 				ctx.lineWidth = 0.5;
 				ctx.beginPath();
-				ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.maxDist, 0, 2 * Math.PI, false);
+				ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.maxDist < 0 ? -this.maxDist : this.maxDist, 0, 2 * Math.PI, false);
 				ctx.stroke();
 			}
 		}
