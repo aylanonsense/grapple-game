@@ -1,10 +1,10 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define([
 	'app/Grapple',
-	'app/Utils'
+	'app/GeometryUtils'
 ], function(
 	Grapple,
-	Utils
+	GeometryUtils
 ) {
 	function Player(x, y) {
 		this.radius = 20;
@@ -15,7 +15,7 @@ define([
 	}
 	Player.prototype.adjustMovement = function(prevPos, pos, vel) {
 		this.pos = { x: pos.x, y: pos.y, prev: { x: prevPos.x, y: prevPos.y } };
-		this.lineOfMovement = Utils.toLine(this.pos.prev, this.pos);
+		this.lineOfMovement = GeometryUtils.toLine(this.pos.prev, this.pos);
 		if(vel) {
 			this.vel = { x: vel.x, y: vel.y };
 		}
@@ -61,7 +61,7 @@ define([
 		this.pos.y += (this.vel.y + oldVel.y) / 2 * t;
 		this._force = { x: 0, y: 0 };
 		this._instantForce = { x: 0, y: 0 };
-		this.lineOfMovement = Utils.toLine(this.pos.prev, this.pos);
+		this.lineOfMovement = GeometryUtils.toLine(this.pos.prev, this.pos);
 	};
 	Player.prototype.render = function(ctx, camera) {
 		/*if(this.pos.x !== this.pos.prev.x || this.pos.y !== this.pos.prev.y) {

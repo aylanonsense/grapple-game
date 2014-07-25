@@ -1,8 +1,8 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define([
-	'app/Utils'
+	'app/GeometryUtils'
 ], function(
-	Utils
+	GeometryUtils
 ) {
 	var nextGrappleId = 0;
 	var GRAPPLE_MOVE_SPEED = 99999;
@@ -282,8 +282,8 @@ define([
 		}
 
 		//find the angle "swath" the player made as it moved about the grapple
-		var lineToParent = Utils.toLine(this.pos, this._player.pos);
-		var lineToPastParent = Utils.toLine(this.pos, this._player.pos.prev);
+		var lineToParent = GeometryUtils.toLine(this.pos, this._player.pos);
+		var lineToPastParent = GeometryUtils.toLine(this.pos, this._player.pos.prev);
 		var angleToParent = Math.atan2(lineToParent.diff.y, lineToParent.diff.x);
 		var angleToPastParent = Math.atan2(lineToPastParent.diff.y, lineToPastParent.diff.x);
 		var angleClockwise = simplifyAngle(angleToParent - angleToPastParent);
@@ -294,7 +294,7 @@ define([
 		for(var i = 0; i < points.length; i++) {
 			//you can't wrap around something you just unwrapped or are already wrapped around
 			if(!points[i].sameAsAny(currentlyWrappedPoints) && !points[i].sameAsAny(this._unwrapPointsThisFrame)) {
-				var lineToPoint = Utils.toLine(this.pos, points[i]);
+				var lineToPoint = GeometryUtils.toLine(this.pos, points[i]);
 				if(lineToPoint.dist < lineToParent.dist) {
 					//if the angle to the point is "between" the angle we started and ended at, we do some wrapping!
 					var angleToPoint = Math.atan2(lineToPoint.diff.y, lineToPoint.diff.x);
@@ -304,8 +304,8 @@ define([
 						((angleClockwise >= -k && angleClockwiseToPoint >= -k && angleClockwise >= angleClockwiseToPoint) ||
 						(angleClockwise <= k && angleClockwiseToPoint <= k && angleClockwise <= angleClockwiseToPoint))) {
 						//so the wrapping DOES occur this frame, we just need to figure out where/when exactly
-						var intersection = Utils.findIntersection(this._player.lineOfMovement, lineToPoint);
-						var lineParentTraveled = Utils.toLine(this._player.pos.prev, intersection);
+						var intersection = GeometryUtils.findLineToLineIntersection(this._player.lineOfMovement, lineToPoint);
+						var lineParentTraveled = GeometryUtils.toLine(this._player.pos.prev, intersection);
 						wrapsThisFrame.push({
 							point: points[i],
 							posOnContact: intersection,
@@ -352,8 +352,8 @@ define([
 		}
 
 		//find the angle "swath" the player made as it moved about the grapple
-		var lineToParent = Utils.toLine(this.pos, this._player.pos);
-		var lineToPastParent = Utils.toLine(this.pos, this._player.pos.prev);
+		var lineToParent = GeometryUtils.toLine(this.pos, this._player.pos);
+		var lineToPastParent = GeometryUtils.toLine(this.pos, this._player.pos.prev);
 		var angleToParent = Math.atan2(lineToParent.diff.y, lineToParent.diff.x);
 		var angleToPastParent = Math.atan2(lineToPastParent.diff.y, lineToPastParent.diff.x);
 		var angleClockwise = simplifyAngle(angleToParent - angleToPastParent);
@@ -361,14 +361,14 @@ define([
 		//we might want to unwrap the most recent latch
 		var mostRecentLatch = this._latchPoints[this._latchPoints.length - 1];
 		var prevLatch = this._latchPoints[this._latchPoints.length - 2];
-		var lineBetweenPreviousLatches = Utils.toLine(prevLatch, mostRecentLatch);
+		var lineBetweenPreviousLatches = GeometryUtils.toLine(prevLatch, mostRecentLatch);
 		var angleBetweenLatches = Math.atan2(lineBetweenPreviousLatches.diff.y, lineBetweenPreviousLatches.diff.x);
 		var angleClockwiseBetweenLatches = simplifyAngle(angleBetweenLatches - angleToPastParent);
 		var k = 0.000000005;
 		if((angleClockwise >= -k && angleClockwiseBetweenLatches >= -k && angleClockwise > angleClockwiseBetweenLatches) ||
 			(angleClockwise <= k && angleClockwiseBetweenLatches <= k && angleClockwise < angleClockwiseBetweenLatches)) {
-			intersection = Utils.findIntersection(this._player.lineOfMovement, lineBetweenPreviousLatches);
-			var lineParentTraveled = Utils.toLine(this._player.pos.prev, intersection);
+			intersection = GeometryUtils.findLineToLineIntersection(this._player.lineOfMovement, lineBetweenPreviousLatches);
+			var lineParentTraveled = GeometryUtils.toLine(this._player.pos.prev, intersection);
 			var self = this;
 			return {
 				posOnContact: intersection,
