@@ -1,4 +1,4 @@
-if (typeof define !== 'function') { var define = require('amdefine')(module); }
+/* istanbul ignore if  */ if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define(function() {
 	var START_TIME = Date.now();
 	return {

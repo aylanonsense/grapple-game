@@ -3,8 +3,50 @@ describe("The GeometryUtils module", function() {
 	var expect = test.require('chai').expect;
 	var GeometryUtils = test.require('app/GeometryUtils');
 	describe("toLine method", function() {
-		it("needs tests");
-	})
+		it("returns isSinglePoint=true if the start point and end point are the same", function() {
+			var line = GeometryUtils.toLine(10,10,  10,10); //point
+			expect(line).to.deep.equal({
+				isSinglePoint: true,
+				isVertical: false,
+				start: { x: 10, y: 10 },
+				end: { x: 10, y: 10 },
+				diff: { x: 0, y: 0 },
+				dist: 0,
+				x: 10,
+				y: 10
+			});
+		});
+		it("returns isVertical=true if the start point is above/below the end point", function() {
+			var line = GeometryUtils.toLine(10,-20,  10,10); //vertical line
+			expect(line).to.deep.equal({
+				isSinglePoint: false,
+				isVertical: true,
+				start: { x: 10, y: -20 },
+				end: { x: 10, y: 10 },
+				diff: { x: 0, y: 30 },
+				dist: 30,
+				x: 10
+			});
+		});
+		it("returns a line object with the proper slope and intersection values", function() {
+			var line = GeometryUtils.toLine(5,7.5,  10,10); //line with slope=0.5
+			expect(line).to.deep.equal({
+				isSinglePoint: false,
+				isVertical: false,
+				start: { x: 5, y: 7.5 },
+				end: { x: 10, y: 10 },
+				diff: { x: 5, y: 2.5 },
+				dist: Math.sqrt(5 * 5 + 2.5 * 2.5),
+				m: 0.5,
+				b: 5
+			});
+		});
+		it("can take two point arguments or four number arguments", function() {
+			var line1 = GeometryUtils.toLine(84,36,  112,-99);
+			var line2 = GeometryUtils.toLine({ x: 84, y: 36 }, { x: 112, y: -99 });
+			expect(line1).to.deep.equal(line2);
+		});
+	});
 	describe("findLineToLineIntersection method", function() {
 		describe("given two points", function() {
 			it("where the points have the same coordinates, it returns that as the intersection", function() {
@@ -28,7 +70,7 @@ describe("The GeometryUtils module", function() {
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: 4, y: 5 });
 					expect(GeometryUtils.findLineToLineIntersection(line2, line1)).to.deep.equal({ intersectsBothSegments: true, x: 4, y: 5 });
 				});
-				it("returns the point's coordinates with intersectsBothSegments=true if the point is on an endpoint", function() {
+				it("returns the point's coordinates with intersectsBothSegments=true if the point is on an end point", function() {
 					var line1 = GeometryUtils.toLine(-10,5,  -10,5); //point
 					var line2 = GeometryUtils.toLine(-10,5,  10,5); //horizontal line
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: -10, y: 5 });
@@ -54,7 +96,7 @@ describe("The GeometryUtils module", function() {
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: -5, y: 19 });
 					expect(GeometryUtils.findLineToLineIntersection(line2, line1)).to.deep.equal({ intersectsBothSegments: true, x: -5, y: 19 });
 				});
-				it("returns the point's coordinates with intersectsBothSegments=true if the point is on an endpoint", function() {
+				it("returns the point's coordinates with intersectsBothSegments=true if the point is on an end point", function() {
 					var line1 = GeometryUtils.toLine(-5,20,  -5,20); //point
 					var line2 = GeometryUtils.toLine(-5,20,  -5,10); //vertical line
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: -5, y: 20 });
@@ -80,7 +122,7 @@ describe("The GeometryUtils module", function() {
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: -6, y: -5 });
 					expect(GeometryUtils.findLineToLineIntersection(line2, line1)).to.deep.equal({ intersectsBothSegments: true, x: -6, y: -5 });
 				});
-				it("returns the point's coordinates with intersectsBothSegments=true if the point is on an endpoint", function() {
+				it("returns the point's coordinates with intersectsBothSegments=true if the point is on an end point", function() {
 					var line1 = GeometryUtils.toLine(-7,-3,  -7,-3); //point
 					var line2 = GeometryUtils.toLine(-7,-3,  -3,-11); //line with slope=-2
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: -7, y: -3 });
@@ -115,9 +157,9 @@ describe("The GeometryUtils module", function() {
 						expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: 0, y: 2 });
 					});
 					it("returns the secondary line's start point if the secondary line is contained in the primary line", function() {
-						var line1 = GeometryUtils.toLine(0,1,  0,4); //vertical line
-						var line2 = GeometryUtils.toLine(0,2,  0,3); //vertical line
-						expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: 0, y: 2 });
+						var line1 = GeometryUtils.toLine(0,-1,  0,-4); //vertical line
+						var line2 = GeometryUtils.toLine(0,-2,  0,-3); //vertical line
+						expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: 0, y: -2 });
 					});
 					it("returns the seconary line's start point if the lines are only partially overlapping", function() {
 						var line1 = GeometryUtils.toLine(0,1,  0,3); //vertical line
@@ -244,7 +286,7 @@ describe("The GeometryUtils module", function() {
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: -55, y: 150 });
 					expect(GeometryUtils.findLineToLineIntersection(line2, line1)).to.deep.equal({ intersectsBothSegments: true, x: -55, y: 150 });
 				});
-				it("returns intersectsBothSegments=true if the line segments share an endpoint", function() {
+				it("returns intersectsBothSegments=true if the line segments share an end point", function() {
 					var line1 = GeometryUtils.toLine(-55,100,  -55,200); //vertical line
 					var line2 = GeometryUtils.toLine(-100,200,  -55,200); //horizontal line
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: -55, y: 200 });
@@ -270,7 +312,7 @@ describe("The GeometryUtils module", function() {
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: 25, y: -8 });
 					expect(GeometryUtils.findLineToLineIntersection(line2, line1)).to.deep.equal({ intersectsBothSegments: true, x: 25, y: -8 });
 				});
-				it("returns intersectsBothSegments=true if the line segments share an endpoint", function() {
+				it("returns intersectsBothSegments=true if the line segments share an end point", function() {
 					var line1 = GeometryUtils.toLine(20,-8,  30,-8); //horizontal line
 					var line2 = GeometryUtils.toLine(20,-8,  30,392); //line with slope=40
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: 20, y: -8 });
@@ -296,7 +338,7 @@ describe("The GeometryUtils module", function() {
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: -9.5, y: 4.75 });
 					expect(GeometryUtils.findLineToLineIntersection(line2, line1)).to.deep.equal({ intersectsBothSegments: true, x: -9.5, y: 4.75 });
 				});
-				it("returns intersectsBothSegments=true if the line segments share an endpoint", function() {
+				it("returns intersectsBothSegments=true if the line segments share an end point", function() {
 					var line1 = GeometryUtils.toLine(-10,0,  -10,6); //vertical line
 					var line2 = GeometryUtils.toLine(-10,5,  -8,4); //line with slope=-0.5
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: -10, y: 5 });
@@ -339,9 +381,9 @@ describe("The GeometryUtils module", function() {
 				});
 				describe("the lines are oriented in opposite directions", function() {
 					it("returns the primary line's start point if the primary line is contained in the secondary line", function() {
-						var line1 = GeometryUtils.toLine(2,-2,  3,-3); //line with slope=-1
-						var line2 = GeometryUtils.toLine(4,-4,  1,-1); //line with slope=-1
-						expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: 2, y: -2 });
+						var line1 = GeometryUtils.toLine(-2,2,  -3,3); //line with slope=-1
+						var line2 = GeometryUtils.toLine(-4,4,  -1,1); //line with slope=-1
+						expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: -2, y: 2 });
 					});
 					it("returns the secondary line's end point if the secondary line is contained in the primary line", function() {
 						var line1 = GeometryUtils.toLine(1,-1,  4,-4); //line with slope=-1
@@ -378,7 +420,7 @@ describe("The GeometryUtils module", function() {
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: 12, y: 8 });
 					expect(GeometryUtils.findLineToLineIntersection(line2, line1)).to.deep.equal({ intersectsBothSegments: true, x: 12, y: 8 });
 				});
-				it("returns intersectsBothSegments=true if the line segments share an endpoint", function() {
+				it("returns intersectsBothSegments=true if the line segments share an end point", function() {
 					var line1 = GeometryUtils.toLine(10,10,  20,0); //line with slope=-1
 					var line2 = GeometryUtils.toLine(10,10,  11,210); //line with slope=200
 					expect(GeometryUtils.findLineToLineIntersection(line1, line2)).to.deep.equal({ intersectsBothSegments: true, x: 10, y: 10 });
