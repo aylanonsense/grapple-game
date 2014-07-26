@@ -143,7 +143,7 @@ define([
 					interruption.interruptPriority = 3;
 					interruptionsThisFrame.push(interruption);
 				}
-				interruption = grapples[i].checkForWrappingAroundPoints(points);
+				/*interruption = grapples[i].checkForWrappingAroundPoints(points);
 				if(interruption) {
 					interruption.interruptionType = 'wrap';
 					interruption.interruptPriority = 5;
@@ -154,7 +154,7 @@ define([
 					interruption.interruptionType = 'unwrap';
 					interruption.interruptPriority = 7;
 					interruptionsThisFrame.push(interruption);
-				}
+				}*/
 			}
 			interruptionsThisFrame.sort(function(a, b) {
 				return (a.distPreContact === b.distPreContact ?

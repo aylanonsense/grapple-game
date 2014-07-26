@@ -275,7 +275,7 @@ define([
 		}
 		return false;
 	};
-	Grapple.prototype.checkForWrappingAroundPoints = function(points) {
+	/*Grapple.prototype.checkForWrappingAroundPoints = function(points) {
 		//if the grapple hasn't latched onto anything yet there's no way it's wrapping around points
 		if(!this.isLatched || this.isDead) {
 			return false;
@@ -390,7 +390,7 @@ define([
 			};
 		}
 		return false;
-	};
+	};*/
 	Grapple.prototype.kill = function() {
 		this.isDead = true;
 	};
