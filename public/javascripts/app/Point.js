@@ -1,10 +1,10 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define([
 	'app/Obstacle',
-	'app/GeometryUtils'
+	'app/Utils'
 ], function(
 	Obstacle,
-	GeometryUtils
+	Utils
 ) {
 	function Point(x, y) {
 		Obstacle.apply(this, arguments);
@@ -81,7 +81,7 @@ define([
 			var distTraveledPostContact = Math.sqrt(squareDistTraveledInTotal) - Math.sqrt(squareDistTraveledPreContact);
 
 			//there was a collision!
-			var jumpAngle = GeometryUtils.transformToJumpAngle(angleToPointOfContact - Math.PI / 2);
+			var jumpAngle = Utils.transformToJumpAngle(angleToPointOfContact - Math.PI / 2);
 			return {
 				actor: this,
 				posOnContact: posOnHit,

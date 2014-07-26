@@ -1,10 +1,10 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define([
 	'app/Obstacle',
-	'app/GeometryUtils'
+	'app/Utils'
 ], function(
 	Obstacle,
-	GeometryUtils
+	Utils
 ) {
 	function Line(x1, y1, x2, y2) {
 		Obstacle.apply(this, arguments);
@@ -18,7 +18,7 @@ define([
 		this.end.rotated = this.rotatePoint(this.end);
 		this.dirParallel = { x: this._cos, y: this._sin };
 		this.dirPerpendicular = { x: this._sin, y: -this._cos };
-		var jumpAngle = GeometryUtils.transformToJumpAngle(angle + Math.PI / 2);
+		var jumpAngle = Utils.transformToJumpAngle(angle + Math.PI / 2);
 		this.dirJump = { x: Math.cos(jumpAngle), y: Math.sin(jumpAngle) };
 	}
 	Line.prototype = Object.create(Obstacle.prototype);

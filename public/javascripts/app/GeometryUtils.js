@@ -2,16 +2,6 @@
 define(function() {
 	var START_TIME = Date.now();
 	return {
-		transformToJumpAngle: function(angle) {
-			var distFromTop = (angle + Math.PI / 2) % (2 * Math.PI);
-			if(distFromTop > Math.PI) {
-				distFromTop = distFromTop - 2 * Math.PI;
-			}
-			var squareDistFromTop = distFromTop * distFromTop;
-			var const1 = -0.9;
-			var const2 = -const1 / Math.PI;
-			return angle + const1 * distFromTop + const2 * (distFromTop > 0 ? 1 : -1) * squareDistFromTop;
-		},
 		toLine: function(start, end) {
 			if(arguments.length === 4) {
 				start = { x: arguments[0], y: arguments[1] };
@@ -193,10 +183,6 @@ define(function() {
 					(line2.end.y < line2.start.y && line2.end.y - c <= intersection.y && intersection.y <= line2.start.y + c));
 			}
 			return intersection;
-		},
-		getTimestamp: function() {
-			var ms = Date.now() - START_TIME;
-			return "" + (ms / 1000);
 		}
 	};
 });
