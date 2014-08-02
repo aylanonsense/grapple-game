@@ -5,7 +5,7 @@ define([
 	GeometryUtils
 ) {
 	var nextGrappleId = 0;
-	var GRAPPLE_MOVE_SPEED = 99999;
+	var GRAPPLE_MOVE_SPEED = 1500;
 	function Grapple(player, x, y, dirX, dirY) {
 		this._grappleId = nextGrappleId++;
 		this._player = player;

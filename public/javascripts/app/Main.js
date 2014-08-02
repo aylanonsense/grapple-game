@@ -62,6 +62,8 @@ define([
 		var interruptionsLastFrame = [];
 		function tick(ms) {
 			var i, j, interruption, friction = 1;
+
+			//move/latch grapples
 			for(i = 0; i < grapples.length; i++) {
 				grapples[i].tick(ms, friction);
 				if(!grapples[i].isDead && !grapples[i].isLatched) {
@@ -77,22 +79,23 @@ define([
 					}
 				}
 			}
+
+			//move player
 			player.applyForce(0, 600); //gravity
 			if(keys[KEY.A]) { player.applyForce(-400, 0); }
 			if(keys[KEY.D]) { player.applyForce(400, 0); }
 			if(keys[KEY.W]) { player.applyForce(0, -400); }
 			if(keys[KEY.S]) { player.applyForce(0, 400); }
-			if(keys.pressed[JUMP_KEY]) {
-				for(i = 0; i < interruptionsLastFrame.length; i++) {
-					interruption = interruptionsLastFrame[i];
-					if(interruption.interruptionType === 'collision') {
-						keys.pressed[JUMP_KEY] = false;
-						player.jump(interruption.jumpDir.x, interruption.jumpDir.y);
-						break;
-					}
+			/*if(keys.pressed[JUMP_KEY]) {
+				var jumpableObstacles = findJumpableInterruptions();
+				if(jumpableObstacles.length === 1) {
+					keys.pressed[JUMP_KEY] = true;
+					player.jump(jumpableObstacles[0].jumpDir.x, jumpableObstacles[0].jumpDir.y);
 				}
-			}
+			}*/
 			player.tick(ms, friction);
+
+			//revise player movement to account for interruptions
 			var interruptionsThisFrame = [];
 			interruption = null;
 			for(i = 0; i <= 100; i++) {
@@ -113,9 +116,21 @@ define([
 					if(interruption.handle) {
 						interruption.handle();
 					}
+					//jump off of obstacles!
+					if(interruption.interruptionType === 'collision' && keys.pressed[JUMP_KEY]) {
+						keys.pressed[JUMP_KEY] = false;
+						player.jump(interruption.jumpDir.x, interruption.jumpDir.y);
+					}
 				}
 				else {
 					break;
+				}
+			}
+			if(keys.pressed[JUMP_KEY]) {
+				var jumpables = findJumpableInterruptions();
+				if(jumpables.length > 0) {
+					keys.pressed[JUMP_KEY] = false;
+					player.jump(jumpables[0].jumpDir);
 				}
 			}
 			interruptionsLastFrame = interruptionsThisFrame;
@@ -169,6 +184,17 @@ define([
 				}
 			}
 			return null;
+		}
+
+		function findJumpableInterruptions() {
+			var jumpableInterruptions = [];
+			for(var i = 0; i < level.obstacles.length; i++) {
+				var interruption = level.obstacles[i].checkForNearCircle(player);
+				if(interruption) {
+					jumpableInterruptions.push(interruption);
+				}
+			}
+			return jumpableInterruptions;
 		}
 
 		function render() {

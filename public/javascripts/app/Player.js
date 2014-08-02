@@ -94,6 +94,13 @@ define([
 		ctx.fill();
 	};
 	Player.prototype.jump = function(dirX, dirY) {
+		if(arguments.length === 1) {
+			dirY = dirX.y;
+			dirX = dirX.x;
+		}
+		if(dirY < 0 && this.vel.y > 0) {
+			this.vel.y = 0;
+		}
 		this.applyInstantaneousForce(15000, dirX, dirY);
 	};
 	Player.prototype.shootGrapple = function(x, y) {

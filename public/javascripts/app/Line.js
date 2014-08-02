@@ -34,6 +34,20 @@ define([
 			y: point.x * -this._sin + point.y * -this._cos
 		};
 	};
+	Line.prototype.checkForNearCircle = function(circle) {
+		var pos = this.rotatePoint(circle.pos);
+		var vel = this.rotatePoint(circle.vel);
+		var prev = this.rotatePoint(circle.pos.prev);
+		if(((this.end.rotated.x <= this.start.rotated.x && this.end.rotated.x <= pos.x && pos.x <= this.start.rotated.x) ||
+			(this.end.rotated.x >= this.start.rotated.x && this.end.rotated.x >= pos.x && pos.x >= this.start.rotated.x)) &&
+			pos.y > this.start.rotated.y - circle.radius - 0.5 && pos.y < this.start.rotated.y - circle.radius + 0.5) {
+			return {
+				actor: this,
+				jumpDir: this.dirJump
+			};
+		}
+		return false;
+	};
 	Line.prototype.checkForCollisionWithMovingCircle = function(circle) {
 		var pos = this.rotatePoint(circle.pos);
 		var vel = this.rotatePoint(circle.vel);
