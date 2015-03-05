@@ -1,7 +1,7 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define([
-	'app/Point',
-	'app/Line'
+	'Point',
+	'Line'
 ], function(
 	Point,
 	Line

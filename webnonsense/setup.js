@@ -1,12 +1,12 @@
+//configure requirejs
 requirejs.config({
 	baseUrl: 'javascripts',
 	paths: {
-		lib: '/javascripts/lib',
-		app: '/javascripts/app',
 		jquery: '/javascripts/lib/jquery'
 	}
 });
 
-requirejs([ 'app/Main' ], function(Main) {
+//execute the main class
+requirejs([ 'Main' ], function(Main) {
 	Main();
 });

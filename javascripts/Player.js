@@ -1,7 +1,7 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define([
-	'app/Grapple',
-	'app/GeometryUtils'
+	'Grapple',
+	'GeometryUtils'
 ], function(
 	Grapple,
 	GeometryUtils

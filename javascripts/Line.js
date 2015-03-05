@@ -1,7 +1,7 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 define([
-	'app/Obstacle',
-	'app/Utils'
+	'Obstacle',
+	'Utils'
 ], function(
 	Obstacle,
 	Utils
