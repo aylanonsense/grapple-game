@@ -168,28 +168,28 @@ define([
 		},
 		onMouseEvent: function(evt) {
 			if(evt.type === 'mousedown') {
-				grapples.push(player.shootGrapple(evt.gameX + camera.x, evt.gameY + camera.y));
+				grapples.push(player.shootGrapple(evt.x + camera.x, evt.y + camera.y));
 			}
 		},
 		onKeyboardEvent: function(evt, keyboard) {
-			if(evt.gameKey === 'CUT_GRAPPLES' && evt.isDown) {
+			if(evt.key === 'CUT_GRAPPLES' && evt.isDown) {
 				for(var i = 0; i < grapples.length; i++) {
 					grapples[i].kill();
 				}
 			}
-			else if(evt.gameKey === 'JUMP' && evt.isDown) {
+			else if(evt.key === 'JUMP' && evt.isDown) {
 				jumpPressed = true;
 			}
-			else if(evt.gameKey === 'MOVE_LEFT') {
+			else if(evt.key === 'MOVE_LEFT') {
 				moveDir.x = (evt.isDown ? -1 : (keyboard.MOVE_RIGHT ? 1 : 0));
 			}
-			else if(evt.gameKey === 'MOVE_RIGHT') {
+			else if(evt.key === 'MOVE_RIGHT') {
 				moveDir.x = (evt.isDown ? 1 : (keyboard.MOVE_LEFT ? -1 : 0));
 			}
-			else if(evt.gameKey === 'MOVE_UP') {
+			else if(evt.key === 'MOVE_UP') {
 				moveDir.y = (evt.isDown ? -1 : (keyboard.MOVE_DOWN ? 1 : 0));
 			}
-			else if(evt.gameKey === 'MOVE_DOWN') {
+			else if(evt.key === 'MOVE_DOWN') {
 				moveDir.y = (evt.isDown ? 1 : (keyboard.MOVE_UP ? -1 : 0));
 			}
 		}

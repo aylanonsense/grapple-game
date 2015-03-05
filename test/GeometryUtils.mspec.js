@@ -1,7 +1,7 @@
 describe("The GeometryUtils module", function() {
-	var test = require('../public/javascripts/testsetup');
+	var test = require('./setup');
 	var expect = test.require('chai').expect;
-	var GeometryUtils = test.require('app/GeometryUtils');
+	var GeometryUtils = test.require('GeometryUtils');
 	describe("toLine method", function() {
 		it("returns isSinglePoint=true if the start point and end point are the same", function() {
 			var line = GeometryUtils.toLine(10,10,  10,10); //point
