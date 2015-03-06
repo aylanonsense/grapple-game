@@ -18,8 +18,10 @@ define([
 			if(collision) {
 				circle.handleCollision(collision);
 				if(collision.geom.sameAsAny(prevGeoms)) {
-					// circle.pos.copy(circle.prevPos);
-					// circle.vel.zero();
+					if(!collision.geom.sameAs(prevGeoms[prevGeoms.length - 1])) {
+						circle.pos.copy(circle.prevPos);
+						circle.vel.zero();
+					}
 					break;
 				}
 				else {

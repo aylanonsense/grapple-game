@@ -5,7 +5,7 @@ define([
 	SUPERCLASS,
 	Vector
 ) {
-	var ERROR_ALLOWED = 0.005;
+	var ERROR_ALLOWED = 1;
 	function Line(x1, y1, x2, y2) {
 		SUPERCLASS.call(this, 'line');
 		this.start = new Vector(x1, y1);
@@ -53,11 +53,21 @@ define([
 		//if there was a collision, the circle was right on top of the line (ignoring endpoints)
 		var collisionY = this._rotatedStart.y - radius;
 
+		if(prevPos.y > collisionY && prevPos.y <= collisionY + ERROR_ALLOWED) {
+			prevPos.y = collisionY;
+		}
+		if(pos.y <= collisionY && pos.y > collisionY - ERROR_ALLOWED) {
+			pos.y = collisionY;
+		}
+
 		//of course this would only happen if the circle was moving downwards onto the line
-		if(prevPos.y <= collisionY && collisionY < pos.y) {
+		if(prevPos.y <= pos.y && prevPos.y <= collisionY && collisionY < pos.y) {
 			var lineOfMovement = pos.clone().subtract(prevPos);
 			var totalDist = lineOfMovement.length();
-			var percentOfMovement = (collisionY - prevPos.y) / lineOfMovement.y;
+			var percentOfMovement;
+			if(lineOfMovement.y === 0) { percentOfMovement = 1.0; }
+			else { percentOfMovement = (collisionY - prevPos.y) / lineOfMovement.y; }
+			percentOfMovement = Math.max(0.0, Math.min(percentOfMovement, 1.0));
 			lineOfMovement.multiply(percentOfMovement);
 			var contactPoint = prevPos.clone().add(lineOfMovement);
 
@@ -69,8 +79,8 @@ define([
 
 				//calculate the final position
 				var distToTravel = totalDist - distTraveled;
-				lineOfMovement.normalize().multiply(distToTravel, distToTravel * -bounceAmt);
-				var finalPoint = contactPoint.clone().add(lineOfMovement);
+				var lineOfMovementPostCollision = pos.clone().subtract(prevPos).normalize().multiply(distToTravel, distToTravel * -bounceAmt);
+				var finalPoint = contactPoint.clone().add(lineOfMovementPostCollision);
 
 				//calculate the final velocity
 				var finalVel = this._rotateVector(vel);
