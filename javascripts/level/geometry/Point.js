@@ -31,6 +31,11 @@ define([
 		return false;
 	};
 	Point.prototype._checkForCollisionWithMovingCircle = function(pos, prevPos, vel, radius, bounceAmt) {
+		//if the circle started out inside of the point, they can't be colliding
+		if(prevPos.squareDistance(this.pos) < radius * radius) {
+			return false;
+		}
+
 		//calculate the discriminant
 		var lineOfMovement = pos.clone().subtract(prevPos);
 		var lineToPoint = this.pos.clone().subtract(prevPos);
@@ -78,6 +83,7 @@ define([
 				}
 
 				return {
+					geom: this,
 					distTraveled: distTraveled,
 					contactPoint: contactPoint,
 					finalPoint: finalPoint,

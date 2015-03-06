@@ -35,6 +35,20 @@ describe("The level/geometry/Point module", function() {
 				expect(collision.contactPoint.y).to.be.within(-300 + l - ERROR_ALLOWED, -300 + l + ERROR_ALLOWED);
 			});
 		});
+		describe("returns false if the point started out inside of the circle", function() {
+			it("with a horizontal-moving circle", function() {
+				var collision = createCircleCollision(100,77,   95,77,120,77,   40,0,   10,   1.0);
+				expect(collision).to.equal(false);
+			});
+			it("with a vertical-moving circle", function() {
+				var collision = createCircleCollision(55,55,   55,50,55,-400,   0,-100,   20,   1.0);
+				expect(collision).to.equal(false);
+			});
+			it("with an angled-moving circle", function() {
+				var collision = createCircleCollision(-300,-300,   -300,-300,-200,-400,   30,-30,   15,   1.0);
+				expect(collision).to.equal(false);
+			});
+		});
 		describe("returns false if the circle hasn't gotten to the point yet", function() {
 			it("with a horizontal-moving circle", function() {
 				var collision = createCircleCollision(100,77,   50,77,70,77,   40,0,   10,   1.0);

@@ -7,7 +7,30 @@ define([
 	CircleEntity,
 	Level
 ) {
+	var NUM_CIRCLES = 100;
+	var BOUNCE_AMOUNT = 0.0001;
 	var camera, mouseStart, mouseEnd, level, circles;
+
+	function checkforCollisions(circle) {
+		var prevGeoms = [];
+		for(var i = 0; i < 6; i++) {
+			var collision = level.checkForCollisionWithMovingCircle(circle, BOUNCE_AMOUNT);
+			if(collision) {
+				circle.handleCollision(collision);
+				if(collision.geom.sameAsAny(prevGeoms)) {
+					// circle.pos.copy(circle.prevPos);
+					// circle.vel.zero();
+					break;
+				}
+				else {
+					prevGeoms.push(collision.geom);
+				}
+			}
+			else {
+				break;
+			}
+		}
+	}
 
 	return {
 		reset: function() {
@@ -21,7 +44,7 @@ define([
 			//game vars
 			level = new Level();
 			circles = [];
-			for(var i = 0; i < 500; i++) {
+			for(var i = 0; i < NUM_CIRCLES; i++) {
 				circles.push(new CircleEntity(100 + Math.random() * (Constants.WIDTH - 200),
 					Math.random() * Constants.HEIGHT, 10));
 			}
@@ -34,10 +57,7 @@ define([
 
 			//check for collisions
 			for(i = 0; i < circles.length; i++) {
-				var collision = level.checkForCollisionWithMovingCircle(circles[i], 0.2);
-				if(collision) {
-					circles[i].handleCollision(collision);
-				}
+				checkforCollisions(circles[i]);
 			}
 
 			//wrap circles horizontally and vertically
@@ -87,14 +107,16 @@ define([
 			if(evt.type === 'mousemove') {
 				mouseEnd = { x: evt.x, y: evt.y };
 			}
-			if(evt.type === 'mouseup' && mouseStart) {
-				mouseEnd = { x: evt.x, y: evt.y };
-				var dx = mouseEnd.x - mouseStart.x, dy = mouseEnd.y - mouseStart.y;
-				if(dx * dx + dy * dy < 10 * 10) {
-					level.addPoint(mouseEnd.x, mouseEnd.y);
-				}
-				else {
-					level.addLine(mouseStart.x, mouseStart.y, mouseEnd.x, mouseEnd.y);
+			if(evt.type === 'mouseup') {
+				if(mouseStart) {
+					mouseEnd = { x: evt.x, y: evt.y };
+					var dx = mouseEnd.x - mouseStart.x, dy = mouseEnd.y - mouseStart.y;
+					if(dx * dx + dy * dy < 10 * 10) {
+						level.addPoint(mouseEnd.x, mouseEnd.y);
+					}
+					else {
+						level.addLine(mouseStart.x, mouseStart.y, mouseEnd.x, mouseEnd.y);
+					}
 				}
 				mouseStart = null;
 				mouseEnd = null;

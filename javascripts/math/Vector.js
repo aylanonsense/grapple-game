@@ -6,6 +6,10 @@ define(function() {
 	Vector.prototype.clone = function() {
 		return new Vector(this.x, this.y);
 	};
+	Vector.prototype.copy = function(vector) {
+		this.x = vector.x;
+		this.y = vector.y;
+	};
 	Vector.prototype.add = function(x, y) {
 		//can pass a vector argument
 		if(arguments.length === 1) { y = x.y; x = x.x; }
@@ -32,6 +36,11 @@ define(function() {
 		if(arguments.length === 1) { y = x; }
 		this.x /= x;
 		this.y /= y;
+		return this;
+	};
+	Vector.prototype.zero = function() {
+		this.x = 0;
+		this.y = 0;
 		return this;
 	};
 	Vector.prototype.squareLength = function() {

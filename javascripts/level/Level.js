@@ -34,6 +34,8 @@ define([
 		var point1 = this.addPoint(x1, y1);
 		var point2 = this.addPoint(x2, y2);
 		var line = new Line(point1.pos.x, point1.pos.y, point2.pos.x, point2.pos.y);
+		point1.addParent(line);
+		point2.addParent(line);
 		this._geometry.push(line);
 		return line;
 	};

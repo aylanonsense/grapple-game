@@ -79,6 +79,7 @@ define([
 				}
 
 				return {
+					geom: this,
 					distTraveled: distTraveled,
 					contactPoint: this._unrotateVector(contactPoint),
 					finalPoint: this._unrotateVector(finalPoint),

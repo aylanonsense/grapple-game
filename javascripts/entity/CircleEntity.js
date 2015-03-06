@@ -8,7 +8,9 @@ define([
 		this.prevPos = new Vector(x, y);
 		this.vel = new Vector(0, 0);
 		this.radius = radius;
-		this._color = ['#a00','#0a0','#00a','#aa0','#a0a','#0aa'][Math.floor(6 * Math.random())];
+		this._color = "rgba(" + Math.floor(255 * Math.random()) + "," +
+			+ Math.floor(255 * Math.random()) + "," +
+			+ Math.floor(255 * Math.random()) + ",1.0)";
 	}
 	CircleEntity.prototype.tick = function(t) {
 		var newVel = new Vector(this.vel.x, this.vel.y + 80 * t).multiply(0.999);
