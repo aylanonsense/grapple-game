@@ -1,6 +1,6 @@
 define([
 	'Constants',
-	'Game'
+	'GameDemo'
 ], function(
 	Constants,
 	Game

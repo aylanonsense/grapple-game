@@ -17,6 +17,6 @@ define(function() {
 			}
 		}
 		return false;
-	}
+	};
 	return Obstacle;
 });

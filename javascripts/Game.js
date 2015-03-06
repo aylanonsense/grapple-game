@@ -8,10 +8,14 @@ define([
 	Level
 ) {
 	//create stuff
-	var player = new Player(1000, 1000);
-	var camera = { x: player.pos.x, y: player.pos.y };
-	var grapples = [];
 	var level = new Level();
+	var player = new Player(1000, 1000);
+	var grapples = [];
+
+	//render vars
+	var camera = { x: player.pos.x, y: player.pos.y };
+
+	//control vars
 	var jumpPressed = false;
 	var moveDir = { x: 0, y: 0 };
 
