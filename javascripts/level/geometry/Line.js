@@ -1,6 +1,6 @@
 define([
 	'level/geometry/LevelGeom',
-	'lib/Vector'
+	'math/Vector'
 ], function(
 	SUPERCLASS,
 	Vector
@@ -58,7 +58,7 @@ define([
 			var lineOfMovement = pos.clone().subtract(prevPos);
 			var totalDist = lineOfMovement.length();
 			var percentOfMovement = (collisionY - prevPos.y) / lineOfMovement.y;
-			lineOfMovement.multiply(new Vector(percentOfMovement, percentOfMovement));
+			lineOfMovement.multiply(percentOfMovement);
 			var contactPoint = prevPos.clone().add(lineOfMovement);
 
 			//we have the only possible collision point, we know the circle was there, now all we
@@ -69,13 +69,13 @@ define([
 
 				//calculate the final position
 				var distToTravel = totalDist - distTraveled;
-				lineOfMovement.normalize().multiply(new Vector(distToTravel, distToTravel * -bounceAmt));
+				lineOfMovement.normalize().multiply(distToTravel, distToTravel * -bounceAmt);
 				var finalPoint = contactPoint.clone().add(lineOfMovement);
 
 				//calculate the final velocity
 				var finalVel = this._rotateVector(vel);
 				if(finalVel.y > 0.0) {
-					finalVel.multiply(new Vector(1.0, -bounceAmt));
+					finalVel.multiply(1.0, -bounceAmt);
 				}
 
 				return {

@@ -25,9 +25,9 @@ define([
 			//game vars
 			level = new Level();
 			circles = [];
-			for(var i = 0; i < 100; i++) {
+			for(var i = 0; i < 500; i++) {
 				circles.push(new CircleEntity(100 + Math.random() * (Constants.WIDTH - 200),
-					Math.random() * Constants.HEIGHT, 5 + 20 * Math.random()));
+					Math.random() * Constants.HEIGHT, 10));
 			}
 		},
 		tick: function(t) {
@@ -38,7 +38,7 @@ define([
 
 			//check for collisions
 			for(i = 0; i < circles.length; i++) {
-				var collision = level.checkForCollisionWithMovingCircle(circles[i], 1.0);
+				var collision = level.checkForCollisionWithMovingCircle(circles[i], 0.2);
 				if(collision) {
 					circles[i].handleCollision(collision);
 				}
@@ -47,10 +47,10 @@ define([
 			//wrap circles horizontally and vertically
 			for(i = 0; i < circles.length; i++) {
 				if(circles[i].pos.x > Constants.WIDTH + 50) {
-					circles[i].wrap(-Constants.WIDTH - 100);
+					circles[i].wrap(-Constants.WIDTH - 100, 0);
 				}
 				if(circles[i].pos.x < -50) {
-					circles[i].wrap(Constants.WIDTH + 100);
+					circles[i].wrap(Constants.WIDTH + 100, 0);
 				}
 				if(circles[i].pos.y < -50) {
 					circles[i].wrap(0, Constants.HEIGHT + 100);

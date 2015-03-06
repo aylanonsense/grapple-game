@@ -2,7 +2,7 @@ describe("The level/geometry/Point module", function() {
 	var test = require('../../setup');
 	var expect = test.require('chai').expect;
 	var Point = test.require('level/geometry/Point');
-	var Vector = test.require('lib/Vector');
+	var Vector = test.require('math/Vector');
 
 	var ERROR_ALLOWED = 0.0001;
 

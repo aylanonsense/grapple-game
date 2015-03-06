@@ -1,5 +1,5 @@
 define([
-	'lib/Vector'
+	'math/Vector'
 ], function(
 	Vector
 ) {
@@ -11,9 +11,9 @@ define([
 		this._color = ['#a00','#0a0','#00a','#aa0','#a0a','#0aa'][Math.floor(6 * Math.random())];
 	}
 	CircleEntity.prototype.tick = function(t) {
-		var newVel = new Vector(this.vel.x, this.vel.y + 80 * t).multiply(new Vector(0.999, 0.999));
+		var newVel = new Vector(this.vel.x, this.vel.y + 80 * t).multiply(0.999);
 		this.prevPos = this.pos.clone();
-		this.pos.add(this.vel.mix(newVel, 0.5).multiply(new Vector(t, t)));
+		this.pos.add(this.vel.average(newVel).multiply(t));
 		this.vel = newVel;
 	};
 	CircleEntity.prototype.handleCollision = function(collision) {
@@ -22,9 +22,8 @@ define([
 		this.vel = collision.finalVel;
 	};
 	CircleEntity.prototype.wrap = function(x, y) {
-		var shift = new Vector(x, y);
-		this.pos.add(shift);
-		this.prevPos.add(shift);
+		this.pos.add(x, y);
+		this.prevPos.add(x, y);
 	};
 	CircleEntity.prototype.render = function(ctx, camera) {
 		ctx.fillStyle = this._color;

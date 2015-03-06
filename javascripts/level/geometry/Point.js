@@ -1,6 +1,6 @@
 define([
 	'level/geometry/LevelGeom',
-	'lib/Vector'
+	'math/Vector'
 ], function(
 	SUPERCLASS,
 	Vector
@@ -8,20 +8,8 @@ define([
 	function Point(x, y) {
 		SUPERCLASS.call(this, 'point');
 		this.pos = new Vector(x, y);
-		this._parentLines = [];
 	}
 	Point.prototype = Object.create(SUPERCLASS.prototype);
-	Point.prototype.addParent = function(line) {
-		this._parentLines.push(line);
-	};
-	Point.prototype.isChildOf = function(line) {
-		for(var i = 0; i < this._parentLines.length; i++) {
-			if(this._parentLines[i].sameAs(line)) {
-				return true;
-			}
-		}
-		return false;
-	};
 	Point.prototype._rotateVector = function(vector, cosAngle, sinAngle) {
 		return new Vector(
 			-vector.x * sinAngle + vector.y * cosAngle,
@@ -58,11 +46,10 @@ define([
 			var root1 = (-b - discriminant) / (2 * a);
 			var root2 = (-b + discriminant) / (2 * a);
 			var totalDist = lineOfMovement.length();
-			var lineToRoot1 = lineOfMovement.clone().normalize().multiply(
-					new Vector(totalDist * -root1, totalDist * -root1));
-			var lineToRoot2 = lineOfMovement.clone().normalize().multiply(
-					new Vector(totalDist * -root2, totalDist * -root2));
-			var lineToContactPoint = (lineToRoot1.lengthSq() < lineToRoot2.lengthSq() ? lineToRoot1 : lineToRoot2);
+			var lineToRoot1 = lineOfMovement.clone().normalize().multiply(totalDist * -root1);
+			var lineToRoot2 = lineOfMovement.clone().normalize().multiply(totalDist * -root2);
+			var lineToContactPoint = (lineToRoot1.squareLength() < lineToRoot2.squareLength() ?
+					lineToRoot1 : lineToRoot2);
 
 			//the contact point is only valid if it's actually on the circle's path (not past it)
 			var contactPointLength = lineOfMovement.dot(lineToContactPoint) / totalDist;
@@ -80,14 +67,14 @@ define([
 				//calculate the final position
 				var distToTravel = totalDist - distTraveled;
 				var lineOfMovementPostContact = this._rotateVector(lineOfMovement, cosAngle, sinAngle);
-				lineOfMovementPostContact.normalize().multiply(new Vector(distToTravel, distToTravel * -bounceAmt));
+				lineOfMovementPostContact.normalize().multiply(distToTravel, distToTravel * -bounceAmt);
 				lineOfMovementPostContact = this._unrotateVector(lineOfMovementPostContact, cosAngle, sinAngle);
 				var finalPoint = contactPoint.clone().add(lineOfMovementPostContact);
 
 				//calculate the final velocity
 				var finalVel = this._rotateVector(vel, cosAngle, sinAngle);
 				if(finalVel.y > 0) {
-					finalVel.multiply(new Vector(1.0, -bounceAmt));
+					finalVel.multiply(1.0, -bounceAmt);
 				}
 
 				return {
