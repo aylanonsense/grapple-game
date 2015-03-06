@@ -2,7 +2,7 @@ define(function() {
 	var nextId = 0;
 	function LevelGeom(type) {
 		this._levelGeomId = nextId++;
-		this._levelGeomType = type;
+		this.geomType = type;
 	}
 	LevelGeom.prototype.sameAs = function(other) {
 		return other && this._levelGeomId === other._levelGeomId;

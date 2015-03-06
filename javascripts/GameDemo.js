@@ -1,15 +1,11 @@
 define([
 	'Constants',
 	'entity/CircleEntity',
-	'level/Level',
-	'level/geometry/Point',
-	'level/geometry/Line'
+	'level/Level'
 ], function(
 	Constants,
 	CircleEntity,
-	Level,
-	Point,
-	Line
+	Level
 ) {
 	var camera, mouseStart, mouseEnd, level, circles;
 
@@ -95,12 +91,10 @@ define([
 				mouseEnd = { x: evt.x, y: evt.y };
 				var dx = mouseEnd.x - mouseStart.x, dy = mouseEnd.y - mouseStart.y;
 				if(dx * dx + dy * dy < 10 * 10) {
-					level.addPoint(new Point(mouseEnd.x, mouseEnd.y));
+					level.addPoint(mouseEnd.x, mouseEnd.y);
 				}
 				else {
-					level.addLine(new Line(mouseStart.x, mouseStart.y, mouseEnd.x, mouseEnd.y));
-					level.addPoint(new Point(mouseStart.x, mouseStart.y));
-					level.addPoint(new Point(mouseEnd.x, mouseEnd.y));
+					level.addLine(mouseStart.x, mouseStart.y, mouseEnd.x, mouseEnd.y);
 				}
 				mouseStart = null;
 				mouseEnd = null;

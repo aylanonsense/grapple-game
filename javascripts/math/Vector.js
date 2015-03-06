@@ -72,14 +72,18 @@ define(function() {
 	Vector.prototype.angle = function() {
 		return Math.atan2(this.y, this.x);
 	};
-	Vector.prototype.distBetween = function(vector) {
-		var dx = this.x - vector.x;
-		var dy = this.y - vector.y;
+	Vector.prototype.distance = function(x, y) {
+		//can pass a vector argument
+		if(arguments.length === 1) { y = x.y; x = x.x; }
+		var dx = this.x - x;
+		var dy = this.y - y;
 		return Math.sqrt(dx * dx + dy * dy);
 	};
-	Vector.prototype.squareDistBetween = function(vector) {
-		var dx = this.x - vector.x;
-		var dy = this.y - vector.y;
+	Vector.prototype.squareDistance = function(x, y) {
+		//can pass a vector argument
+		if(arguments.length === 1) { y = x.y; x = x.x; }
+		var dx = this.x - x;
+		var dy = this.y - y;
 		return dx * dx + dy * dy;
 	};
 	Vector.prototype.toString = function() {
