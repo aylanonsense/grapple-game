@@ -18,12 +18,24 @@ define([
 		//kick off the game loop
 		var prevTime = performance.now();
 		function loop(time) {
-			Game.tick(Math.min(0.10, (time - prevTime) / 1000));
+			var framesPerSecond = (Constants.FRAMES_PER_SECOND === null ? 60 : Constants.FRAMES_PER_SECOND);
+			var t = Math.min(3 / framesPerSecond, (time - prevTime) / 1000) * Constants.TIME_SCALE;
+			Game.tick(t);
 			Game.render(ctx);
 			prevTime = time;
-			requestAnimationFrame(loop);
+			scheduleLoop();
 		}
-		requestAnimationFrame(loop);
+		function scheduleLoop() {
+			if(Constants.FRAMES_PER_SECOND === null) {
+				requestAnimationFrame(loop);
+			}
+			else {
+				setTimeout(function() {
+					loop(performance.now());
+				}, 1000 / Constants.FRAMES_PER_SECOND);
+			}
+		}
+		scheduleLoop();
 
 		//add mouse handler
 		canvas.onmousedown = onMouseEvent;

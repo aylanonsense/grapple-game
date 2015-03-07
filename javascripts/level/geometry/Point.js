@@ -1,9 +1,11 @@
 define([
 	'level/geometry/LevelGeom',
-	'math/Vector'
+	'math/Vector',
+	'phys/Utils'
 ], function(
 	SUPERCLASS,
-	Vector
+	Vector,
+	PhysUtils
 ) {
 	function Point(x, y) {
 		SUPERCLASS.call(this, 'point');
@@ -82,11 +84,16 @@ define([
 					finalVel.multiply(1.0, -bounceAmt);
 				}
 
+				//create jump vector
+				var jumpVector = PhysUtils.createJumpVector(angle);
+
 				return {
 					geom: this,
 					distTraveled: distTraveled,
+					distToTravel: distToTravel,
 					contactPoint: contactPoint,
 					finalPoint: finalPoint,
+					jumpVector: jumpVector,
 					finalVel: this._unrotateVector(finalVel, cosAngle, sinAngle)
 				};
 			}

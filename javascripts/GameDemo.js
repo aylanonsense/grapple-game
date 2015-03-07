@@ -1,15 +1,17 @@
 define([
 	'Constants',
 	'entity/CircleEntity',
+	'entity/PlayerEntity',
 	'level/Level'
 ], function(
 	Constants,
 	CircleEntity,
+	PlayerEntity,
 	Level
 ) {
-	var NUM_CIRCLES = 100;
+	var NUM_CIRCLES = 0;
 	var BOUNCE_AMOUNT = 0.0001;
-	var camera, mouseStart, mouseEnd, level, circles;
+	var camera, mouseStart, mouseEnd, level, circles, player;
 
 	function checkforCollisions(circle) {
 		var prevGeoms = [];
@@ -45,22 +47,39 @@ define([
 
 			//game vars
 			level = new Level();
+			player = new PlayerEntity(Constants.WIDTH / 2, Constants.HEIGHT / 2);
 			circles = [];
 			for(var i = 0; i < NUM_CIRCLES; i++) {
 				circles.push(new CircleEntity(100 + Math.random() * (Constants.WIDTH - 200),
-					Math.random() * Constants.HEIGHT, 10));
+					Math.random() * Constants.HEIGHT, 3));
+			}
+
+			//create level
+			var pts = [[20,450, 200,450, 200,420, 215,420, 215,450, 300,450, 300,390, 375,390,
+				450,360, 500,360, 600,500, 700,500, 700,150, 780,150, 780,580, 20,580, 20,450],
+				[125,200, 250,200, 250,220, 125,220, 125,200],
+				[450,50, 500,50, 500,100, 450,100, 450,50],
+				[750,-10, 1000,-30]];
+			for(i = 0; i < pts.length; i++) {
+				for(var j = 0; j < pts[i].length - 2; j += 2) {
+					level.addLine(pts[i][j + 0], pts[i][j + 1], pts[i][j + 2], pts[i][j + 3]);
+				}
 			}
 		},
 		tick: function(t) {
+			player.startOfFrame(t);
+
 			//update circles
 			for(var i = 0; i < circles.length; i++) {
 				circles[i].tick(t);
 			}
+			player.tick(t);
 
 			//check for collisions
 			for(i = 0; i < circles.length; i++) {
 				checkforCollisions(circles[i]);
 			}
+			checkforCollisions(player);
 
 			//wrap circles horizontally and vertically
 			for(i = 0; i < circles.length; i++) {
@@ -77,6 +96,20 @@ define([
 					circles[i].wrap(0, -Constants.HEIGHT - 100);
 				}
 			}
+			if(player.pos.x > Constants.WIDTH + 50) {
+				player.wrap(-Constants.WIDTH - 100, 0);
+			}
+			if(player.pos.x < -50) {
+				player.wrap(Constants.WIDTH + 100, 0);
+			}
+			if(player.pos.y < -50) {
+				player.wrap(0, Constants.HEIGHT + 100);
+			}
+			if(player.pos.y > Constants.HEIGHT + 50) {
+				player.wrap(0, -Constants.HEIGHT - 100);
+			}
+
+			player.endOfFrame(t);
 		},
 		render: function(ctx) {
 			//blank canvas
@@ -90,6 +123,7 @@ define([
 			for(var i = 0; i < circles.length; i++) {
 				circles[i].render(ctx, camera);
 			}
+			player.render(ctx, camera);
 
 			//render the line being drawn
 			if(mouseStart && mouseEnd) {
@@ -125,7 +159,15 @@ define([
 			}
 		},
 		onKeyboardEvent: function(evt, keyboard) {
-			
+			if(evt.key === 'MOVE_LEFT') {
+				player.moveDir.x = (evt.isDown ? -1 : (keyboard.MOVE_RIGHT ? 1 : 0));
+			}
+			else if(evt.key === 'MOVE_RIGHT') {
+				player.moveDir.x = (evt.isDown ? 1 : (keyboard.MOVE_LEFT ? -1 : 0));
+			}
+			else if(evt.key === 'JUMP' && evt.isDown) {
+				player.jump();
+			}
 		}
 	};
 });

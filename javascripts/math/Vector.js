@@ -52,7 +52,7 @@ define(function() {
 	Vector.prototype.normalize = function() {
 		var len = Math.sqrt(this.x * this.x + this.y * this.y);
 		if(len === 0) {
-			this.x = 1;
+			this.x = 0;
 			this.y = 0;
 		}
 		else {

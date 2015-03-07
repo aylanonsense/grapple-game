@@ -9,4 +9,6 @@ define({
 		40: 'MOVE_DOWN', 83: 'MOVE_DOWN', //down arrow key / s key
 		39: 'MOVE_RIGHT', 68: 'MOVE_RIGHT' //right arrow key / d key
 	},
+	FRAMES_PER_SECOND: null, //null will use requestAnimationFrame
+	TIME_SCALE: 1.0 //2.0 will run twice as fast, 0.5 will run at half speed
 });

@@ -1,9 +1,11 @@
 define([
 	'level/geometry/LevelGeom',
-	'math/Vector'
+	'math/Vector',
+	'phys/Utils'
 ], function(
 	SUPERCLASS,
-	Vector
+	Vector,
+	PhysUtils
 ) {
 	var ERROR_ALLOWED = 1;
 	function Line(x1, y1, x2, y2) {
@@ -18,6 +20,7 @@ define([
 		this._rotatedStart = this._rotateVector(this.start);
 		this._rotatedEnd = this._rotateVector(this.end);
 		this._rotatedY = this._rotatedStart.y;
+		this._perpendicularAngle = Math.atan2(x1 - x2, y2 - y1);
 		var pipAngle = Math.atan2(this.start.x - this.end.x, this.end.y - this.start.y);
 		this._cosPipAngle = -Math.cos(pipAngle);
 		this._sinPipAngle = -Math.sin(pipAngle);
@@ -88,11 +91,16 @@ define([
 					finalVel.multiply(1.0, -bounceAmt);
 				}
 
+				//create jump vector
+				var jumpVector = PhysUtils.createJumpVector(this._perpendicularAngle);
+
 				return {
 					geom: this,
 					distTraveled: distTraveled,
+					distToTravel: distToTravel,
 					contactPoint: this._unrotateVector(contactPoint),
 					finalPoint: this._unrotateVector(finalPoint),
+					jumpVector: jumpVector,
 					finalVel: this._unrotateVector(finalVel)
 				};
 			}
