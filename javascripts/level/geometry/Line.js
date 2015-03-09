@@ -12,6 +12,7 @@ define([
 		SUPERCLASS.call(this, 'line');
 		this.start = new Vector(x1, y1);
 		this.end = new Vector(x2, y2);
+		this._highlightFrames = 0;
 
 		//cache some math
 		this._lineBetween = this.end.clone().subtract(this.start);
@@ -101,6 +102,7 @@ define([
 					contactPoint: this._unrotateVector(contactPoint),
 					finalPoint: this._unrotateVector(finalPoint),
 					jumpVector: jumpVector,
+					vectorTowards: new Vector(-Math.cos(this._perpendicularAngle), -Math.sin(this._perpendicularAngle)),
 					finalVel: this._unrotateVector(finalVel)
 				};
 			}
@@ -109,9 +111,19 @@ define([
 		//there was no collision
 		return false;
 	};
+	Line.prototype.highlight = function() {
+		this._highlightFrames = 3;
+	};
 	Line.prototype.render = function(ctx, camera) {
-		ctx.strokeStyle = '#000';
+		if(this._highlightFrames > 0) {
+			ctx.strokeStyle = '#f00';
+			ctx.lineWidth = 2;
+			this._highlightFrames--;
+		}
+		else {
+			ctx.strokeStyle = '#000';
 		ctx.lineWidth = 1;
+		}
 		ctx.beginPath();
 		ctx.moveTo(this.start.x - camera.x, this.start.y - camera.y);
 		ctx.lineTo(this.end.x - camera.x, this.end.y - camera.y);

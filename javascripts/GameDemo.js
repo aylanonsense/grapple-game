@@ -1,11 +1,9 @@
 define([
 	'Constants',
-	'entity/CircleEntity',
 	'entity/PlayerEntity',
 	'level/Level'
 ], function(
 	Constants,
-	CircleEntity,
 	PlayerEntity,
 	Level
 ) {
@@ -47,12 +45,7 @@ define([
 
 			//game vars
 			level = new Level();
-			player = new PlayerEntity(Constants.WIDTH / 2, Constants.HEIGHT / 2);
-			circles = [];
-			for(var i = 0; i < NUM_CIRCLES; i++) {
-				circles.push(new CircleEntity(100 + Math.random() * (Constants.WIDTH - 200),
-					Math.random() * Constants.HEIGHT, 3));
-			}
+			player = new PlayerEntity(337, 300);
 
 			//create level
 			var pts = [[20,450, 200,450, 200,420, 215,420, 215,450, 300,450, 300,390, 375,390,
@@ -70,48 +63,18 @@ define([
 			player.startOfFrame(t);
 
 			//update circles
-			for(var i = 0; i < circles.length; i++) {
-				circles[i].tick(t);
-			}
 			player.tick(t);
 
 			//check for collisions
-			for(i = 0; i < circles.length; i++) {
-				checkforCollisions(circles[i]);
-			}
 			checkforCollisions(player);
-
-			//wrap circles horizontally and vertically
-			for(i = 0; i < circles.length; i++) {
-				if(circles[i].pos.x > Constants.WIDTH + 50) {
-					circles[i].wrap(-Constants.WIDTH - 100, 0);
-				}
-				if(circles[i].pos.x < -50) {
-					circles[i].wrap(Constants.WIDTH + 100, 0);
-				}
-				if(circles[i].pos.y < -50) {
-					circles[i].wrap(0, Constants.HEIGHT + 100);
-				}
-				if(circles[i].pos.y > Constants.HEIGHT + 50) {
-					circles[i].wrap(0, -Constants.HEIGHT - 100);
-				}
-			}
-			if(player.pos.x > Constants.WIDTH + 50) {
-				player.wrap(-Constants.WIDTH - 100, 0);
-			}
-			if(player.pos.x < -50) {
-				player.wrap(Constants.WIDTH + 100, 0);
-			}
-			if(player.pos.y < -50) {
-				player.wrap(0, Constants.HEIGHT + 100);
-			}
-			if(player.pos.y > Constants.HEIGHT + 50) {
-				player.wrap(0, -Constants.HEIGHT - 100);
-			}
 
 			player.endOfFrame(t);
 		},
 		render: function(ctx) {
+			//move camera
+			camera.x = player.pos.x - Constants.WIDTH / 2;
+			camera.y = player.pos.y - Constants.HEIGHT / 2;
+
 			//blank canvas
 			ctx.fillStyle = '#f5f5f5';
 			ctx.fillRect(0, 0, Constants.WIDTH, Constants.HEIGHT);
@@ -120,9 +83,6 @@ define([
 			level.render(ctx, camera);
 
 			//render circles
-			for(var i = 0; i < circles.length; i++) {
-				circles[i].render(ctx, camera);
-			}
 			player.render(ctx, camera);
 
 			//render the line being drawn
@@ -136,6 +96,8 @@ define([
 			}
 		},
 		onMouseEvent: function(evt) {
+			evt.x += camera.x;
+			evt.y += camera.y;
 			if(evt.type === 'mousedown') {
 				mouseStart = { x: evt.x, y: evt.y };
 				mouseEnd = { x: evt.x, y: evt.y };

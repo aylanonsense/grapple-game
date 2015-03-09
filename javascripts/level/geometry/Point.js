@@ -10,6 +10,7 @@ define([
 	function Point(x, y) {
 		SUPERCLASS.call(this, 'point');
 		this.pos = new Vector(x, y);
+		this._highlightFrames = 0;
 	}
 	Point.prototype = Object.create(SUPERCLASS.prototype);
 	Point.prototype._rotateVector = function(vector, cosAngle, sinAngle) {
@@ -92,6 +93,7 @@ define([
 					distTraveled: distTraveled,
 					distToTravel: distToTravel,
 					contactPoint: contactPoint,
+					vectorTowards: new Vector(-Math.cos(angle), -Math.sin(angle)),
 					finalPoint: finalPoint,
 					jumpVector: jumpVector,
 					finalVel: this._unrotateVector(finalVel, cosAngle, sinAngle)
@@ -102,10 +104,22 @@ define([
 		//otherwise there is no collision
 		return false;
 	};
+	Point.prototype.highlight = function() {
+		this._highlightFrames = 3;
+	};
 	Point.prototype.render = function(ctx, camera) {
-		ctx.fillStyle = '#000';
+		var radius;
+		if(this._highlightFrames > 0) {
+			ctx.fillStyle = '#f00';
+			this._highlightFrames--;
+			radius = 3;
+		}
+		else {
+			ctx.fillStyle = '#000';
+			radius = 1.5;
+		}
 		ctx.beginPath();
-		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, 1.5, 0, 2 * Math.PI, false);
+		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, radius, 0, 2 * Math.PI, false);
 		ctx.fill();
 	};
 	return Point;
