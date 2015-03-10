@@ -1,173 +1,114 @@
 define([
 	'Constants',
-	'Player',
-	'Level'
+	'entity/PlayerEntity',
+	'level/Level'
 ], function(
 	Constants,
-	Player,
+	PlayerEntity,
 	Level
 ) {
-	//create stuff
-	var level = new Level();
-	var player = new Player(1000, 1000);
-	var grapples = [];
+	var NUM_CIRCLES = 0;
+	var BOUNCE_AMOUNT = 0.0001;
+	var camera, mouseStart, mouseEnd, level, circles, player, grapples;
 
-	//render vars
-	var camera = { x: player.pos.x, y: player.pos.y };
-
-	//control vars
-	var jumpPressed = false;
-	var moveDir = { x: 0, y: 0 };
-
-	var interruptionsLastFrame = [];
-
-	function findInterruption(prevInterruptions) {
-		var i, j, interruption, interruptionsThisFrame = [];
-		var points = [];
-		var prevInterruption = (prevInterruptions.length > 0 ? prevInterruptions[prevInterruptions.length - 1] : null);
-		for(i = 0; i < level.obstacles.length; i++) {
-			interruption = level.obstacles[i].checkForCollisionWithMovingCircle(player);
-			if(interruption) {
-				interruption.interruptionType = 'collision';
-				interruption.interruptPriority = 9;
-				interruptionsThisFrame.push(interruption);
+	function checkforCollisions(circle) {
+		var prevGeoms = [];
+		for(var i = 0; i < 6; i++) {
+			var collision = level.checkForCollisionWithMovingCircle(circle, BOUNCE_AMOUNT);
+			if(collision) {
+				circle.handleCollision(collision);
+				if(collision.geom.sameAsAny(prevGeoms)) {
+					if(!collision.geom.sameAs(prevGeoms[prevGeoms.length - 1])) {
+						circle.pos.copy(circle.prevPos);
+						circle.vel.zero();
+					}
+					break;
+				}
+				else {
+					prevGeoms.push(collision.geom);
+				}
 			}
-			if(level.obstacles[i].type === 'point') {
-				points.push(level.obstacles[i]);
+			else {
+				break;
 			}
 		}
-		for(i = 0; i < grapples.length; i++) {
-			interruption = grapples[i].checkForMaxTether();
-			if(interruption) {
-				interruption.interruptionType = 'tether';
-				interruption.interruptPriority = 3;
-				interruptionsThisFrame.push(interruption);
-			}
-			/*interruption = grapples[i].checkForWrappingAroundPoints(points);
-			if(interruption) {
-				interruption.interruptionType = 'wrap';
-				interruption.interruptPriority = 5;
-				interruptionsThisFrame.push(interruption);
-			}
-			interruption = grapples[i].checkForUnwrapping();
-			if(interruption) {
-				interruption.interruptionType = 'unwrap';
-				interruption.interruptPriority = 7;
-				interruptionsThisFrame.push(interruption);
-			}*/
-		}
-		interruptionsThisFrame.sort(function(a, b) {
-			return (a.distPreContact === b.distPreContact ?
-				b.interruptPriority - a.interruptPriority :
-				a.distPreContact - b.distPreContact);
-		});
-		for(i = 0; i < interruptionsThisFrame.length; i++) {
-			interruption = interruptionsThisFrame[i];
-			if(!prevInterruption || interruption.interruptionType !== prevInterruption.interruptionType ||
-				!interruption.actor || interruption.actor !== prevInterruption.actor) {
-				return interruption;
-			}
-		}
-		return null;
-	}
-
-	function findJumpableInterruptions() {
-		var jumpableInterruptions = [];
-		for(var i = 0; i < level.obstacles.length; i++) {
-			var interruption = level.obstacles[i].checkForNearCircle(player);
-			if(interruption) {
-				jumpableInterruptions.push(interruption);
-			}
-		}
-		return jumpableInterruptions;
 	}
 
 	return {
 		reset: function() {
+			//render vars
+			camera = { x: 0, y: 0 };
 
+			//create lines/points by dragging the mouse
+			mouseStart = null;
+			mouseEnd = null;
+
+			//game vars
+			level = new Level();
+			player = new PlayerEntity(337, 300);
+			grapples = [];
+
+			//create level
+			var pts = [[20,450, 200,450, 200,420, 215,420, 215,450, 300,450, 300,390, 375,390,
+				450,360, 500,360, 600,500, 700,500, 700,150, 780,150, 780,580, 20,580, 20,450],
+				[125,200, 250,200, 250,220, 125,220, 125,200],
+				[450,50, 500,50, 500,100, 450,100, 450,50],
+				[750,-10, 1000,-30]];
+			for(i = 0; i < pts.length; i++) {
+				for(var j = 0; j < pts[i].length - 2; j += 2) {
+					level.addLine(pts[i][j + 0], pts[i][j + 1], pts[i][j + 2], pts[i][j + 3]);
+				}
+			}
 		},
 		tick: function(t) {
-			var i, j, interruption, friction = 1;
+			player.startOfFrame(t);
 
-			//move/latch grapples
-			for(i = 0; i < grapples.length; i++) {
-				grapples[i].tick(t * 1000, friction);
-				if(!grapples[i].isDead && !grapples[i].isLatched) {
-					var earliestGrappleCollision = null;
-					for(j = 0; j < level.obstacles.length; j++) {
-						var collision = level.obstacles[j].checkForCollisionWithMovingPoint(grapples[i]);
-						if(collision && (!earliestGrappleCollision || earliestGrappleCollision.distPreContact > collision.distPreContact)) {
-							earliestGrappleCollision = collision;
-						}
-					}
-					if(earliestGrappleCollision) {
-						grapples[i].latchTo(earliestGrappleCollision.posOnContact.x, earliestGrappleCollision.posOnContact.y);
+			//update circles
+			player.tick(t);
+			for(var i = 0; i < grapples.length; i++) {
+				grapples[i].tick(t);
+			}
+
+			//check for collisions
+			checkforCollisions(player);
+			for(var i = 0; i < grapples.length; i++) {
+				if(!grapples[i].hasCollided) {
+					var collision = level.checkForCollisionWithMovingPoint(grapples[i]);
+					if(collision) {
+						grapples[i].handleCollision(collision);
 					}
 				}
 			}
 
-			//move player
-			player.applyForce(0, 600); //gravity
-			player.applyForce(moveDir.x * 400, moveDir.y * 400);
-			/*if(jumpPressed) {
-				var jumpableObstacles = findJumpableInterruptions();
-				if(jumpableObstacles.length === 1) {
-					jumpPressed = true;
-					player.jump(jumpableObstacles[0].jumpDir.x, jumpableObstacles[0].jumpDir.y);
-				}
-			}*/
-			player.tick(t * 1000, friction);
-
-			//revise player movement to account for interruptions
-			var interruptionsThisFrame = [];
-			interruption = null;
-			for(i = 0; i <= 100; i++) {
-				if(i === 100) {
-					interruption = {
-						interruptionType: 'limit',
-						posOnContact: { x: player.pos.prev.x, y: player.pos.prev.y },
-						posAfterContact: { x: player.pos.prev.x, y: player.pos.prev.y },
-						velAfterContact: { x: 0, y: 0 }
-					};
-				}
-				else {
-					interruption = findInterruption(interruptionsThisFrame);
-				}
-				if(interruption) {
-					interruptionsThisFrame.push(interruption);
-					player.adjustMovement(interruption.posOnContact, interruption.posAfterContact, interruption.velAfterContact);
-					if(interruption.handle) {
-						interruption.handle();
-					}
-					//jump off of obstacles!
-					if(interruption.interruptionType === 'collision' && jumpPressed) {
-						jumpPressed = false;
-						player.jump(interruption.jumpDir.x, interruption.jumpDir.y);
-					}
-				}
-				else {
-					break;
-				}
-			}
-			if(jumpPressed) {
-				var jumpables = findJumpableInterruptions();
-				if(jumpables.length > 0) {
-					jumpPressed = false;
-					player.jump(jumpables[0].jumpDir);
-				}
-			}
-			interruptionsLastFrame = interruptionsThisFrame;
+			player.endOfFrame(t);
 		},
 		render: function(ctx) {
+			//move camera
 			camera.x = player.pos.x - Constants.WIDTH / 2;
 			camera.y = player.pos.y - Constants.HEIGHT / 2;
-			ctx.fillStyle = (interruptionsLastFrame.length >= 99 ? '#ff0' : '#f5f5f5');
+
+			//blank canvas
+			ctx.fillStyle = '#f5f5f5';
 			ctx.fillRect(0, 0, Constants.WIDTH, Constants.HEIGHT);
+
+			//render level
 			level.render(ctx, camera);
+
+			//render circles
+			player.render(ctx, camera);
 			for(var i = 0; i < grapples.length; i++) {
 				grapples[i].render(ctx, camera);
 			}
-			player.render(ctx, camera);
+
+			//render the line being drawn
+			if(mouseStart && mouseEnd) {
+				ctx.strokeStyle = '#f00';
+				ctx.lineWidth = 1;
+				ctx.beginPath();
+				ctx.moveTo(mouseStart.x - camera.x, mouseStart.y - camera.y);
+				ctx.lineTo(mouseEnd.x - camera.x, mouseEnd.y - camera.y);
+				ctx.stroke();
+			}
 		},
 		onMouseEvent: function(evt) {
 			if(evt.type === 'mousedown') {
@@ -175,25 +116,17 @@ define([
 			}
 		},
 		onKeyboardEvent: function(evt, keyboard) {
-			if(evt.key === 'CUT_GRAPPLES' && evt.isDown) {
-				for(var i = 0; i < grapples.length; i++) {
-					grapples[i].kill();
-				}
-			}
-			else if(evt.key === 'JUMP' && evt.isDown) {
-				jumpPressed = true;
-			}
-			else if(evt.key === 'MOVE_LEFT') {
-				moveDir.x = (evt.isDown ? -1 : (keyboard.MOVE_RIGHT ? 1 : 0));
+			if(evt.key === 'MOVE_LEFT') {
+				player.moveDir.x = (evt.isDown ? -1 : (keyboard.MOVE_RIGHT ? 1 : 0));
 			}
 			else if(evt.key === 'MOVE_RIGHT') {
-				moveDir.x = (evt.isDown ? 1 : (keyboard.MOVE_LEFT ? -1 : 0));
+				player.moveDir.x = (evt.isDown ? 1 : (keyboard.MOVE_LEFT ? -1 : 0));
 			}
-			else if(evt.key === 'MOVE_UP') {
-				moveDir.y = (evt.isDown ? -1 : (keyboard.MOVE_DOWN ? 1 : 0));
+			else if(evt.key === 'JUMP' && evt.isDown) {
+				player.jump();
 			}
-			else if(evt.key === 'MOVE_DOWN') {
-				moveDir.y = (evt.isDown ? 1 : (keyboard.MOVE_UP ? -1 : 0));
+			else if(evt.key === 'CUT_GRAPPLES' && evt.isDown) {
+				grapples = [];
 			}
 		}
 	};
