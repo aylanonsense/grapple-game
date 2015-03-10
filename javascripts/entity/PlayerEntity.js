@@ -1,6 +1,8 @@
 define([
+	'entity/GrappleEntity',
 	'math/Vector'
 ], function(
+	GrappleEntity,
 	Vector
 ) {
 	var JUMP_SPEED = 350;
@@ -214,6 +216,9 @@ define([
 		if(this._timeSinceJumpableCollision !== null) {
 			this._timeSinceJumpableCollision += t;
 		}
+	};
+	PlayerEntity.prototype.shootGrapple = function(x, y) {
+		return new GrappleEntity(this, x - this.pos.x, y - this.pos.y);
 	};
 	PlayerEntity.prototype.jump = function() {
 		this._bufferedJumpTime = 0.09;

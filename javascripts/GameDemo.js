@@ -9,7 +9,7 @@ define([
 ) {
 	var NUM_CIRCLES = 0;
 	var BOUNCE_AMOUNT = 0.0001;
-	var camera, mouseStart, mouseEnd, level, circles, player;
+	var camera, mouseStart, mouseEnd, level, circles, player, grapples;
 
 	function checkforCollisions(circle) {
 		var prevGeoms = [];
@@ -46,6 +46,7 @@ define([
 			//game vars
 			level = new Level();
 			player = new PlayerEntity(337, 300);
+			grapples = [];
 
 			//create level
 			var pts = [[20,450, 200,450, 200,420, 215,420, 215,450, 300,450, 300,390, 375,390,
@@ -64,9 +65,20 @@ define([
 
 			//update circles
 			player.tick(t);
+			for(var i = 0; i < grapples.length; i++) {
+				grapples[i].tick(t);
+			}
 
 			//check for collisions
 			checkforCollisions(player);
+			for(var i = 0; i < grapples.length; i++) {
+				if(!grapples[i].hasCollided) {
+					var collision = level.checkForCollisionWithMovingPoint(grapples[i]);
+					if(collision) {
+						grapples[i].handleCollision(collision);
+					}
+				}
+			}
 
 			player.endOfFrame(t);
 		},
@@ -84,6 +96,9 @@ define([
 
 			//render circles
 			player.render(ctx, camera);
+			for(var i = 0; i < grapples.length; i++) {
+				grapples[i].render(ctx, camera);
+			}
 
 			//render the line being drawn
 			if(mouseStart && mouseEnd) {
@@ -96,28 +111,8 @@ define([
 			}
 		},
 		onMouseEvent: function(evt) {
-			evt.x += camera.x;
-			evt.y += camera.y;
 			if(evt.type === 'mousedown') {
-				mouseStart = { x: evt.x, y: evt.y };
-				mouseEnd = { x: evt.x, y: evt.y };
-			}
-			if(evt.type === 'mousemove') {
-				mouseEnd = { x: evt.x, y: evt.y };
-			}
-			if(evt.type === 'mouseup') {
-				if(mouseStart) {
-					mouseEnd = { x: evt.x, y: evt.y };
-					var dx = mouseEnd.x - mouseStart.x, dy = mouseEnd.y - mouseStart.y;
-					if(dx * dx + dy * dy < 10 * 10) {
-						level.addPoint(mouseEnd.x, mouseEnd.y);
-					}
-					else {
-						level.addLine(mouseStart.x, mouseStart.y, mouseEnd.x, mouseEnd.y);
-					}
-				}
-				mouseStart = null;
-				mouseEnd = null;
+				grapples.push(player.shootGrapple(evt.x + camera.x, evt.y + camera.y));
 			}
 		},
 		onKeyboardEvent: function(evt, keyboard) {
@@ -129,6 +124,9 @@ define([
 			}
 			else if(evt.key === 'JUMP' && evt.isDown) {
 				player.jump();
+			}
+			else if(evt.key === 'CUT_GRAPPLES' && evt.isDown) {
+				grapples = [];
 			}
 		}
 	};
