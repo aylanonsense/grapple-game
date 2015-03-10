@@ -101,6 +101,7 @@ define([
 					distToTravel: distToTravel,
 					contactPoint: this._unrotateVector(contactPoint),
 					finalPoint: this._unrotateVector(finalPoint),
+					stabilityAngle: this._perpendicularAngle,
 					jumpVector: jumpVector,
 					vectorTowards: new Vector(-Math.cos(this._perpendicularAngle), -Math.sin(this._perpendicularAngle)),
 					finalVel: this._unrotateVector(finalVel)
