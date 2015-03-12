@@ -12,20 +12,26 @@ define([
 	var camera, mouseStart, mouseEnd, level, circles, player, grapples;
 
 	function checkforCollisions(circle) {
-		var prevGeoms = [];
+		var prevCauses = [];
 		for(var i = 0; i < 6; i++) {
 			var collision = level.checkForCollisionWithMovingCircle(circle, BOUNCE_AMOUNT);
+			for(var j = 0; j < grapples.length; j++) {
+				var grappleCollision = grapples[j].checkForCollisionWithMovingCircle(circle);
+				if(grappleCollision && (!collision || grappleCollision.distTraveled < collision.distTraveled)) {
+					collision = grappleCollision;
+				}
+			}
 			if(collision) {
 				circle.handleCollision(collision);
-				if(collision.geom.sameAsAny(prevGeoms)) {
-					if(!collision.geom.sameAs(prevGeoms[prevGeoms.length - 1])) {
+				if(collision.cause.sameAsAny(prevCauses)) {
+					if(!collision.cause.sameAs(prevCauses[prevCauses.length - 1])) {
 						circle.pos.copy(circle.prevPos);
 						circle.vel.zero();
 					}
 					break;
 				}
 				else {
-					prevGeoms.push(collision.geom);
+					prevCauses.push(collision.cause);
 				}
 			}
 			else {
@@ -71,8 +77,8 @@ define([
 
 			//check for collisions
 			checkforCollisions(player);
-			for(var i = 0; i < grapples.length; i++) {
-				if(!grapples[i].hasCollided) {
+			for(i = 0; i < grapples.length; i++) {
+				if(!grapples[i].isLatched) {
 					var collision = level.checkForCollisionWithMovingPoint(grapples[i]);
 					if(collision) {
 						grapples[i].handleCollision(collision);
@@ -94,11 +100,11 @@ define([
 			//render level
 			level.render(ctx, camera);
 
-			//render circles
-			player.render(ctx, camera);
+			//render entities
 			for(var i = 0; i < grapples.length; i++) {
 				grapples[i].render(ctx, camera);
 			}
+			player.render(ctx, camera);
 
 			//render the line being drawn
 			if(mouseStart && mouseEnd) {

@@ -39,7 +39,7 @@ define([
 			return false;
 		}
 
-		//calculate the discriminant
+		/*//calculate the discriminant
 		var lineOfMovement = pos.clone().subtract(prevPos);
 		var lineToPoint = this.pos.clone().subtract(prevPos);
 		var a = lineOfMovement.dot(lineOfMovement);
@@ -63,8 +63,13 @@ define([
 			var contactPointLength = lineOfMovement.dot(lineToContactPoint) / totalDist;
 			if(0 <= contactPointLength && contactPointLength <= totalDist) {
 				//yay, there definitely was a collision!
-				var contactPoint = prevPos.clone().add(lineToContactPoint);
+				var contactPoint = prevPos.clone().add(lineToContactPoint);*/
+		var contactPoint = PhysUtils.findCircleLineIntersection(this.pos, radius, prevPos, pos);
+		if(contactPoint) {
+				var lineToContactPoint = contactPoint.clone().subtract(prevPos);
 				var distTraveled = lineToContactPoint.length();
+				var lineOfMovement = pos.clone().subtract(prevPos);
+				var totalDist = lineOfMovement.length();
 
 				//now we figure out the angle of contact, so we can bounce the circle off of the point
 				var lineFromPointToContactPoint = contactPoint.clone().subtract(this.pos);
@@ -89,7 +94,7 @@ define([
 				var jumpVector = PhysUtils.createJumpVector(angle);
 
 				return {
-					geom: this,
+					cause: this,
 					distTraveled: distTraveled,
 					distToTravel: distToTravel,
 					contactPoint: contactPoint,
@@ -99,7 +104,7 @@ define([
 					jumpVector: jumpVector,
 					finalVel: this._unrotateVector(finalVel, cosAngle, sinAngle)
 				};
-			}
+			// }
 		}
 
 		//otherwise there is no collision

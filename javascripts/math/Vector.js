@@ -43,6 +43,9 @@ define(function() {
 		this.y = 0;
 		return this;
 	};
+	Vector.prototype.isZero = function() {
+		return this.x === 0 && this.y === 0;
+	};
 	Vector.prototype.squareLength = function() {
 		return this.x * this.x + this.y * this.y;
 	};

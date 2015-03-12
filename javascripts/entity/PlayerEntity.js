@@ -24,7 +24,7 @@ define([
 			SOFT_MAX_SPEED: 220,
 			MAX_SPEED: 1000
 		}
-	}
+	};
 
 	function PlayerEntity(x, y) {
 		this.pos = new Vector(x, y);
@@ -235,7 +235,7 @@ define([
 		this.vel.add(collision.vectorTowards.clone().multiply(STICKY_FORCE));
 
 		//highlight line/point
-		collision.geom.highlight();
+		collision.cause.highlight();
 		this._collisionsThisFrame.push(collision);
 	};
 	PlayerEntity.prototype.render = function(ctx, camera) {
@@ -243,6 +243,13 @@ define([
 		ctx.beginPath();
 		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.radius, 0, 2 * Math.PI, false);
 		ctx.fill();
+		ctx.strokeStyle = '#0bb';
+		ctx.lineWidth = 2;
+		ctx.beginPath();
+		ctx.moveTo(this.pos.x - camera.x, this.pos.y - camera.y);
+		var renderedVel = this.vel.clone().normalize().multiply(20 * Math.log(this.vel.length()));
+		ctx.lineTo(this.pos.x - camera.x + renderedVel.x, this.pos.y - camera.y + renderedVel.y);
+		ctx.stroke();
 	};
 	return PlayerEntity;
 });

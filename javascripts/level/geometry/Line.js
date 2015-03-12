@@ -96,7 +96,7 @@ define([
 				var jumpVector = PhysUtils.createJumpVector(this._perpendicularAngle);
 
 				return {
-					geom: this,
+					cause: this,
 					distTraveled: distTraveled,
 					distToTravel: distToTravel,
 					contactPoint: this._unrotateVector(contactPoint),
