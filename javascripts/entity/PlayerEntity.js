@@ -21,7 +21,14 @@ define([
 			TURN_AROUND_ACC: 450,
 			SLOW_DOWN_ACC: 150,
 			SPEED_UP_ACC: 450,
-			SOFT_MAX_SPEED: 220,
+			SOFT_MAX_SPEED: 300,
+			MAX_SPEED: 1000
+		},
+		SLIDING: {
+			TURN_AROUND_ACC: 175,
+			SLOW_DOWN_ACC: 0,
+			SPEED_UP_ACC: 175,
+			SOFT_MAX_SPEED: 400,
 			MAX_SPEED: 1000
 		}
 	};
@@ -46,8 +53,16 @@ define([
 	};
 	PlayerEntity.prototype.tick = function(t) {
 		var newVel = this.vel.clone().add(0, GRAVITY * t);
-		var MOVEMENT = (!this.isAirborne && this.isOnTerraFirma ?
-			PLAYER_MOVEMENT.GROUND : PLAYER_MOVEMENT.AIR);
+		var MOVEMENT;
+		if(this.isAirborne) {
+			MOVEMENT = PLAYER_MOVEMENT.AIR;
+		}
+		else if(!this.isOnTerraFirma) {
+			MOVEMENT = PLAYER_MOVEMENT.SLIDING;
+		}
+		else {
+			MOVEMENT = PLAYER_MOVEMENT.GROUND;
+		}
 		var moveDir = this.moveDir.x;
 		//moving REALLY FAST to the right...
 		if(true) {

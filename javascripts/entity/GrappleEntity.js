@@ -79,8 +79,8 @@ define([
 						if(rotatedVel.y < 0) {
 							rotatedVel.y = 0;
 						}
-						var rotatedLineOfMovement = this._rotateVector(lineOfMovement, cosAngle, sinAngle);
-						rotatedLineOfMovement.normalize().multiply(distToTravel);
+						//rotate such that contact point is "above" latch point (-y)
+						var rotatedLineOfMovement = this._rotateVector(lineOfMovement, cosAngle, sinAngle).normalize().multiply(distToTravel);
 						var finalPoint = this._rotateVector(contactPoint, cosAngle, sinAngle);
 						finalPoint.add(rotatedLineOfMovement.x, 0);
 						return {
