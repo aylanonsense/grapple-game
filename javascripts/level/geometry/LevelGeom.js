@@ -3,14 +3,7 @@ define(function() {
 	function LevelGeom(type) {
 		this._levelGeomId = nextId++;
 		this.geomType = type;
-		this._parents = [];
 	}
-	LevelGeom.prototype.addParent = function(other) {
-		this._parents.push(other);
-	};
-	LevelGeom.prototype.isChildOf = function(other) {
-		return other && other.sameAsAny(this._parents);
-	};
 	LevelGeom.prototype.sameAs = function(other) {
 		return other && this._levelGeomId === other._levelGeomId;
 	};

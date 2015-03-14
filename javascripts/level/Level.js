@@ -9,20 +9,15 @@ define([
 		this._geometry = [];
 	}
 	Level.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
-		var earliestCollision = null;
-		for(var i = 0; i < this._geometry.length; i++) {
-			var collision = this._geometry[i].checkForCollisionWithMovingCircle(circle, bounceAmt);
-			if(collision && (earliestCollision === null ||
-				collision.distTraveled < earliestCollision.distTraveled)) {
-				earliestCollision = collision;
-			}
-		}
-		return earliestCollision;
+		return this._checkForCollision('checkForCollisionWithMovingCircle', circle, bounceAmt);
 	};
 	Level.prototype.checkForCollisionWithMovingPoint = function(point, bounceAmt) {
+		return this._checkForCollision('checkForCollisionWithMovingPoint', point, bounceAmt);
+	};
+	Level.prototype._checkForCollision = function(methodName, obj, bounceAmt) {
 		var earliestCollision = null;
 		for(var i = 0; i < this._geometry.length; i++) {
-			var collision = this._geometry[i].checkForCollisionWithMovingPoint(point, bounceAmt);
+			var collision = this._geometry[i][methodName](obj, bounceAmt);
 			if(collision && (earliestCollision === null ||
 				collision.distTraveled < earliestCollision.distTraveled)) {
 				earliestCollision = collision;
@@ -34,8 +29,6 @@ define([
 		var point1 = this.addPoint(x1, y1);
 		var point2 = this.addPoint(x2, y2);
 		var line = new Line(point1.pos.x, point1.pos.y, point2.pos.x, point2.pos.y);
-		point1.addParent(line);
-		point2.addParent(line);
 		this._geometry.push(line);
 		return line;
 	};
@@ -53,7 +46,7 @@ define([
 			}
 		}
 
-		//if there's an existing point really close to where we're trying to add a point, just use that instead
+		//don't create a new point if there's one really close to where we're trying to make one
 		if(distToClosestPoint !== null && distToClosestPoint < 10) {
 			return closestPoint;
 		}

@@ -7,12 +7,12 @@ define([
 	PlayerEntity,
 	Level
 ) {
-	var NUM_CIRCLES = 0;
 	var BOUNCE_AMOUNT = 0.0001;
-	var camera, mouseStart, mouseEnd, level, circles, player, grapples;
+	var camera, level, player, grapples;
 
 	function checkforCollisions(circle) {
 		var prevCauses = [];
+		var collisionsThisFrame = 0;
 		for(var i = 0; i < 6; i++) {
 			var collision = level.checkForCollisionWithMovingCircle(circle, BOUNCE_AMOUNT);
 			for(var j = 0; j < grapples.length; j++) {
@@ -22,6 +22,7 @@ define([
 				}
 			}
 			if(collision) {
+				collisionsThisFrame++;
 				circle.handleCollision(collision);
 				if(collision.cause.sameAsAny(prevCauses)) {
 					if(!collision.cause.sameAs(prevCauses[prevCauses.length - 1])) {
@@ -38,6 +39,9 @@ define([
 				break;
 			}
 		}
+		if(collisionsThisFrame > 1) {
+			console.log(collisionsThisFrame + " collisions this frame");
+		}
 	}
 
 	return {
@@ -45,16 +49,12 @@ define([
 			//render vars
 			camera = { x: 0, y: 0 };
 
-			//create lines/points by dragging the mouse
-			mouseStart = null;
-			mouseEnd = null;
-
 			//game vars
 			level = new Level();
 			player = new PlayerEntity(337, 300);
 			grapples = [];
 
-			//create level
+			//create level geometry
 			var pts = [[20,450, 200,450, 200,420, 215,420, 215,450, 300,450, 300,390, 375,390,
 				450,360, 500,360, 600,500, 700,500, 700,150, 780,150, 780,580, 20,580, 20,450],
 				[125,200, 250,200, 250,220, 125,220, 125,200],
@@ -67,9 +67,10 @@ define([
 			}
 		},
 		tick: function(t) {
+			//start of frame
 			player.startOfFrame(t);
 
-			//update circles
+			//update entities
 			player.tick(t);
 			for(var i = 0; i < grapples.length; i++) {
 				grapples[i].tick(t);
@@ -86,6 +87,7 @@ define([
 				}
 			}
 
+			//end of frame
 			player.endOfFrame(t);
 		},
 		render: function(ctx) {
@@ -97,7 +99,7 @@ define([
 			ctx.fillStyle = '#f5f5f5';
 			ctx.fillRect(0, 0, Constants.WIDTH, Constants.HEIGHT);
 
-			//render level
+			//render level geometry
 			level.render(ctx, camera);
 
 			//render entities
@@ -105,16 +107,6 @@ define([
 				grapples[i].render(ctx, camera);
 			}
 			player.render(ctx, camera);
-
-			//render the line being drawn
-			if(mouseStart && mouseEnd) {
-				ctx.strokeStyle = '#f00';
-				ctx.lineWidth = 1;
-				ctx.beginPath();
-				ctx.moveTo(mouseStart.x - camera.x, mouseStart.y - camera.y);
-				ctx.lineTo(mouseEnd.x - camera.x, mouseEnd.y - camera.y);
-				ctx.stroke();
-			}
 		},
 		onMouseEvent: function(evt) {
 			if(evt.type === 'mousedown') {
@@ -130,6 +122,9 @@ define([
 			}
 			else if(evt.key === 'JUMP' && evt.isDown) {
 				player.jump();
+			}
+			else if(evt.key === 'JUMP' && !evt.isDown) {
+				player.endJump();
 			}
 			else if(evt.key === 'CUT_GRAPPLES' && evt.isDown) {
 				grapples = [];

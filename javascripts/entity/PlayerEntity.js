@@ -6,41 +6,28 @@ define([
 	Vector
 ) {
 	var JUMP_SPEED = 350;
+	var JUMP_BRAKE_SPEED = 100;
 	var GRAVITY = 600;
 	var STICKY_FORCE = 1;
-
 	var PLAYER_MOVEMENT = {
-		GROUND: {
-			TURN_AROUND_ACC: 5000,
-			SLOW_DOWN_ACC: 1200,
-			SPEED_UP_ACC: 1200,
-			SOFT_MAX_SPEED: 220,
-			MAX_SPEED: 1000
-		},
-		AIR: {
-			TURN_AROUND_ACC: 450,
-			SLOW_DOWN_ACC: 150,
-			SPEED_UP_ACC: 450,
-			SOFT_MAX_SPEED: 300,
-			MAX_SPEED: 1000
-		},
-		SLIDING: {
-			TURN_AROUND_ACC: 175,
-			SLOW_DOWN_ACC: 0,
-			SPEED_UP_ACC: 175,
-			SOFT_MAX_SPEED: 400,
-			MAX_SPEED: 1000
-		}
+		GROUND: { TURN_AROUND_ACC: 5000, SLOW_DOWN_ACC: 1200, SPEED_UP_ACC: 1200,
+			SOFT_MAX_SPEED: 220, MAX_SPEED: 1000 },
+		AIR: { TURN_AROUND_ACC: 450, SLOW_DOWN_ACC: 150, SPEED_UP_ACC: 450,
+			SOFT_MAX_SPEED: 300, MAX_SPEED: 1000 },
+		SLIDING: { TURN_AROUND_ACC: 175, SLOW_DOWN_ACC: 0, SPEED_UP_ACC: 175,
+			SOFT_MAX_SPEED: 400, MAX_SPEED: 1000 }
 	};
 
 	function PlayerEntity(x, y) {
 		this.pos = new Vector(x, y);
-		this.prevPos = new Vector(x, y);
+		this.prevPos = this.pos.clone();
+		this._lastFramePos = this.pos.clone();
 		this.vel = new Vector(0, 0);
 		this.radius = 12;
 		this.moveDir = new Vector(0, 0);
 		this.isAirborne = true;
 		this.isOnTerraFirma = false;
+		this._isJumping = false;
 		this._isAirborneLastFrame = true;
 		this._bufferedJumpTime = 0;
 		this._collisionsThisFrame = [];
@@ -48,6 +35,7 @@ define([
 		this._timeSinceJumpableCollision = null;
 	}
 	PlayerEntity.prototype.startOfFrame = function(t) {
+		this._lastFramePos = this.pos.clone();
 		this.isAirborne = this._isAirborneLastFrame;
 		this._collisionsThisFrame = [];
 	};
@@ -65,122 +53,127 @@ define([
 		}
 		var moveDir = this.moveDir.x;
 		//moving REALLY FAST to the right...
-		if(true) {
-			if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
-				newVel.x = Math.min(newVel.x, MOVEMENT.MAX_SPEED);
-				//and trying to move right (deperately maintain velocity)
-				if(moveDir > 0) {
-					newVel.x -= MOVEMENT.SLOW_DOWN_ACC * t;
-					if(newVel.x < MOVEMENT.SOFT_MAX_SPEED) {
-						newVel.x = MOVEMENT.SOFT_MAX_SPEED;
-					}
-				}
-				//and trying to move left (turn around)
-				if(moveDir < 0) {
-					newVel.x -= MOVEMENT.TURN_AROUND_ACC * t;
-					if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
-						newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
-					}
-				}
-				//and trying to stop
-				else {
-					newVel.x -= MOVEMENT.SLOW_DOWN_ACC * t;
-					if(newVel.x < 0) {
-						newVel.x = 0;
-					}
+		if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
+			newVel.x = Math.min(newVel.x, MOVEMENT.MAX_SPEED);
+			//and trying to move right (deperately maintain velocity)
+			if(moveDir > 0) {
+				newVel.x -= MOVEMENT.SLOW_DOWN_ACC * t;
+				if(newVel.x < MOVEMENT.SOFT_MAX_SPEED) {
+					newVel.x = MOVEMENT.SOFT_MAX_SPEED;
 				}
 			}
-			//moving REALLY FAST to the left...
-			else if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
-				newVel.x = Math.max(newVel.x, -MOVEMENT.MAX_SPEED);
-				//and trying to move left (deperately maintain velocity)
-				if(moveDir < 0) {
-					newVel.x += MOVEMENT.SLOW_DOWN_ACC * t;
-					if(newVel.x > -MOVEMENT.SOFT_MAX_SPEED) {
-						newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
-					}
-				}
-				//and trying to move right (turn around)
-				if(moveDir > 0) {
-					newVel.x += MOVEMENT.TURN_AROUND_ACC * t;
-					if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
-						newVel.x = MOVEMENT.SOFT_MAX_SPEED;
-					}
-				}
-				//and trying to stop
-				else {
-					newVel.x += MOVEMENT.SLOW_DOWN_ACC * t;
-					if(newVel.x > 0) {
-						newVel.x = 0;
-					}
+			//and trying to move left (turn around)
+			if(moveDir < 0) {
+				newVel.x -= MOVEMENT.TURN_AROUND_ACC * t;
+				if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
+					newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
 				}
 			}
-			//moving right...
-			else if(newVel.x > 0) {
-				//and trying to move right (speed up)
-				if(moveDir > 0) {
-					newVel.x += MOVEMENT.SPEED_UP_ACC * t;
-					if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
-						newVel.x = MOVEMENT.SOFT_MAX_SPEED;
-					}
-				}
-				//and trying to move left (turn around)
-				else if(moveDir < 0) {
-					newVel.x -= MOVEMENT.TURN_AROUND_ACC * t;
-					if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
-						newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
-					}
-				}
-				//and trying to stop
-				else {
-					newVel.x -= MOVEMENT.SLOW_DOWN_ACC * t;
-					if(newVel.x < 0) {
-						newVel.x = 0;
-					}
-				}
-			}
-			//moving left...
-			else if(newVel.x < 0) {
-				//and trying to move left (speed up)
-				if(moveDir < 0) {
-					newVel.x -= MOVEMENT.SPEED_UP_ACC * t;
-					if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
-						newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
-					}
-				}
-				//and trying to move right (turn around)
-				else if(moveDir > 0) {
-					newVel.x += MOVEMENT.TURN_AROUND_ACC * t;
-					if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
-						newVel.x = MOVEMENT.SOFT_MAX_SPEED;
-					}
-				}
-				//and trying to stop
-				else {
-					newVel.x += MOVEMENT.SLOW_DOWN_ACC * t;
-					if(newVel.x > 0) {
-						newVel.x = 0;
-					}
-				}
-			}
-			//stopped...
+			//and trying to stop
 			else {
-				//and trying to move left
-				if(moveDir < 0) {
-					newVel.x -= MOVEMENT.SPEED_UP_ACC * t;
-					if(newVel.x < -MOVEMENT.MAX_SPEED) {
-						newVel.x = -MOVEMENT.MAX_SPEED;
-					}
-				}
-				//and trying to move right
-				else if(moveDir > 0) {
-					newVel.x += MOVEMENT.SPEED_UP_ACC * t;
-					if(newVel.x > MOVEMENT.MAX_SPEED) {
-						newVel.x = MOVEMENT.MAX_SPEED;
-					}
+				newVel.x -= MOVEMENT.SLOW_DOWN_ACC * t;
+				if(newVel.x < 0) {
+					newVel.x = 0;
 				}
 			}
 		}
+		//moving REALLY FAST to the left...
+		else if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
+			newVel.x = Math.max(newVel.x, -MOVEMENT.MAX_SPEED);
+			//and trying to move left (deperately maintain velocity)
+			if(moveDir < 0) {
+				newVel.x += MOVEMENT.SLOW_DOWN_ACC * t;
+				if(newVel.x > -MOVEMENT.SOFT_MAX_SPEED) {
+					newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
+				}
+			}
+			//and trying to move right (turn around)
+			if(moveDir > 0) {
+				newVel.x += MOVEMENT.TURN_AROUND_ACC * t;
+				if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
+					newVel.x = MOVEMENT.SOFT_MAX_SPEED;
+				}
+			}
+			//and trying to stop
+			else {
+				newVel.x += MOVEMENT.SLOW_DOWN_ACC * t;
+				if(newVel.x > 0) {
+					newVel.x = 0;
+				}
+			}
+		}
+		//moving right...
+		else if(newVel.x > 0) {
+			//and trying to move right (speed up)
+			if(moveDir > 0) {
+				newVel.x += MOVEMENT.SPEED_UP_ACC * t;
+				if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
+					newVel.x = MOVEMENT.SOFT_MAX_SPEED;
+				}
+			}
+			//and trying to move left (turn around)
+			else if(moveDir < 0) {
+				newVel.x -= MOVEMENT.TURN_AROUND_ACC * t;
+				if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
+					newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
+				}
+			}
+			//and trying to stop
+			else {
+				newVel.x -= MOVEMENT.SLOW_DOWN_ACC * t;
+				if(newVel.x < 0) {
+					newVel.x = 0;
+				}
+			}
+		}
+		//moving left...
+		else if(newVel.x < 0) {
+			//and trying to move left (speed up)
+			if(moveDir < 0) {
+				newVel.x -= MOVEMENT.SPEED_UP_ACC * t;
+				if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
+					newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
+				}
+			}
+			//and trying to move right (turn around)
+			else if(moveDir > 0) {
+				newVel.x += MOVEMENT.TURN_AROUND_ACC * t;
+				if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
+					newVel.x = MOVEMENT.SOFT_MAX_SPEED;
+				}
+			}
+			//and trying to stop
+			else {
+				newVel.x += MOVEMENT.SLOW_DOWN_ACC * t;
+				if(newVel.x > 0) {
+					newVel.x = 0;
+				}
+			}
+		}
+		//stopped and starting to move
+		else if(moveDir !== 0) {
+			newVel.x += moveDir * MOVEMENT.SPEED_UP_ACC * t;
+			if(moveDir * newVel.x > MOVEMENT.MAX_SPEED) {
+				newVel.x = moveDir * MOVEMENT.MAX_SPEED;
+			}
+		}
+		/*//stopped...
+		else {
+			//and trying to move left
+			if(moveDir < 0) {
+				newVel.x -= MOVEMENT.SPEED_UP_ACC * t;
+				if(newVel.x < -MOVEMENT.MAX_SPEED) {
+					newVel.x = -MOVEMENT.MAX_SPEED;
+				}
+			}
+			//and trying to move right
+			else if(moveDir > 0) {
+				newVel.x += MOVEMENT.SPEED_UP_ACC * t;
+				if(newVel.x > MOVEMENT.MAX_SPEED) {
+					newVel.x = MOVEMENT.MAX_SPEED;
+				}
+			}
+		}*/
 		this.prevPos = this.pos.clone();
 		this.pos.add(this.vel.average(newVel).multiply(t));
 		this.vel = newVel;
@@ -204,9 +197,10 @@ define([
 				else {
 					this.vel.y = Math.max(JUMP_SPEED * bestJumpableCollision.jumpVector.y, this.vel.y);
 				}
-			this._bufferedJumpTime = 0;
-			this._timeSinceJumpableCollision = null;
-			this._lastJumpableCollision = null;
+				this._isJumping = true;
+				this._bufferedJumpTime = 0;
+				this._timeSinceJumpableCollision = null;
+				this._lastJumpableCollision = null;
 			}
 			else {
 				this._lastJumpableCollision = bestJumpableCollision;
@@ -223,6 +217,7 @@ define([
 			else {
 				this.vel.y = Math.max(JUMP_SPEED * this._lastJumpableCollision.jumpVector.y, this.vel.y);
 			}
+			this._isJumping = true;
 			this._bufferedJumpTime = 0;
 			this._timeSinceJumpableCollision = null;
 			this._lastJumpableCollision = null;
@@ -231,12 +226,21 @@ define([
 		if(this._timeSinceJumpableCollision !== null) {
 			this._timeSinceJumpableCollision += t;
 		}
+		if(this.vel.y >= -JUMP_BRAKE_SPEED) {
+			this._isJumping = false;
+		}
 	};
 	PlayerEntity.prototype.shootGrapple = function(x, y) {
 		return new GrappleEntity(this, x - this.pos.x, y - this.pos.y);
 	};
 	PlayerEntity.prototype.jump = function() {
 		this._bufferedJumpTime = 0.09;
+	};
+	PlayerEntity.prototype.endJump = function() {
+		if(this._isJumping) {
+			this._isJumping = false;
+			this.vel.y = Math.max(-JUMP_BRAKE_SPEED, this.vel.y);
+		}
 	};
 	PlayerEntity.prototype.handleCollision = function(collision) {
 		this.pos = collision.finalPoint;
@@ -258,12 +262,23 @@ define([
 		ctx.beginPath();
 		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.radius, 0, 2 * Math.PI, false);
 		ctx.fill();
+		if(this._isJumping) {
+			ctx.strokeStyle = '#a0a';
+			ctx.lineWidth = 2;
+			ctx.stroke();
+		}
 		ctx.strokeStyle = '#0bb';
 		ctx.lineWidth = 2;
 		ctx.beginPath();
 		ctx.moveTo(this.pos.x - camera.x, this.pos.y - camera.y);
 		var renderedVel = this.vel.clone().normalize().multiply(20 * Math.log(this.vel.length()));
 		ctx.lineTo(this.pos.x - camera.x + renderedVel.x, this.pos.y - camera.y + renderedVel.y);
+		ctx.stroke();
+		ctx.strokeStyle = '#f09';
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(this._lastFramePos.x - camera.x, this._lastFramePos.y - camera.y);
+		ctx.lineTo(this.pos.x - camera.x, this.pos.y - camera.y);
 		ctx.stroke();
 	};
 	return PlayerEntity;

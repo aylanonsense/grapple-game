@@ -19,7 +19,10 @@ define([
 		var prevTime = performance.now();
 		function loop(time) {
 			var framesPerSecond = (Constants.FRAMES_PER_SECOND === null ? 60 : Constants.FRAMES_PER_SECOND);
-			var t = Math.min(3 / framesPerSecond, (time - prevTime) / 1000) * Constants.TIME_SCALE;
+			var t = Constants.TIME_SCALE * Math.min(3 / framesPerSecond, (time - prevTime) / 1000);
+			if(Constants.CONSTANT_TIME_PER_FRAME) {
+				t = Constants.TIME_SCALE / framesPerSecond;
+			}
 			Game.tick(t);
 			Game.render(ctx);
 			prevTime = time;

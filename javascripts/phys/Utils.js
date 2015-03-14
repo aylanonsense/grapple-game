@@ -17,14 +17,9 @@ define([
 			return new Vector(Math.cos(angle), Math.sin(angle));
 		},
 		findCircleLineIntersection: function(circleCenter, circleRadius, lineStart, lineEnd) {
-			// //if the circle started out inside of the point, they can't be colliding
-			// if(lineStart.squareDistance(circleCenter) < circleRadius * circleRadius) {
-			// 	return false;
-			// }
-
 			//calculate the discriminant
-			var line = lineEnd.clone().subtract(lineStart);
-			var vectorToCircle = circleCenter.clone().subtract(lineStart);
+			var line = lineStart.createLineTo(lineEnd);
+			var vectorToCircle = lineStart.createLineTo(circleCenter);
 			var a = line.dot(line);
 			var b = 2 * vectorToCircle.dot(line);
 			var c = vectorToCircle.dot(vectorToCircle) - circleRadius * circleRadius;
@@ -37,20 +32,20 @@ define([
 				var root1 = (-b - discriminant) / (2 * a);
 				var root2 = (-b + discriminant) / (2 * a);
 				var lineLength = line.length();
-				var vectorToRoot1 = line.clone().normalize().multiply(lineLength * -root1);
-				var vectorToRoot2 = line.clone().normalize().multiply(lineLength * -root2);
+				var vectorToRoot1 = line.clone().setLength(lineLength * -root1);
+				var vectorToRoot2 = line.clone().setLength(lineLength * -root2);
 				var vectorToIntersection = (vectorToRoot1.squareLength() < vectorToRoot2.squareLength() ?
 						vectorToRoot1 : vectorToRoot2);
 
 				//the intersection is only valid if it's actually on the circle's path (not past it)
 				var distToIntersection = line.dot(vectorToIntersection) / lineLength;
 				if(0 <= distToIntersection && distToIntersection <= lineLength) {
-					//yay, there definitely was a collision!
+					//yay, there definitely was an intersection!
 					return lineStart.clone().add(vectorToIntersection);
 				}
 			}
 
-			//otherwise there is no collision
+			//otherwise there is no intersection
 			return false;
 		}
 	};

@@ -15,9 +15,10 @@ define([
 		this._highlightFrames = 0;
 
 		//cache some math
-		this._lineBetween = this.end.clone().subtract(this.start);
-		this._cosLineBetween = Math.cos(this._lineBetween.angle());
-		this._sinLineBetween = Math.sin(this._lineBetween.angle());
+		this._lineBetween = this.start.createLineTo(this.end);
+		var angle = this._lineBetween.angle();
+		this._cosLineBetween = Math.cos(angle);
+		this._sinLineBetween = Math.sin(angle);
 		this._rotatedStart = this._rotateVector(this.start);
 		this._rotatedEnd = this._rotateVector(this.end);
 		this._rotatedY = this._rotatedStart.y;
@@ -97,6 +98,7 @@ define([
 
 				return {
 					cause: this,
+					hasPriority: true,
 					distTraveled: distTraveled,
 					distToTravel: distToTravel,
 					contactPoint: this._unrotateVector(contactPoint),

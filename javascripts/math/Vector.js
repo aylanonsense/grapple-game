@@ -31,6 +31,22 @@ define(function() {
 		this.y *= y;
 		return this;
 	};
+	Vector.prototype.rotate = function(cosAngle, sinAngle) {
+		//can also pass in an angle
+		if(arguments.length === 1) { sinAngle = Math.sin(cosAngle); cosAngle = Math.cos(cosAngle); }
+		var x = this.x, y = this.y;
+		this.x = x * cosAngle - y * sinAngle;
+		this.y = x * sinAngle + y * cosAngle;
+		return this;
+	};
+	Vector.prototype.unrotate = function(cosAngle, sinAngle) {
+		//can also pass in an angle
+		if(arguments.length === 1) { sinAngle = Math.sin(cosAngle); cosAngle = Math.cos(cosAngle); }
+		var x = this.x, y = this.y;
+		this.x = x * cosAngle + y * sinAngle;
+		this.y = -x * sinAngle + y * cosAngle;
+		return this;
+	};
 	Vector.prototype.divide = function(x, y) {
 		//can pass a single number
 		if(arguments.length === 1) { y = x; }
@@ -51,6 +67,23 @@ define(function() {
 	};
 	Vector.prototype.length = function() {
 		return Math.sqrt(this.x * this.x + this.y * this.y);
+	};
+	Vector.prototype.setLength = function(newLen) {
+		var len = Math.sqrt(this.x * this.x + this.y * this.y);
+		if(len === 0) {
+			this.x = 0;
+			this.y = 0;
+		}
+		else {
+			this.x *= newLen / len;
+			this.y *= newLen / len;
+		}
+		return this;
+	};
+	Vector.prototype.createLineTo = function(x, y) {
+		//can pass a vector argument
+		if(arguments.length === 1) { y = x.y; x = x.x; }
+		return new Vector(x - this.x, y - this.y);
 	};
 	Vector.prototype.normalize = function() {
 		var len = Math.sqrt(this.x * this.x + this.y * this.y);
@@ -99,7 +132,9 @@ define(function() {
 		return dx * dx + dy * dy;
 	};
 	Vector.prototype.toString = function() {
-		return 'x:' + this.x + ', y:' + this.y;
+		//for readability we reduce really small numbers to 0 (there are pros and cons to this)
+		return 'x:' + (-0.0000000001 < this.x && this.x < 0.0000000001 ? 0: this.x) +
+			', y:' + (-0.0000000001 < this.y && this.y < 0.0000000001 ? 0: this.y);
 	};
 	return Vector;
 });
