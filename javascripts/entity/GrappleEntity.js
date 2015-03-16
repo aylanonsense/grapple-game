@@ -35,18 +35,6 @@ define([
 		this.pos.add(this.vel.clone().multiply(t));
 		this._highlightFrames--;
 	};
-	GrappleEntity.prototype._rotateVector = function(vector, cosAngle, sinAngle) {
-		return new Vector(
-			-vector.x * sinAngle + vector.y * cosAngle,
-			-vector.x * cosAngle - vector.y * sinAngle
-		);
-	};
-	GrappleEntity.prototype._unrotateVector = function(vector, cosAngle, sinAngle) {
-		return new Vector(
-			-vector.x * sinAngle - vector.y * cosAngle,
-			vector.x * cosAngle - vector.y * sinAngle
-		);
-	};
 	GrappleEntity.prototype.checkForCollisionWithMovingCircle = function(circle) {
 		if(this.isLatched) {
 			//it's only a collision if the circle ended up outside the grapple's length
@@ -78,27 +66,27 @@ define([
 
 					//if there was a contact point (there should be, since it ended up outside the area)
 					if(contactPoint) {
-						//we want to rotate such that the contact point is "above" the latch point (-y)
+						//we want to rotate such that the contact point is "right" of the latch point
 						var distToTravel = totalDist - distTraveled;
 						var lineFromLatchPointToContactPoint = this.pos.createLineTo(contactPoint);
 						var angle = lineFromLatchPointToContactPoint.angle();
 						var cosAngle = Math.cos(angle), sinAngle = Math.sin(angle);
-						var rotatedLine = this._rotateVector(lineOfMovement, cosAngle, sinAngle);
 
 						//then we want to find where the circle should end up within the grapple area
-						var arcLength = rotatedLine.normalize().multiply(distToTravel).x;
-						var angleOfMovement = (arcLength / this._latchLength) / 2;
-						var finalPoint = this._rotateVector(contactPoint, cosAngle, sinAngle)
-							.add(0.99 * arcLength * Math.cos(angleOfMovement),
-								0.99 * arcLength * Math.sin(angleOfMovement));
-						var cosAngle2 = Math.cos(angle + angleOfMovement);
-						var sinAngle2 = Math.sin(angle + angleOfMovement);
+						var arcLength = lineOfMovement.unrotate(cosAngle, sinAngle)
+							.setLength(distToTravel).y;
+						var finalPoint = (new Vector(this._latchLength - 0.001, 0))
+							.rotate(angle + (arcLength / this._latchLength))
+							.add(this.pos);
 
 						//velocity AWAY from the lath point is neutralized
-						var rotatedVel = this._rotateVector(circle.vel, cosAngle2, sinAngle2);
-						if(rotatedVel.y < 0) {
-							rotatedVel.y = 0;
+						var cosAngle2 = Math.cos(angle + arcLength / (2 * this._latchLength));
+						var sinAngle2 = Math.sin(angle + arcLength / (2 * this._latchLength));
+						var finalVel = circle.vel.clone().unrotate(cosAngle2, sinAngle2);
+						if(finalVel.x > 0) {
+							finalVel.x = 0;
 						}
+						finalVel.rotate(cosAngle2, sinAngle2);
 
 						return {
 							cause: this,
@@ -107,9 +95,9 @@ define([
 							contactPoint: contactPoint,
 							vectorTowards: lineFromLatchPointToPrev.clone().normalize(),
 							stabilityAngle: null,
-							finalPoint: this._unrotateVector(finalPoint, cosAngle, sinAngle),
+							finalPoint: finalPoint,
 							jumpVector: new Vector(0, -1),
-							finalVel: this._unrotateVector(rotatedVel, cosAngle2, sinAngle2)
+							finalVel: finalVel
 						};
 					}
 				}
