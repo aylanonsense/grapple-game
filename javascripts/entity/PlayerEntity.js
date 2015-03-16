@@ -199,7 +199,7 @@ define([
 		ctx.lineWidth = 2;
 		ctx.beginPath();
 		ctx.moveTo(this.pos.x - camera.x, this.pos.y - camera.y);
-		var renderedVel = this.vel.clone().normalize().multiply(20 * Math.log(this.vel.length()));
+		var renderedVel = this.vel.clone().normalize().multiply(55);
 		ctx.lineTo(this.pos.x - camera.x + renderedVel.x, this.pos.y - camera.y + renderedVel.y);
 		ctx.stroke();
 		ctx.strokeStyle = '#f09';

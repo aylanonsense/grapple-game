@@ -7,7 +7,7 @@ define([
 	Vector,
 	MathUtils
 ) {
-	var ERROR_ALLOWED = 1;
+	var ERROR_ALLOWED = 0.3;
 	function Line(x1, y1, x2, y2) {
 		SUPERCLASS.call(this, 'line');
 		this.start = new Vector(x1, y1);
@@ -15,31 +15,18 @@ define([
 		this._highlightFrames = 0;
 
 		//cache some math
-		this._lineBetween = this.start.createLineTo(this.end);
+		this._lineBetween = this.start.createVectorTo(this.end);
 		var angle = this._lineBetween.angle();
-		this._cosLineBetween = Math.cos(angle);
-		this._sinLineBetween = Math.sin(angle);
-		this._rotatedStart = this._rotateVector(this.start);
-		this._rotatedEnd = this._rotateVector(this.end);
-		this._rotatedY = this._rotatedStart.y;
+		this._cosAngle = Math.cos(angle);
+		this._sinAngle = Math.sin(angle);
+		this._rotatedStart = this.start.clone().unrotate(this._cosAngle, this._sinAngle);
+		this._rotatedEnd = this.end.clone().unrotate(this._cosAngle, this._sinAngle);
 		this._perpendicularAngle = Math.atan2(x1 - x2, y2 - y1);
 		var pipAngle = Math.atan2(this.start.x - this.end.x, this.end.y - this.start.y);
 		this._cosPipAngle = -Math.cos(pipAngle);
 		this._sinPipAngle = -Math.sin(pipAngle);
 	}
 	Line.prototype = Object.create(SUPERCLASS.prototype);
-	Line.prototype._rotateVector = function(vector) {
-		return new Vector(
-			vector.x * this._cosLineBetween + vector.y * this._sinLineBetween,
-			-vector.x * this._sinLineBetween + vector.y * this._cosLineBetween
-		);
-	};
-	Line.prototype._unrotateVector = function(vector) {
-		return new Vector(
-			vector.x * this._cosLineBetween - vector.y * this._sinLineBetween,
-			vector.x * this._sinLineBetween + vector.y * this._cosLineBetween
-		);
-	};
 	Line.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
 		return this._checkForCollisionWithMovingCircle(circle.pos,
 			circle.prevPos, circle.vel, circle.radius, bounceAmt);
@@ -52,12 +39,13 @@ define([
 		bounceAmt = bounceAmt || 0.0;
 
 		//let's rotate the scene so the line is horizontal and the circle is "above" it
-		pos = this._rotateVector(pos);
-		prevPos = this._rotateVector(prevPos);
+		pos = pos.clone().unrotate(this._cosAngle, this._sinAngle);
+		prevPos = prevPos.clone().unrotate(this._cosAngle, this._sinAngle);
 
 		//if there was a collision, the circle was right on top of the line (ignoring endpoints)
 		var collisionY = this._rotatedStart.y - radius;
 
+		//we fudge the numbers a little bit, makes things more consistent
 		if(prevPos.y > collisionY && prevPos.y <= collisionY + ERROR_ALLOWED) {
 			prevPos.y = collisionY;
 		}
@@ -66,7 +54,7 @@ define([
 		}
 
 		//of course this would only happen if the circle was moving downwards onto the line
-		if(prevPos.y <= pos.y && prevPos.y <= collisionY && collisionY < pos.y) {
+		if(prevPos.y <= collisionY && collisionY < pos.y) {
 			var lineOfMovement = pos.clone().subtract(prevPos);
 			var totalDist = lineOfMovement.length();
 			var percentOfMovement;
@@ -84,14 +72,17 @@ define([
 
 				//calculate the final position
 				var distToTravel = totalDist - distTraveled;
-				var lineOfMovementPostCollision = pos.clone().subtract(prevPos).normalize().multiply(distToTravel, distToTravel * -bounceAmt);
-				var finalPoint = contactPoint.clone().add(lineOfMovementPostCollision);
+				var lineOfMovementPostCollision = pos.clone().subtract(prevPos)
+					.normalize().multiply(distToTravel, distToTravel * -bounceAmt);
+				var finalPoint = contactPoint.clone().add(lineOfMovementPostCollision)
+					.rotate(this._cosAngle, this._sinAngle);
 
 				//calculate the final velocity
-				var finalVel = this._rotateVector(vel);
-				if(finalVel.y > 0.0) {
+				var finalVel = vel.clone().unrotate(this._cosAngle, this._sinAngle);
+				if(finalVel.y > 0) {
 					finalVel.multiply(1.0, -bounceAmt);
 				}
+				finalVel.rotate(this._cosAngle, this._sinAngle)
 
 				//create jump vector
 				var jumpVector = MathUtils.createJumpVector(this._perpendicularAngle);
@@ -100,12 +91,12 @@ define([
 					cause: this,
 					distTraveled: distTraveled,
 					distToTravel: distToTravel,
-					contactPoint: this._unrotateVector(contactPoint),
-					finalPoint: this._unrotateVector(finalPoint),
+					contactPoint: contactPoint.rotate(this._cosAngle, this._sinAngle),
+					finalPoint: finalPoint,
 					stabilityAngle: this._perpendicularAngle,
 					jumpVector: jumpVector,
 					vectorTowards: new Vector(-Math.cos(this._perpendicularAngle), -Math.sin(this._perpendicularAngle)),
-					finalVel: this._unrotateVector(finalVel)
+					finalVel: finalVel
 				};
 			}
 		}

@@ -18,8 +18,8 @@ define([
 		},
 		findCircleLineIntersection: function(circleCenter, circleRadius, lineStart, lineEnd) {
 			//calculate the discriminant
-			var line = lineStart.createLineTo(lineEnd);
-			var vectorToCircle = lineStart.createLineTo(circleCenter);
+			var line = lineStart.createVectorTo(lineEnd);
+			var vectorToCircle = lineStart.createVectorTo(circleCenter);
 			var a = line.dot(line);
 			var b = 2 * vectorToCircle.dot(line);
 			var c = vectorToCircle.dot(vectorToCircle) - circleRadius * circleRadius;

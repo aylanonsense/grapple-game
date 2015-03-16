@@ -1,7 +1,7 @@
 describe("The math/Utils module", function() {
 	var test = require('../setup');
 	var expect = test.require('chai').expect;
-	var MathUtils = test.require('phys/Utils');
+	var MathUtils = test.require('math/Utils');
 	var Vector = test.require('math/Vector');
 
 	var ERROR_ALLOWED = 0.0001;

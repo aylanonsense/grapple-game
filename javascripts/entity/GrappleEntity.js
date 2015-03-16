@@ -38,12 +38,12 @@ define([
 	GrappleEntity.prototype.checkForCollisionWithMovingCircle = function(circle) {
 		if(this.isLatched) {
 			//it's only a collision if the circle ended up outside the grapple's length
-			var lineToLatchPoint = circle.pos.createLineTo(this.pos);
+			var lineToLatchPoint = circle.pos.createVectorTo(this.pos);
 			if(lineToLatchPoint.squareLength() > this._latchLength * this._latchLength) {
 				//we're going to ignore cases where the circle didn't move at all (makes it easier)
-				var lineOfMovement = circle.prevPos.createLineTo(circle.pos);
+				var lineOfMovement = circle.prevPos.createVectorTo(circle.pos);
 				if(!lineOfMovement.isZero()) {
-					var lineFromLatchPointToPrev = this.pos.createLineTo(circle.prevPos);
+					var lineFromLatchPointToPrev = this.pos.createVectorTo(circle.prevPos);
 					var totalDist, contactPoint, distTraveled;
 
 					//if the circle STARTED outside the grapple area, we interpolate the contact point
@@ -68,7 +68,7 @@ define([
 					if(contactPoint) {
 						//we want to rotate such that the contact point is "right" of the latch point
 						var distToTravel = totalDist - distTraveled;
-						var lineFromLatchPointToContactPoint = this.pos.createLineTo(contactPoint);
+						var lineFromLatchPointToContactPoint = this.pos.createVectorTo(contactPoint);
 						var angle = lineFromLatchPointToContactPoint.angle();
 						var cosAngle = Math.cos(angle), sinAngle = Math.sin(angle);
 

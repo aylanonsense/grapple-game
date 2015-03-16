@@ -80,7 +80,7 @@ define(function() {
 		}
 		return this;
 	};
-	Vector.prototype.createLineTo = function(x, y) {
+	Vector.prototype.createVectorTo = function(x, y) {
 		//can pass a vector argument
 		if(arguments.length === 1) { y = x.y; x = x.x; }
 		return new Vector(x - this.x, y - this.y);
@@ -133,8 +133,8 @@ define(function() {
 	};
 	Vector.prototype.toString = function() {
 		//for readability we reduce really small numbers to 0 (there are pros and cons to this)
-		return 'x:' + (-0.0000000001 < this.x && this.x < 0.0000000001 ? 0: this.x) +
-			', y:' + (-0.0000000001 < this.y && this.y < 0.0000000001 ? 0: this.y);
+		return 'x:' + (-0.0000000001 < this.x && this.x < 0.0000000001 ? 0: Math.floor(100 * this.x) / 100) +
+			', y:' + (-0.0000000001 < this.y && this.y < 0.0000000001 ? 0: Math.floor(100 * this.y) / 100);
 	};
 	return Vector;
 });

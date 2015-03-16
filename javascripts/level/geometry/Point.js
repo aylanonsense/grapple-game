@@ -13,18 +13,6 @@ define([
 		this._highlightFrames = 0;
 	}
 	Point.prototype = Object.create(SUPERCLASS.prototype);
-	Point.prototype._rotateVector = function(vector, cosAngle, sinAngle) {
-		return new Vector(
-			-vector.x * sinAngle + vector.y * cosAngle,
-			-vector.x * cosAngle - vector.y * sinAngle
-		);
-	};
-	Point.prototype._unrotateVector = function(vector, cosAngle, sinAngle) {
-		return new Vector(
-			-vector.x * sinAngle - vector.y * cosAngle,
-			vector.x * cosAngle - vector.y * sinAngle
-		);
-	};
 	Point.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
 		return this._checkForCollisionWithMovingCircle(circle.pos,
 			circle.prevPos, circle.vel, circle.radius, bounceAmt);
@@ -39,31 +27,36 @@ define([
 			return false;
 		}
 
+		//we have a utility method that finds us the interseciton between a circle and line
 		var contactPoint = MathUtils.findCircleLineIntersection(this.pos, radius, prevPos, pos);
 		if(contactPoint) {
-			var lineToContactPoint = contactPoint.clone().subtract(prevPos);
+			//there definitely is a collision here
+			var lineToContactPoint = prevPos.createVectorTo(contactPoint);
 			var distTraveled = lineToContactPoint.length();
-			var lineOfMovement = pos.clone().subtract(prevPos);
+			var lineOfMovement = prevPos.createVectorTo(pos);
 			var totalDist = lineOfMovement.length();
 
 			//now we figure out the angle of contact, so we can bounce the circle off of the point
-			var lineFromPointToContactPoint = contactPoint.clone().subtract(this.pos);
+			var lineFromPointToContactPoint = this.pos.createVectorTo(contactPoint);
 			var angle = lineFromPointToContactPoint.angle();
-			var cosAngle = Math.cos(angle);
-			var sinAngle = Math.sin(angle);
+			var cosAngle = Math.cos(angle), sinAngle = Math.sin(angle);
 
 			//calculate the final position
 			var distToTravel = totalDist - distTraveled;
-			var lineOfMovementPostContact = this._rotateVector(lineOfMovement, cosAngle, sinAngle);
-			lineOfMovementPostContact.normalize().multiply(distToTravel, distToTravel * -bounceAmt);
-			lineOfMovementPostContact = this._unrotateVector(lineOfMovementPostContact, cosAngle, sinAngle);
-			var finalPoint = contactPoint.clone().add(lineOfMovementPostContact);
+			var movementPostContact = lineOfMovement.clone()
+				.setLength(distToTravel).unrotate(cosAngle, sinAngle);
+			if(movementPostContact.x < 0) {
+				movementPostContact.x *= -bounceAmt;
+			}
+			movementPostContact.rotate(cosAngle, sinAngle);
+			var finalPoint = contactPoint.clone().add(movementPostContact);
 
 			//calculate the final velocity
-			var finalVel = this._rotateVector(vel, cosAngle, sinAngle);
-			if(finalVel.y > 0) {
-				finalVel.multiply(1.0, -bounceAmt);
+			var finalVel = vel.clone().unrotate(cosAngle, sinAngle);
+			if(finalVel.x < 0) {
+				finalVel.x *= -bounceAmt;
 			}
+			finalVel.rotate(cosAngle, sinAngle);
 
 			//create jump vector
 			var jumpVector = MathUtils.createJumpVector(angle);
@@ -77,7 +70,7 @@ define([
 				stabilityAngle: null,
 				finalPoint: finalPoint,
 				jumpVector: jumpVector,
-				finalVel: this._unrotateVector(finalVel, cosAngle, sinAngle)
+				finalVel: finalVel
 			};
 		}
 
