@@ -49,44 +49,52 @@ define([
 	};
 	GrappleEntity.prototype.checkForCollisionWithMovingCircle = function(circle) {
 		if(this.isLatched) {
-			var lineToLatchPoint = this.pos.clone().subtract(circle.pos);
+			//it's only a collision if the circle ended up outside the grapple's length
+			var lineToLatchPoint = circle.pos.createLineTo(this.pos);
 			if(lineToLatchPoint.squareLength() > this._latchLength * this._latchLength) {
-				var lineOfMovement = circle.pos.clone().subtract(circle.prevPos);
+				//we're going to ignore cases where the circle didn't move at all (makes it easier)
+				var lineOfMovement = circle.prevPos.createLineTo(circle.pos);
 				if(!lineOfMovement.isZero()) {
-					var lineFromLatchPointToPrev = circle.prevPos.clone().subtract(this.pos);
+					var lineFromLatchPointToPrev = this.pos.createLineTo(circle.prevPos);
 					var totalDist, contactPoint, distTraveled;
+
+					//if the circle STARTED outside the grapple area, we interpolate the contact point
 					if(lineFromLatchPointToPrev.squareLength() > this._latchLength * this._latchLength) {
-						//the circle STARTED outside of the grapple area
+						contactPoint = this.pos.clone().add(lineFromLatchPointToPrev
+							.clone().setLength(this._latchLength));
 						totalDist = lineOfMovement.length();
-						contactPoint = this.pos.clone().add(lineFromLatchPointToPrev.clone().normalize().multiply(this._latchLength));
 						distTraveled = 0;
 					}
+
+					//if the circle exited the grapple area, we just need to find wher it exited
 					else {
-						//the circle moved outside of the grapple area
-						contactPoint = PhysUtils.findCircleLineIntersection(this.pos, this._latchLength, circle.prevPos, circle.pos);
+						contactPoint = PhysUtils.findCircleLineIntersection(this.pos,
+							this._latchLength, circle.prevPos, circle.pos);
 						if(contactPoint) {
 							totalDist = lineOfMovement.length();
 							distTraveled = contactPoint.clone().subtract(circle.prevPos).length();
 						}
 					}
+
+					//if there was a contact point (there should be, since it ended up outside the area)
 					if(contactPoint) {
+						//we want to rotate such that the contact point is "above" the latch point (-y)
 						var distToTravel = totalDist - distTraveled;
-						var lineFromLatchPointToContactPoint = contactPoint.clone().subtract(this.pos);
+						var lineFromLatchPointToContactPoint = this.pos.createLineTo(contactPoint);
 						var angle = lineFromLatchPointToContactPoint.angle();
-						var cosAngle = Math.cos(angle);
-						var sinAngle = Math.sin(angle);
-						//rotate such that contact point is "above" latch point (-y)
-						var rotatedLineOfMovementRemaining =
-							this._rotateVector(lineOfMovement, cosAngle, sinAngle)
-							.normalize().multiply(distToTravel);
-						var arcLength = rotatedLineOfMovementRemaining.x;
-						var angleOfMovement = arcLength / this._latchLength;
-						var finalPoint = this._rotateVector(contactPoint, cosAngle, sinAngle);
-						var blahX = arcLength * Math.cos(angleOfMovement / 2);
-						var blahY = arcLength * Math.sin(angleOfMovement / 2);
-						finalPoint.add(0.99 * blahX, 0.99 * blahY);
-						var cosAngle2 = Math.cos(angle + angleOfMovement / 2);
-						var sinAngle2 = Math.sin(angle + angleOfMovement / 2);
+						var cosAngle = Math.cos(angle), sinAngle = Math.sin(angle);
+						var rotatedLine = this._rotateVector(lineOfMovement, cosAngle, sinAngle);
+
+						//then we want to find where the circle should end up within the grapple area
+						var arcLength = rotatedLine.normalize().multiply(distToTravel).x;
+						var angleOfMovement = (arcLength / this._latchLength) / 2;
+						var finalPoint = this._rotateVector(contactPoint, cosAngle, sinAngle)
+							.add(0.99 * arcLength * Math.cos(angleOfMovement),
+								0.99 * arcLength * Math.sin(angleOfMovement));
+						var cosAngle2 = Math.cos(angle + angleOfMovement);
+						var sinAngle2 = Math.sin(angle + angleOfMovement);
+
+						//velocity AWAY from the lath point is neutralized
 						var rotatedVel = this._rotateVector(circle.vel, cosAngle2, sinAngle2);
 						if(rotatedVel.y < 0) {
 							rotatedVel.y = 0;
@@ -94,7 +102,6 @@ define([
 
 						return {
 							cause: this,
-							hasPriority: false,
 							distTraveled: distTraveled,
 							distToTravel: distToTravel,
 							contactPoint: contactPoint,

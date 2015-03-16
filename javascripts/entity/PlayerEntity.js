@@ -42,111 +42,58 @@ define([
 	PlayerEntity.prototype.tick = function(t) {
 		var newVel = this.vel.clone().add(0, GRAVITY * t);
 		var MOVEMENT;
-		if(this.isAirborne) {
-			MOVEMENT = PLAYER_MOVEMENT.AIR;
-		}
-		else if(!this.isOnTerraFirma) {
-			MOVEMENT = PLAYER_MOVEMENT.SLIDING;
-		}
-		else {
-			MOVEMENT = PLAYER_MOVEMENT.GROUND;
-		}
+		if(this.isAirborne) { MOVEMENT = PLAYER_MOVEMENT.AIR; }
+		else if(!this.isOnTerraFirma) { MOVEMENT = PLAYER_MOVEMENT.SLIDING; }
+		else { MOVEMENT = PLAYER_MOVEMENT.GROUND; }
 		var moveDir = this.moveDir.x;
-		//moving REALLY FAST to the right...
-		if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
-			newVel.x = Math.min(newVel.x, MOVEMENT.MAX_SPEED);
-			//and trying to move right (deperately maintain velocity)
-			if(moveDir > 0) {
-				newVel.x -= MOVEMENT.SLOW_DOWN_ACC * t;
-				if(newVel.x < MOVEMENT.SOFT_MAX_SPEED) {
-					newVel.x = MOVEMENT.SOFT_MAX_SPEED;
-				}
-			}
-			//and trying to move left (turn around)
-			if(moveDir < 0) {
-				newVel.x -= MOVEMENT.TURN_AROUND_ACC * t;
-				if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
-					newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
-				}
-			}
-			//and trying to stop
-			else {
-				newVel.x -= MOVEMENT.SLOW_DOWN_ACC * t;
-				if(newVel.x < 0) {
-					newVel.x = 0;
-				}
-			}
-		}
-		//moving REALLY FAST to the left...
-		else if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
-			newVel.x = Math.max(newVel.x, -MOVEMENT.MAX_SPEED);
-			//and trying to move left (deperately maintain velocity)
-			if(moveDir < 0) {
-				newVel.x += MOVEMENT.SLOW_DOWN_ACC * t;
-				if(newVel.x > -MOVEMENT.SOFT_MAX_SPEED) {
-					newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
-				}
-			}
-			//and trying to move right (turn around)
-			if(moveDir > 0) {
-				newVel.x += MOVEMENT.TURN_AROUND_ACC * t;
-				if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
-					newVel.x = MOVEMENT.SOFT_MAX_SPEED;
-				}
-			}
-			//and trying to stop
-			else {
-				newVel.x += MOVEMENT.SLOW_DOWN_ACC * t;
+		//moving REALLY FAST left/right...
+		if(Math.abs(newVel.x) > MOVEMENT.SOFT_MAX_SPEED) {
+			newVel.x = Math.max(-MOVEMENT.MAX_SPEED, Math.min(newVel.x, MOVEMENT.MAX_SPEED));
+			//trying to stop
+			if(moveDir === 0) {
 				if(newVel.x > 0) {
-					newVel.x = 0;
+					newVel.x = Math.max(0, newVel.x - MOVEMENT.SLOW_DOWN_ACC * t);
+				}
+				else {
+					newVel.x = Math.min(0, newVel.x + MOVEMENT.SLOW_DOWN_ACC * t);
 				}
 			}
-		}
-		//moving right...
-		else if(newVel.x > 0) {
-			//and trying to move right (speed up)
-			if(moveDir > 0) {
-				newVel.x += MOVEMENT.SPEED_UP_ACC * t;
-				if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
-					newVel.x = MOVEMENT.SOFT_MAX_SPEED;
-				}
-			}
-			//and trying to move left (turn around)
-			else if(moveDir < 0) {
-				newVel.x -= MOVEMENT.TURN_AROUND_ACC * t;
-				if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
-					newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
-				}
-			}
-			//and trying to stop
-			else {
-				newVel.x -= MOVEMENT.SLOW_DOWN_ACC * t;
-				if(newVel.x < 0) {
-					newVel.x = 0;
-				}
-			}
-		}
-		//moving left...
-		else if(newVel.x < 0) {
-			//and trying to move left (speed up)
-			if(moveDir < 0) {
-				newVel.x -= MOVEMENT.SPEED_UP_ACC * t;
-				if(newVel.x < -MOVEMENT.SOFT_MAX_SPEED) {
-					newVel.x = -MOVEMENT.SOFT_MAX_SPEED;
-				}
-			}
-			//and trying to move right (turn around)
-			else if(moveDir > 0) {
-				newVel.x += MOVEMENT.TURN_AROUND_ACC * t;
-				if(newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
-					newVel.x = MOVEMENT.SOFT_MAX_SPEED;
-				}
-			}
-			//and trying to stop
-			else {
-				newVel.x += MOVEMENT.SLOW_DOWN_ACC * t;
+			//trying to maintain velocity
+			else if(moveDir * newVel.x > 0) {
 				if(newVel.x > 0) {
-					newVel.x = 0;
+					newVel.x = Math.max(MOVEMENT.SOFT_MAX_SPEED, newVel.x - MOVEMENT.SLOW_DOWN_ACC * t);
+				}
+				else {
+					newVel.x = Math.min(-MOVEMENT.SOFT_MAX_SPEED, newVel.x + MOVEMENT.SLOW_DOWN_ACC * t);
+				}
+			}
+			//trying to turn around
+			else {
+				if(newVel.x > 0) {
+					newVel.x = Math.max(-MOVEMENT.SOFT_MAX_SPEED, newVel.x - MOVEMENT.TURN_AROUND_ACC * t);
+				}
+				else {
+					newVel.x = Math.min(MOVEMENT.SOFT_MAX_SPEED, newVel.x + MOVEMENT.TURN_AROUND_ACC * t);
+				}
+			}
+		}
+		//moving left/right...
+		else if(newVel.x !== 0) {
+			//trying to stop
+			if(moveDir === 0) {
+				if(newVel.x > 0) {
+					newVel.x = Math.max(0, newVel.x - MOVEMENT.SLOW_DOWN_ACC * t);
+				}
+				else {
+					newVel.x = Math.min(0, newVel.x + MOVEMENT.SLOW_DOWN_ACC * t);
+				}
+			}
+			//trying to speed up/slow down
+			else {
+				newVel.x += moveDir * (moveDir * newVel.x > 0 ?
+					MOVEMENT.SPEED_UP_ACC : MOVEMENT.TURN_AROUND_ACC) * t;
+				if(moveDir * newVel.x > MOVEMENT.SOFT_MAX_SPEED) {
+					newVel.x = moveDir * MOVEMENT.SOFT_MAX_SPEED;
 				}
 			}
 		}
@@ -157,23 +104,6 @@ define([
 				newVel.x = moveDir * MOVEMENT.MAX_SPEED;
 			}
 		}
-		/*//stopped...
-		else {
-			//and trying to move left
-			if(moveDir < 0) {
-				newVel.x -= MOVEMENT.SPEED_UP_ACC * t;
-				if(newVel.x < -MOVEMENT.MAX_SPEED) {
-					newVel.x = -MOVEMENT.MAX_SPEED;
-				}
-			}
-			//and trying to move right
-			else if(moveDir > 0) {
-				newVel.x += MOVEMENT.SPEED_UP_ACC * t;
-				if(newVel.x > MOVEMENT.MAX_SPEED) {
-					newVel.x = MOVEMENT.MAX_SPEED;
-				}
-			}
-		}*/
 		this.prevPos = this.pos.clone();
 		this.pos.add(this.vel.average(newVel).multiply(t));
 		this.vel = newVel;
@@ -189,7 +119,6 @@ define([
 				}
 			}
 			if(this._bufferedJumpTime > 0) {
-				// this.pos.add(bestJumpableCollision.jumpVector.clone().multiply(bestJumpableCollision.distToTravel));
 				this.vel.x += JUMP_SPEED * bestJumpableCollision.jumpVector.x;
 				if(bestJumpableCollision.jumpVector.y <= 0) {
 					this.vel.y = Math.min(JUMP_SPEED * bestJumpableCollision.jumpVector.y, this.vel.y);
@@ -209,7 +138,6 @@ define([
 		}
 		else if(this._bufferedJumpTime > 0 && this._timeSinceJumpableCollision !== null &&
 			this._timeSinceJumpableCollision < 0.11) {
-			// this.pos.add(bestJumpableCollision.jumpVector.clone().multiply(bestJumpableCollision.distToTravel));
 			this.vel.x += JUMP_SPEED * this._lastJumpableCollision.jumpVector.x;
 			if(this._lastJumpableCollision.jumpVector.y <= 0) {
 				this.vel.y = Math.min(JUMP_SPEED * this._lastJumpableCollision.jumpVector.y, this.vel.y);

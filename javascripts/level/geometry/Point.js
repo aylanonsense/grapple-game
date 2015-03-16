@@ -70,7 +70,6 @@ define([
 
 			return {
 				cause: this,
-				hasPriority: true,
 				distTraveled: distTraveled,
 				distToTravel: distToTravel,
 				contactPoint: contactPoint,
