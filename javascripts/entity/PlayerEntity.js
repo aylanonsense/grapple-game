@@ -19,6 +19,7 @@ define([
 	};
 	var JUMP_BUFFER_FRAMES = 5;
 	var JUMP_LENIANCE_FRAMES = 6;
+	var MAX_VERTICAL_SPEED = 1500;
 
 	function PlayerEntity(x, y) {
 		this.entityType = 'Player';
@@ -108,6 +109,9 @@ define([
 				newVel.x = moveDir * MOVEMENT.MAX_SPEED;
 			}
 		}
+
+		//limit velocity to an absolute max
+		newVel.y = Math.max(-MAX_VERTICAL_SPEED, Math.min(newVel.y, MAX_VERTICAL_SPEED));
 		this.prevPos = this.pos.clone();
 		this.pos.add(this.vel.average(newVel).multiply(t));
 		this.vel = newVel;

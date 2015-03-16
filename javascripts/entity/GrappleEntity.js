@@ -9,6 +9,9 @@ define([
 	var MOVE_SPEED = 2000;
 	var MIN_RADIUS = 1;
 	var MAX_RADIUS = 24;
+	var MIN_LATCH_LENGTH = 50;
+	var GRAPPLE_PULL_ACC = 1800;
+	var GRAPPLE_SHORTENING_ACC = 150;
 	function GrappleEntity(player, dirX, dirY, radiusPercent) {
 		this.entityType = 'Grapple';
 		this._grappleEntityId = nextId++;
@@ -20,6 +23,7 @@ define([
 		this.isLatched = false;
 		this._latchLength = null;
 		this._highlightFrames = 0;
+		this._isPulling = false;
 	}
 	GrappleEntity.prototype.sameAs = function(other) {
 		return other && this._grappleEntityId === other._grappleEntityId;
@@ -34,10 +38,28 @@ define([
 		}
 		return false;
 	};
+	GrappleEntity.prototype.startOfFrame = function(t) {};
 	GrappleEntity.prototype.tick = function(t) {
 		this.prevPos = this.pos.clone();
 		this.pos.add(this.vel.clone().multiply(t));
 		this._highlightFrames--;
+	};
+	GrappleEntity.prototype.endOfFrame = function(t) {
+		//if you're pulling on the grapple...
+		if(this.isLatched && this._isPulling) {
+			//the grapple shortens
+			var lineToLatchPoint = this._player.pos.createVectorTo(this.pos);
+			if(this._latchLength > MIN_LATCH_LENGTH) {
+				var lengthToPlayer = lineToLatchPoint.length();
+				if(lengthToPlayer < this._latchLength) {
+					this._latchLength = Math.max(MIN_LATCH_LENGTH,
+						this._latchLength - GRAPPLE_SHORTENING_ACC * t, lengthToPlayer);
+				}
+			}
+
+			//the player is pushed towards the grapple
+			this._player.vel.add(lineToLatchPoint.setLength(GRAPPLE_PULL_ACC * t));
+		}
 	};
 	GrappleEntity.prototype.checkForCollisionWithMovingCircle = function(circle) {
 		if(this.isLatched) {
@@ -116,10 +138,18 @@ define([
 		this.prevPos = this.pos.clone();
 		this.vel.zero();
 		this.isLatched = true;
-		this._latchLength = this._player.pos.createVectorTo(this.pos).length();
+		this._latchLength = Math.max(this._player.pos.createVectorTo(this.pos).length(),
+			MIN_LATCH_LENGTH);
 	};
 	GrappleEntity.prototype.highlight = function() {
 		this._highlightFrames = 3;
+	};
+	GrappleEntity.prototype.startPulling = function() {
+		this._isPulling = true;
+		this._player.vel.multiply(0.5);
+	};
+	GrappleEntity.prototype.stopPulling = function() {
+		this._isPulling = false;
 	};
 	GrappleEntity.prototype.render = function(ctx, camera) {
 		var color = (this._highlightFrames > 0 ? '#f00' : '#009');

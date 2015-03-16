@@ -8,7 +8,7 @@ define([
 	Level
 ) {
 	var BOUNCE_AMOUNT = 0.0001;
-	var camera, level, player, grapples;
+	var camera, level, player, grapples, shouldPullGrapples;
 
 	function checkforCollisions(circle) {
 		var prevCauses = [];
@@ -40,7 +40,7 @@ define([
 			}
 		}
 		if(collisionsThisFrame > 1) {
-			console.log(collisionsThisFrame + " collisions this frame");
+			// console.log(collisionsThisFrame + " collisions this frame");
 		}
 	}
 
@@ -48,6 +48,9 @@ define([
 		reset: function() {
 			//render vars
 			camera = { x: 0, y: 0 };
+
+			//input vars
+			shouldPullGrapples = false;
 
 			//game vars
 			level = new Level();
@@ -74,10 +77,13 @@ define([
 		tick: function(t) {
 			//start of frame
 			player.startOfFrame(t);
+			for(var i = 0; i < grapples.length; i++) {
+				grapples[i].startOfFrame(t);
+			}
 
 			//update entities
 			player.tick(t);
-			for(var i = 0; i < grapples.length; i++) {
+			for(i = 0; i < grapples.length; i++) {
 				grapples[i].tick(t);
 			}
 
@@ -94,6 +100,9 @@ define([
 
 			//end of frame
 			player.endOfFrame(t);
+			for(i = 0; i < grapples.length; i++) {
+				grapples[i].endOfFrame(t);
+			}
 		},
 		render: function(ctx) {
 			//move camera
@@ -115,7 +124,14 @@ define([
 		},
 		onMouseEvent: function(evt) {
 			if(evt.type === 'mousedown') {
-				grapples.push(player.shootGrapple(evt.x + camera.x, evt.y + camera.y));
+				var grapple = player.shootGrapple(evt.x + camera.x, evt.y + camera.y)
+				grapples = [ grapple ];
+				if(shouldPullGrapples) {
+					grapple.startPulling();
+				}
+			}
+			else if(evt.type === 'mouseup') {
+				grapples = [];
 			}
 		},
 		onKeyboardEvent: function(evt, keyboard) {
@@ -131,8 +147,17 @@ define([
 			else if(evt.key === 'JUMP' && !evt.isDown) {
 				player.endJump();
 			}
-			else if(evt.key === 'CUT_GRAPPLES' && evt.isDown) {
-				grapples = [];
+			else if(evt.key === 'PULL_GRAPPLES' && evt.isDown) {
+				shouldPullGrapples = true;
+				for(var i = 0; i < grapples.length; i++) {
+					grapples[i].startPulling();
+				}
+			}
+			else if(evt.key === 'PULL_GRAPPLES' && !evt.isDown) {
+				shouldPullGrapples = false;
+				for(var i = 0; i < grapples.length; i++) {
+					grapples[i].stopPulling();
+				}
 			}
 		}
 	};
