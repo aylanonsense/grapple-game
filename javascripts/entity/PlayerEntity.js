@@ -17,6 +17,8 @@ define([
 		SLIDING: { TURN_AROUND_ACC: 175, SLOW_DOWN_ACC: 0, SPEED_UP_ACC: 175,
 			SOFT_MAX_SPEED: 400, MAX_SPEED: 1000 }
 	};
+	var JUMP_BUFFER_FRAMES = 5;
+	var JUMP_LENIANCE_FRAMES = 6;
 
 	function PlayerEntity(x, y) {
 		this.pos = new Vector(x, y);
@@ -30,6 +32,7 @@ define([
 		this._isJumping = false;
 		this._isAirborneLastFrame = true;
 		this._bufferedJumpTime = 0;
+		this._endJumpImmediately = false;
 		this._collisionsThisFrame = [];
 		this._lastJumpableCollision = null;
 		this._timeSinceJumpableCollision = null;
@@ -110,50 +113,47 @@ define([
 		this._isAirborneLastFrame = true;
 	};
 	PlayerEntity.prototype.endOfFrame = function(t) {
-		if(this._collisionsThisFrame.length > 0) {
-			//jump off of the "best" jump option (the one that sends you them most upward)
-			var bestJumpableCollision = this._collisionsThisFrame[0];
-			for(var i = 1; i < this._collisionsThisFrame.length; i++) {
-				if(Math.abs(this._collisionsThisFrame[i].jumpVector.y) > Math.abs(bestJumpableCollision.jumpVector.y)) {
-					bestJumpableCollision = this._collisionsThisFrame[i];
-				}
-			}
-			if(this._bufferedJumpTime > 0) {
-				this.vel.x += JUMP_SPEED * bestJumpableCollision.jumpVector.x;
-				if(bestJumpableCollision.jumpVector.y <= 0) {
-					this.vel.y = Math.min(JUMP_SPEED * bestJumpableCollision.jumpVector.y, this.vel.y);
-				}
-				else {
-					this.vel.y = Math.max(JUMP_SPEED * bestJumpableCollision.jumpVector.y, this.vel.y);
-				}
-				this._isJumping = true;
-				this._bufferedJumpTime = 0;
-				this._timeSinceJumpableCollision = null;
-				this._lastJumpableCollision = null;
-			}
-			else {
-				this._lastJumpableCollision = bestJumpableCollision;
-				this._timeSinceJumpableCollision = 0.0;
+		//find the "best" jump surface this frame (the one that sends you them most upward)
+		var bestJumpableCollision = null;
+		for(var i = 0; i < this._collisionsThisFrame.length; i++) {
+			var collision = this._collisionsThisFrame[i];
+			if(collision.jumpVector && (bestJumpableCollision === null ||
+				Math.abs(collision.jumpVector.y) > Math.abs(bestJumpableCollision.jumpVector.y))) {
+				bestJumpableCollision = collision;
 			}
 		}
-		else if(this._bufferedJumpTime > 0 && this._timeSinceJumpableCollision !== null &&
-			this._timeSinceJumpableCollision < 0.11) {
-			this.vel.x += JUMP_SPEED * this._lastJumpableCollision.jumpVector.x;
+
+		//if we have a good jump candidate, we store it until we want to jump off of it
+		if(bestJumpableCollision) {
+			this._lastJumpableCollision = bestJumpableCollision;
+			this._timeSinceJumpableCollision = 0.0;
+		}
+
+		//we may even want to jump off of something right now!
+		if(this._bufferedJumpTime > 0.0 && this._lastJumpableCollision !== null &&
+			this._timeSinceJumpableCollision < (JUMP_LENIANCE_FRAMES + 0.5) / 60) {
+			var speed = (this._endJumpImmediately ? JUMP_BRAKE_SPEED : JUMP_SPEED);
+			this.vel.x += speed * this._lastJumpableCollision.jumpVector.x;
 			if(this._lastJumpableCollision.jumpVector.y <= 0) {
-				this.vel.y = Math.min(JUMP_SPEED * this._lastJumpableCollision.jumpVector.y, this.vel.y);
+				this.vel.y = Math.min(speed * this._lastJumpableCollision.jumpVector.y, this.vel.y);
 			}
 			else {
-				this.vel.y = Math.max(JUMP_SPEED * this._lastJumpableCollision.jumpVector.y, this.vel.y);
+				this.vel.y = Math.max(speed * this._lastJumpableCollision.jumpVector.y, this.vel.y);
 			}
 			this._isJumping = true;
-			this._bufferedJumpTime = 0;
-			this._timeSinceJumpableCollision = null;
+			this._bufferedJumpTime = 0.0;
+			this._endJumpImmediately = false;
 			this._lastJumpableCollision = null;
+			this._timeSinceJumpableCollision = null;
 		}
-		this._bufferedJumpTime = Math.max(0, this._bufferedJumpTime - t);
+
+		//increment timers
 		if(this._timeSinceJumpableCollision !== null) {
 			this._timeSinceJumpableCollision += t;
 		}
+		this._bufferedJumpTime = Math.max(0, this._bufferedJumpTime - t);
+
+		//adjust state
 		if(this.vel.y >= -JUMP_BRAKE_SPEED) {
 			this._isJumping = false;
 		}
@@ -162,12 +162,16 @@ define([
 		return new GrappleEntity(this, x - this.pos.x, y - this.pos.y);
 	};
 	PlayerEntity.prototype.jump = function() {
-		this._bufferedJumpTime = 0.09;
+		this._bufferedJumpTime = (JUMP_BUFFER_FRAMES + 0.5) / 60;
+		this._endJumpImmediately = false;
 	};
 	PlayerEntity.prototype.endJump = function() {
 		if(this._isJumping) {
 			this._isJumping = false;
 			this.vel.y = Math.max(-JUMP_BRAKE_SPEED, this.vel.y);
+		}
+		else {
+			this._endJumpImmediately = true;
 		}
 	};
 	PlayerEntity.prototype.handleCollision = function(collision) {

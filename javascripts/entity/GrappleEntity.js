@@ -96,7 +96,7 @@ define([
 							vectorTowards: lineFromLatchPointToPrev.clone().normalize(),
 							stabilityAngle: null,
 							finalPoint: finalPoint,
-							jumpVector: new Vector(0, -1),
+							jumpVector: null,
 							finalVel: finalVel
 						};
 					}

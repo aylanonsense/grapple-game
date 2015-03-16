@@ -82,7 +82,7 @@ define([
 				if(finalVel.y > 0) {
 					finalVel.multiply(1.0, -bounceAmt);
 				}
-				finalVel.rotate(this._cosAngle, this._sinAngle)
+				finalVel.rotate(this._cosAngle, this._sinAngle);
 
 				//create jump vector
 				var jumpVector = MathUtils.createJumpVector(this._perpendicularAngle);
