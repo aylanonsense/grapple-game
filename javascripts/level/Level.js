@@ -14,25 +14,28 @@ define([
 	Level.prototype.checkForCollisionWithMovingPoint = function(point, bounceAmt) {
 		return this._checkForCollision('checkForCollisionWithMovingPoint', point, bounceAmt);
 	};
-	Level.prototype._checkForCollision = function(methodName, obj, bounceAmt) {
+	Level.prototype._checkForCollision = function(methodName, entity, bounceAmt) {
 		var earliestCollision = null;
 		for(var i = 0; i < this._geometry.length; i++) {
-			var collision = this._geometry[i][methodName](obj, bounceAmt);
-			if(collision && (earliestCollision === null ||
-				collision.distTraveled < earliestCollision.distTraveled)) {
-				earliestCollision = collision;
+			if((entity.entityType === 'Player' && this._geometry[i].collidesWithPlayer) ||
+				(entity.entityType === 'Grapple' && this._geometry[i].collidesWithGrapple)) {
+				var collision = this._geometry[i][methodName](entity, bounceAmt);
+				if(collision && (earliestCollision === null ||
+					collision.distTraveled < earliestCollision.distTraveled)) {
+					earliestCollision = collision;
+				}
 			}
 		}
 		return earliestCollision;
 	};
-	Level.prototype.addLine = function(x1, y1, x2, y2) {
-		var point1 = this.addPoint(x1, y1);
-		var point2 = this.addPoint(x2, y2);
-		var line = new Line(point1.pos.x, point1.pos.y, point2.pos.x, point2.pos.y);
+	Level.prototype.addLine = function(x1, y1, x2, y2, opts) {
+		var point1 = this.addPoint(x1, y1, opts);
+		var point2 = this.addPoint(x2, y2, opts);
+		var line = new Line(point1.pos.x, point1.pos.y, point2.pos.x, point2.pos.y, opts);
 		this._geometry.push(line);
 		return line;
 	};
-	Level.prototype.addPoint = function(x, y) {
+	Level.prototype.addPoint = function(x, y, opts) {
 		//find the point closest to where we're trying to add one
 		var closestPoint = null;
 		var distToClosestPoint = null;
@@ -53,7 +56,7 @@ define([
 
 		//otherwise create a new point
 		else {
-			var point = new Point(x, y);
+			var point = new Point(x, y, opts);
 			this._geometry.push(point);
 			return point;
 		}

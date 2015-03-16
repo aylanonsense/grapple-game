@@ -1,8 +1,12 @@
 define(function() {
 	var nextId = 0;
-	function LevelGeom(type) {
+	function LevelGeom(type, opts) {
+		opts = opts || {};
 		this._levelGeomId = nextId++;
 		this.geomType = type;
+		this.collidesWithPlayer = opts.collidesWithPlayer !== false; //default: true
+		this.collidesWithGrapple = opts.collidesWithGrapple !== false; //default: true
+		this.jumpable = opts.jumpable !== false; //default: true
 	}
 	LevelGeom.prototype.sameAs = function(other) {
 		return other && this._levelGeomId === other._levelGeomId;

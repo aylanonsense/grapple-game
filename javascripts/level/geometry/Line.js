@@ -8,8 +8,8 @@ define([
 	MathUtils
 ) {
 	var ERROR_ALLOWED = 0.3;
-	function Line(x1, y1, x2, y2) {
-		SUPERCLASS.call(this, 'line');
+	function Line(x1, y1, x2, y2, opts) {
+		SUPERCLASS.call(this, 'line', opts);
 		this.start = new Vector(x1, y1);
 		this.end = new Vector(x2, y2);
 		this._highlightFrames = 0;
@@ -84,9 +84,6 @@ define([
 				}
 				finalVel.rotate(this._cosAngle, this._sinAngle);
 
-				//create jump vector
-				var jumpVector = MathUtils.createJumpVector(this._perpendicularAngle);
-
 				return {
 					cause: this,
 					distTraveled: distTraveled,
@@ -94,7 +91,7 @@ define([
 					contactPoint: contactPoint.rotate(this._cosAngle, this._sinAngle),
 					finalPoint: finalPoint,
 					stabilityAngle: this._perpendicularAngle,
-					jumpVector: jumpVector,
+					jumpVector: (this.jumpable ? MathUtils.createJumpVector(this._perpendicularAngle) : null),
 					vectorTowards: new Vector(-Math.cos(this._perpendicularAngle), -Math.sin(this._perpendicularAngle)),
 					finalVel: finalVel
 				};
@@ -114,8 +111,31 @@ define([
 			this._highlightFrames--;
 		}
 		else {
-			ctx.strokeStyle = '#000';
-		ctx.lineWidth = 1;
+			ctx.lineWidth = 1;
+			//non-collidable, so why does it exist?
+			if(!this.collidesWithPlayer && !this.collidesWithGrapple) {
+				ctx.strokeStyle = '#bbb'; //grey
+			}
+			//only grapples can collide with it
+			else if(!this.collidesWithPlayer) {
+				ctx.strokeStyle = '#fb0'; //orange
+			}
+			//only player can collide with it, but not jump off of it
+			else if(!this.collidesWithGrapple && !this.jumpable) {
+				ctx.strokeStyle = '#f0f'; //magenta
+			}
+			//only player can collide with it, and it IS jumpable
+			else if(!this.collidesWithGrapple) {
+				ctx.strokeStyle = '#05f'; //blue
+			}
+			//fully collideable, but NOT jumpable
+			else if(!this.jumpable) {
+				ctx.strokeStyle = '#090'; //green
+			}
+			//fully collidable
+			else {
+				ctx.strokeStyle = '#000'; //black
+			}
 		}
 		ctx.beginPath();
 		ctx.moveTo(this.start.x - camera.x, this.start.y - camera.y);

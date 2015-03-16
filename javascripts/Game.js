@@ -65,6 +65,11 @@ define([
 					level.addLine(pts[i][j + 0], pts[i][j + 1], pts[i][j + 2], pts[i][j + 3]);
 				}
 			}
+			level.addLine(500, 200, 400, 200, { collidesWithPlayer: false });
+			level.addLine(300, 200, 400, 200, { collidesWithGrapple: false });
+			level.addLine(325, 150, 425, 150, { collidesWithGrapple: false, jumpable: false });
+			level.addLine(425, 150, 525, 150, { jumpable: false });
+			level.addLine(525, 150, 625, 150, { collidesWithGrapple: false, collidesWithPlayer: false });
 		},
 		tick: function(t) {
 			//start of frame

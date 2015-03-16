@@ -21,6 +21,7 @@ define([
 	var JUMP_LENIANCE_FRAMES = 6;
 
 	function PlayerEntity(x, y) {
+		this.entityType = 'Player';
 		this.pos = new Vector(x, y);
 		this.prevPos = this.pos.clone();
 		this._lastFramePos = this.pos.clone();

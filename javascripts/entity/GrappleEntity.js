@@ -10,6 +10,7 @@ define([
 	var MIN_RADIUS = 1;
 	var MAX_RADIUS = 24;
 	function GrappleEntity(player, dirX, dirY, radiusPercent) {
+		this.entityType = 'Grapple';
 		this._grappleEntityId = nextId++;
 		this._player = player;
 		this.pos = player.pos.clone();

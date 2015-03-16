@@ -7,8 +7,8 @@ define([
 	Vector,
 	MathUtils
 ) {
-	function Point(x, y) {
-		SUPERCLASS.call(this, 'point');
+	function Point(x, y, opts) {
+		SUPERCLASS.call(this, 'point', opts);
 		this.pos = new Vector(x, y);
 		this._highlightFrames = 0;
 	}
@@ -58,9 +58,6 @@ define([
 			}
 			finalVel.rotate(cosAngle, sinAngle);
 
-			//create jump vector
-			var jumpVector = MathUtils.createJumpVector(angle);
-
 			return {
 				cause: this,
 				distTraveled: distTraveled,
@@ -69,7 +66,7 @@ define([
 				vectorTowards: new Vector(-Math.cos(angle), -Math.sin(angle)),
 				stabilityAngle: null,
 				finalPoint: finalPoint,
-				jumpVector: jumpVector,
+				jumpVector: (this.jumpable ? MathUtils.createJumpVector(angle) : null),
 				finalVel: finalVel
 			};
 		}
@@ -88,8 +85,31 @@ define([
 			radius = 3;
 		}
 		else {
-			ctx.fillStyle = '#000';
-			radius = 1.5;
+			radius = 2;
+			//non-collidable, so why does it exist?
+			if(!this.collidesWithPlayer && !this.collidesWithGrapple) {
+				ctx.fillStyle = '#bbb'; //grey
+			}
+			//only grapples can collide with it
+			else if(!this.collidesWithPlayer) {
+				ctx.fillStyle = '#fb0'; //orange
+			}
+			//only player can collide with it, but not jump off of it
+			else if(!this.collidesWithGrapple && !this.jumpable) {
+				ctx.fillStyle = '#f0f'; //magenta
+			}
+			//only player can collide with it, and it IS jumpable
+			else if(!this.collidesWithGrapple) {
+				ctx.fillStyle = '#05f'; //blue
+			}
+			//fully collideable, but NOT jumpable
+			else if(!this.jumpable) {
+				ctx.fillStyle = '#090'; //green
+			}
+			//fully collidable
+			else {
+				ctx.fillStyle = '#000'; //black
+			}
 		}
 		ctx.beginPath();
 		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, radius, 0, 2 * Math.PI, false);
