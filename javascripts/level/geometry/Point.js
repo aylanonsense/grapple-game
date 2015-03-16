@@ -1,7 +1,7 @@
 define([
 	'level/geometry/LevelGeom',
 	'math/Vector',
-	'phys/Utils'
+	'math/Utils'
 ], function(
 	SUPERCLASS,
 	Vector,

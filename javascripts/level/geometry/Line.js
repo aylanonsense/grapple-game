@@ -1,11 +1,11 @@
 define([
 	'level/geometry/LevelGeom',
 	'math/Vector',
-	'phys/Utils'
+	'math/Utils'
 ], function(
 	SUPERCLASS,
 	Vector,
-	PhysUtils
+	MathUtils
 ) {
 	var ERROR_ALLOWED = 1;
 	function Line(x1, y1, x2, y2) {
@@ -94,7 +94,7 @@ define([
 				}
 
 				//create jump vector
-				var jumpVector = PhysUtils.createJumpVector(this._perpendicularAngle);
+				var jumpVector = MathUtils.createJumpVector(this._perpendicularAngle);
 
 				return {
 					cause: this,

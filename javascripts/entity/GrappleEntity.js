@@ -1,9 +1,9 @@
 define([
 	'math/Vector',
-	'phys/Utils'
+	'math/Utils'
 ], function(
 	Vector,
-	PhysUtils
+	MathUtils
 ) {
 	var nextId = 0;
 	var MOVE_SPEED = 2000;
@@ -68,7 +68,7 @@ define([
 
 					//if the circle exited the grapple area, we just need to find wher it exited
 					else {
-						contactPoint = PhysUtils.findCircleLineIntersection(this.pos,
+						contactPoint = MathUtils.findCircleLineIntersection(this.pos,
 							this._latchLength, circle.prevPos, circle.pos);
 						if(contactPoint) {
 							totalDist = lineOfMovement.length();
