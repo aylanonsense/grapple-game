@@ -80,7 +80,7 @@ define([
 			checkforCollisions(player);
 			for(i = 0; i < grapples.length; i++) {
 				if(!grapples[i].isLatched) {
-					var collision = level.checkForCollisionWithMovingPoint(grapples[i]);
+					var collision = level.checkForCollisionWithMovingCircle(grapples[i]);
 					if(collision) {
 						grapples[i].handleCollision(collision);
 					}

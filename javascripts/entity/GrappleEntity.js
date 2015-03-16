@@ -7,11 +7,14 @@ define([
 ) {
 	var nextId = 0;
 	var MOVE_SPEED = 2000;
-	function GrappleEntity(player, dirX, dirY) {
+	var MIN_RADIUS = 1;
+	var MAX_RADIUS = 24;
+	function GrappleEntity(player, dirX, dirY, radiusPercent) {
 		this._grappleEntityId = nextId++;
 		this._player = player;
 		this.pos = player.pos.clone();
 		this.prevPos = this.pos.clone();
+		this.radius = MIN_RADIUS + radiusPercent * (MAX_RADIUS - MIN_RADIUS);
 		this.vel = (new Vector(dirX, dirY)).normalize().multiply(MOVE_SPEED);
 		this.isLatched = false;
 		this._latchLength = null;
@@ -106,11 +109,13 @@ define([
 		return false;
 	};
 	GrappleEntity.prototype.handleCollision = function(collision) {
-		this.pos = collision.contactPoint;
-		this.prevPos = collision.contactPoint;
+		var latchPoint = collision.contactPoint.clone().add(
+			collision.vectorTowards.clone().setLength(this.radius));
+		this.pos = latchPoint;
+		this.prevPos = this.pos.clone();
 		this.vel.zero();
 		this.isLatched = true;
-		this._latchLength = this.pos.clone().subtract(this._player.pos).length();
+		this._latchLength = this._player.pos.createVectorTo(this.pos).length();
 	};
 	GrappleEntity.prototype.highlight = function() {
 		this._highlightFrames = 3;
@@ -119,7 +124,8 @@ define([
 		var color = (this._highlightFrames > 0 ? '#f00' : '#009');
 		ctx.fillStyle = color;
 		ctx.beginPath();
-		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, 2, 0, 2 * Math.PI, false);
+		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y,
+			(this.isLatched ? 2 : this.radius), 0, 2 * Math.PI, false);
 		ctx.fill();
 		ctx.strokeStyle = color;
 		ctx.lineWidth = 1;
@@ -131,7 +137,8 @@ define([
 			ctx.strokeStyle = '#ccc';
 			ctx.lineWidth = 1;
 			ctx.beginPath();
-			ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this._latchLength, 0, 2 * Math.PI, false);
+			ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y,
+				this._latchLength, 0, 2 * Math.PI, false);
 			ctx.stroke();
 		}
 	};

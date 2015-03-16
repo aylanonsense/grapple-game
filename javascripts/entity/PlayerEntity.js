@@ -159,7 +159,9 @@ define([
 		}
 	};
 	PlayerEntity.prototype.shootGrapple = function(x, y) {
-		return new GrappleEntity(this, x - this.pos.x, y - this.pos.y);
+		var squareSpeed = this.vel.squareLength();
+		var radiusPerent = Math.max(0.0, Math.min(squareSpeed / (350 * 350), 1.0));
+		return new GrappleEntity(this, x - this.pos.x, y - this.pos.y, radiusPerent);
 	};
 	PlayerEntity.prototype.jump = function() {
 		this._bufferedJumpTime = (JUMP_BUFFER_FRAMES + 0.5) / 60;
