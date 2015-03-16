@@ -5,7 +5,7 @@ define([
 ], function(
 	SUPERCLASS,
 	Vector,
-	PhysUtils
+	MathUtils
 ) {
 	function Point(x, y) {
 		SUPERCLASS.call(this, 'point');
@@ -39,7 +39,7 @@ define([
 			return false;
 		}
 
-		var contactPoint = PhysUtils.findCircleLineIntersection(this.pos, radius, prevPos, pos);
+		var contactPoint = MathUtils.findCircleLineIntersection(this.pos, radius, prevPos, pos);
 		if(contactPoint) {
 			var lineToContactPoint = contactPoint.clone().subtract(prevPos);
 			var distTraveled = lineToContactPoint.length();
@@ -66,7 +66,7 @@ define([
 			}
 
 			//create jump vector
-			var jumpVector = PhysUtils.createJumpVector(angle);
+			var jumpVector = MathUtils.createJumpVector(angle);
 
 			return {
 				cause: this,
