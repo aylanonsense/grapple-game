@@ -9,7 +9,7 @@ define([
 ) {
 	var ERROR_ALLOWED = 0.3;
 	function Line(x1, y1, x2, y2, opts) {
-		SUPERCLASS.call(this, 'line', opts);
+		SUPERCLASS.call(this, 'Line', opts);
 		this.start = new Vector(x1, y1);
 		this.end = new Vector(x2, y2);
 		this._highlightFrames = 0;
@@ -27,6 +27,9 @@ define([
 		this._sinPipAngle = -Math.sin(pipAngle);
 	}
 	Line.prototype = Object.create(SUPERCLASS.prototype);
+	Line.prototype.onCollision = function(collision) {
+		this._highlightFrames = 3;
+	};
 	Line.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
 		return this._checkForCollisionWithMovingCircle(circle.pos,
 			circle.prevPos, circle.vel, circle.radius, bounceAmt);
@@ -55,7 +58,7 @@ define([
 
 		//of course this would only happen if the circle was moving downwards onto the line
 		if(prevPos.y <= collisionY && collisionY < pos.y) {
-			var lineOfMovement = pos.clone().subtract(prevPos);
+			var lineOfMovement = prevPos.createVectorTo(pos);
 			var totalDist = lineOfMovement.length();
 			var percentOfMovement;
 			if(lineOfMovement.y === 0) { percentOfMovement = 1.0; }
@@ -72,8 +75,11 @@ define([
 
 				//calculate the final position
 				var distToTravel = totalDist - distTraveled;
-				var lineOfMovementPostCollision = pos.clone().subtract(prevPos)
-					.normalize().multiply(distToTravel, distToTravel * -bounceAmt);
+				var lineOfMovementPostCollision = prevPos.createVectorTo(pos)
+					.normalize().multiply(distToTravel, distToTravel);
+				if(lineOfMovementPostCollision.y > 0) {
+					lineOfMovementPostCollision.y *= -bounceAmt;
+				}
 				var finalPoint = contactPoint.clone().add(lineOfMovementPostCollision)
 					.rotate(this._cosAngle, this._sinAngle);
 
@@ -84,12 +90,18 @@ define([
 				}
 				finalVel.rotate(this._cosAngle, this._sinAngle);
 
+				//counter-gravity vector
+				var counterGravityVector = this._lineBetween.clone()
+					.setLength(-this._sinAngle);
+
 				return {
 					cause: this,
+					collidableRadius: radius,
 					distTraveled: distTraveled,
 					distToTravel: distToTravel,
 					contactPoint: contactPoint.rotate(this._cosAngle, this._sinAngle),
 					finalPoint: finalPoint,
+					counterGravityVector: counterGravityVector,
 					stabilityAngle: this._perpendicularAngle,
 					jumpVector: (this.jumpable ? MathUtils.createJumpVector(this._perpendicularAngle) : null),
 					vectorTowards: new Vector(-Math.cos(this._perpendicularAngle), -Math.sin(this._perpendicularAngle)),
@@ -100,9 +112,6 @@ define([
 
 		//there was no collision
 		return false;
-	};
-	Line.prototype.highlight = function() {
-		this._highlightFrames = 3;
 	};
 	Line.prototype.render = function(ctx, camera) {
 		if(this._highlightFrames > 0) {

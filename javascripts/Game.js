@@ -7,14 +7,14 @@ define([
 	PlayerEntity,
 	Level
 ) {
-	var BOUNCE_AMOUNT = 0.0001;
 	var camera, level, player, grapples, shouldPullGrapples;
 
 	function checkforCollisions(circle) {
 		var prevCauses = [];
 		var collisionsThisFrame = 0;
+		var collisionString = "";
 		for(var i = 0; i < 6; i++) {
-			var collision = level.checkForCollisionWithMovingCircle(circle, BOUNCE_AMOUNT);
+			var collision = level.checkForCollisionWithMovingCircle(circle, Constants.BOUNCE_AMOUNT);
 			for(var j = 0; j < grapples.length; j++) {
 				var grappleCollision = grapples[j].checkForCollisionWithMovingCircle(circle);
 				if(grappleCollision && (!collision || grappleCollision.distTraveled < collision.distTraveled)) {
@@ -22,6 +22,7 @@ define([
 				}
 			}
 			if(collision) {
+				collisionString += (collision.cause.entityType ? collision.cause.entityType : collision.cause.geomType) + " ";
 				collisionsThisFrame++;
 				circle.handleCollision(collision);
 				if(collision.cause.sameAsAny(prevCauses)) {
@@ -40,7 +41,7 @@ define([
 			}
 		}
 		if(collisionsThisFrame > 1) {
-			// console.log(collisionsThisFrame + " collisions this frame");
+			console.log(collisionsThisFrame + " collisions this frame: " + collisionString);
 		}
 	}
 
@@ -58,15 +59,23 @@ define([
 			grapples = [];
 
 			//create level geometry
-			var pts = [[20,450, 200,450, 200,420, 215,420, 215,450, 300,450, 300,390, 375,390,
+			var points = [20,430,  0,430,  -20,430];
+			var lines = [[20,450, 200,450, 200,420, 215,420, 215,450, 300,450, 300,390, 375,390,
 				450,360, 500,360, 600,500, 700,500, 700,150, 780,150, 780,580, 20,580, 20,450],
 				[125,200, 250,200, 250,220, 125,220, 125,200],
 				[450,50, 500,50, 500,100, 450,100, 450,50],
-				[750,-10, 1000,-30]];
-			for(i = 0; i < pts.length; i++) {
-				for(var j = 0; j < pts[i].length - 2; j += 2) {
-					level.addLine(pts[i][j + 0], pts[i][j + 1], pts[i][j + 2], pts[i][j + 3]);
+				[750,-10, 1000,-30],
+				[-140,500, -130,500, -110,600, -90,500, -80,500, -110,630, -140,500],
+				[-350,400, -350,130,
+				-320,130, -315,177, -302,222, -280,263, -250,300, -213,330, -172,352, -127,365, -80,370,
+				-80,400, -350,400]];
+			for(i = 0; i < lines.length; i++) {
+				for(var j = 0; j < lines[i].length - 2; j += 2) {
+					level.addLine(lines[i][j + 0], lines[i][j + 1], lines[i][j + 2], lines[i][j + 3]);
 				}
+			}
+			for(i = 0; i < points.length; i += 2) {
+				level.addPoint(points[i], points[i + 1]);
 			}
 			level.addLine(500, 200, 400, 200, { collidesWithPlayer: false });
 			level.addLine(300, 200, 400, 200, { collidesWithGrapple: false });
@@ -91,7 +100,10 @@ define([
 			checkforCollisions(player);
 			for(i = 0; i < grapples.length; i++) {
 				if(!grapples[i].isLatched) {
-					var collision = level.checkForCollisionWithMovingCircle(grapples[i]);
+					var collision = level.checkForCollisionWithMovingPoint(grapples[i]);
+					if(!collision) {
+						collision = level.checkForCollisionWithMovingCircle(grapples[i]);
+					}
 					if(collision) {
 						grapples[i].handleCollision(collision);
 					}

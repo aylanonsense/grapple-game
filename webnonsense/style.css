@@ -13,3 +13,39 @@ canvas {
 	text-align: center;
 	margin: 0 auto;
 }
+#debug-controls {
+	position: absolute;
+	top: 0;
+	left: 15px;
+	width: 200px;
+	font-size: 80%;
+}
+#debug-controls label {
+	display: block;
+	width: 100%;
+	clear: right;
+	position: relative;
+}
+#debug-controls input {
+	width: 45px;
+	float: right;
+	position: relative;
+	top: -3px;
+	font-size: 70%;
+}
+#debug-controls p {
+	font-weight: bold;
+	margin: 14px 0 3px 0;
+}
+#debug-controls .default-hint {
+	color: #ccc;
+	font-size: 50%;
+	position: absolute;
+	top: 2px;
+	right: -85px;
+	width: 80px;
+}
+#debug-controls #update-constants {
+	margin-top: 10px;
+	width: 70px;
+}

@@ -7,12 +7,16 @@ define([
 	Vector,
 	MathUtils
 ) {
+	var ERROR_ALLOWED = 0.3;
 	function Point(x, y, opts) {
-		SUPERCLASS.call(this, 'point', opts);
+		SUPERCLASS.call(this, 'Point', opts);
 		this.pos = new Vector(x, y);
 		this._highlightFrames = 0;
 	}
 	Point.prototype = Object.create(SUPERCLASS.prototype);
+	Point.prototype.onCollision = function(collision) {
+		this._highlightFrames = 3;
+	};
 	Point.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
 		return this._checkForCollisionWithMovingCircle(circle.pos,
 			circle.prevPos, circle.vel, circle.radius, bounceAmt);
@@ -22,10 +26,15 @@ define([
 		return false;
 	};
 	Point.prototype._checkForCollisionWithMovingCircle = function(pos, prevPos, vel, radius, bounceAmt) {
-		//if the circle started out inside of the point, they can't be colliding
+		//if the circle started out inside of the point, we need to push it out
 		if(prevPos.squareDistance(this.pos) < radius * radius) {
-			return false;
+			var lineToPrevPos = this.pos.createVectorTo(prevPos);
+			lineToPrevPos.setLength(radius + 0.01);
+			prevPos = this.pos.clone().add(lineToPrevPos);
 		}
+		// if(prevPos.squareDistance(this.pos) < radius * radius) {
+			// return false;
+		// }
 
 		//we have a utility method that finds us the interseciton between a circle and line
 		var contactPoint = MathUtils.findCircleLineIntersection(this.pos, radius, prevPos, pos);
@@ -60,6 +69,7 @@ define([
 
 			return {
 				cause: this,
+				collidableRadius: radius,
 				distTraveled: distTraveled,
 				distToTravel: distToTravel,
 				contactPoint: contactPoint,
@@ -73,9 +83,6 @@ define([
 
 		//otherwise there is no collision
 		return false;
-	};
-	Point.prototype.highlight = function() {
-		this._highlightFrames = 3;
 	};
 	Point.prototype.render = function(ctx, camera) {
 		var radius;

@@ -1,29 +1,28 @@
 define([
+	'Constants',
 	'math/Vector',
 	'math/Utils'
 ], function(
+	Constants,
 	Vector,
 	MathUtils
 ) {
 	var nextId = 0;
-	var MOVE_SPEED = 2000;
-	var MIN_RADIUS = 1;
-	var MAX_RADIUS = 24;
-	var MIN_LATCH_LENGTH = 50;
-	var GRAPPLE_PULL_ACC = 1800;
-	var GRAPPLE_SHORTENING_ACC = 150;
 	function GrappleEntity(player, dirX, dirY, radiusPercent) {
 		this.entityType = 'Grapple';
 		this._grappleEntityId = nextId++;
 		this._player = player;
 		this.pos = player.pos.clone();
 		this.prevPos = this.pos.clone();
-		this.radius = MIN_RADIUS + radiusPercent * (MAX_RADIUS - MIN_RADIUS);
-		this.vel = (new Vector(dirX, dirY)).normalize().multiply(MOVE_SPEED);
+		this._origPos = this.pos.clone();
+		this.radius = Constants.GRAPPLE_PHYSICS.MIN_RADIUS + radiusPercent * (Constants.GRAPPLE_PHYSICS.MAX_RADIUS - Constants.GRAPPLE_PHYSICS.MIN_RADIUS);
+		this.vel = (new Vector(dirX, dirY)).normalize().multiply(Constants.GRAPPLE_PHYSICS.MOVE_SPEED);
 		this.isLatched = false;
+		this.isDead = false;
 		this._latchLength = null;
 		this._highlightFrames = 0;
 		this._isPulling = false;
+		this._hasCollidedThisFrame = false;
 	}
 	GrappleEntity.prototype.sameAs = function(other) {
 		return other && this._grappleEntityId === other._grappleEntityId;
@@ -38,31 +37,49 @@ define([
 		}
 		return false;
 	};
-	GrappleEntity.prototype.startOfFrame = function(t) {};
+	GrappleEntity.prototype.onCollision = function(collision) {
+		this._hasCollidedThisFrame = true;
+		this._highlightFrames = 3;
+	};
+	GrappleEntity.prototype.startOfFrame = function(t) {
+		if(!this.isDead) {
+			this._hasCollidedThisFrame = false;
+		}
+	};
 	GrappleEntity.prototype.tick = function(t) {
-		this.prevPos = this.pos.clone();
-		this.pos.add(this.vel.clone().multiply(t));
-		this._highlightFrames--;
+		if(!this.isDead) {
+			this.prevPos = this.pos.clone();
+			this.pos.add(this.vel.clone().multiply(t));
+			this._highlightFrames--;
+		}
 	};
 	GrappleEntity.prototype.endOfFrame = function(t) {
 		//if you're pulling on the grapple...
-		if(this.isLatched && this._isPulling) {
+		if(!this.isDead && this.isLatched && this._isPulling) {
 			//the grapple shortens
 			var lineToLatchPoint = this._player.pos.createVectorTo(this.pos);
-			if(this._latchLength > MIN_LATCH_LENGTH) {
+			if(this._latchLength > Constants.GRAPPLE_PHYSICS.MIN_LENGTH) {
 				var lengthToPlayer = lineToLatchPoint.length();
 				if(lengthToPlayer < this._latchLength) {
-					this._latchLength = Math.max(MIN_LATCH_LENGTH,
-						this._latchLength - GRAPPLE_SHORTENING_ACC * t, lengthToPlayer);
+					this._latchLength = Math.max(Constants.GRAPPLE_PHYSICS.MIN_LENGTH,
+						this._latchLength - Constants.GRAPPLE_PHYSICS.SHORTENING_ACC * t, lengthToPlayer);
 				}
 			}
 
 			//the player is pushed towards the grapple
-			this._player.vel.add(lineToLatchPoint.setLength(GRAPPLE_PULL_ACC * t));
+			this._player.vel.add(lineToLatchPoint.setLength(Constants.GRAPPLE_PHYSICS.PULL_ACC * t));
+		}
+
+		//if the grapple extends too far it will disappear
+		if(!this.isDead && !this.isLatched) {
+			if(this._origPos.squareDistance(this.pos) > (Constants.GRAPPLE_PHYSICS.MAX_LENGTH - this.radius) *
+				(Constants.GRAPPLE_PHYSICS.MAX_LENGTH - this.radius)) {
+				this.isDead = true;
+			}
 		}
 	};
 	GrappleEntity.prototype.checkForCollisionWithMovingCircle = function(circle) {
-		if(this.isLatched) {
+		if(!this.isDead && this.isLatched && !this._hasCollidedThisFrame) {
 			//it's only a collision if the circle ended up outside the grapple's length
 			var lineToLatchPoint = circle.pos.createVectorTo(this.pos);
 			if(lineToLatchPoint.squareLength() > this._latchLength * this._latchLength) {
@@ -116,9 +133,10 @@ define([
 
 						return {
 							cause: this,
+							collidableRadius: 0,
 							distTraveled: distTraveled,
 							distToTravel: distToTravel,
-							contactPoint: contactPoint,
+							contactPoint: circle.prevPos,//contactPoint,
 							vectorTowards: lineFromLatchPointToPrev.clone().normalize(),
 							stabilityAngle: null,
 							finalPoint: finalPoint,
@@ -133,44 +151,42 @@ define([
 	};
 	GrappleEntity.prototype.handleCollision = function(collision) {
 		var latchPoint = collision.contactPoint.clone().add(
-			collision.vectorTowards.clone().setLength(this.radius));
+			collision.vectorTowards.clone().setLength(collision.collidableRadius));
 		this.pos = latchPoint;
 		this.prevPos = this.pos.clone();
 		this.vel.zero();
 		this.isLatched = true;
 		this._latchLength = Math.max(this._player.pos.createVectorTo(this.pos).length(),
-			MIN_LATCH_LENGTH);
-	};
-	GrappleEntity.prototype.highlight = function() {
-		this._highlightFrames = 3;
+			Constants.GRAPPLE_PHYSICS.MIN_LENGTH);
 	};
 	GrappleEntity.prototype.startPulling = function() {
 		this._isPulling = true;
-		this._player.vel.multiply(0.5);
 	};
 	GrappleEntity.prototype.stopPulling = function() {
 		this._isPulling = false;
 	};
 	GrappleEntity.prototype.render = function(ctx, camera) {
-		var color = (this._highlightFrames > 0 ? '#f00' : '#009');
-		ctx.fillStyle = color;
-		ctx.beginPath();
-		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y,
-			(this.isLatched ? 2 : this.radius), 0, 2 * Math.PI, false);
-		ctx.fill();
-		ctx.strokeStyle = color;
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		ctx.moveTo(this._player.pos.x - camera.x, this._player.pos.y - camera.y);
-		ctx.lineTo(this.pos.x - camera.x, this.pos.y - camera.y);
-		ctx.stroke();
-		if(this.isLatched) {
-			ctx.strokeStyle = '#ccc';
-			ctx.lineWidth = 1;
+		if(!this.isDead) {
+			var color = (this._highlightFrames > 0 ? '#f00' : '#009');
+			ctx.fillStyle = color;
 			ctx.beginPath();
 			ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y,
-				this._latchLength, 0, 2 * Math.PI, false);
+				(this.isLatched ? 2 : this.radius), 0, 2 * Math.PI, false);
+			ctx.fill();
+			ctx.strokeStyle = color;
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(this._player.pos.x - camera.x, this._player.pos.y - camera.y);
+			ctx.lineTo(this.pos.x - camera.x, this.pos.y - camera.y);
 			ctx.stroke();
+			if(this.isLatched) {
+				ctx.strokeStyle = '#ccc';
+				ctx.lineWidth = 1;
+				ctx.beginPath();
+				ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y,
+					this._latchLength, 0, 2 * Math.PI, false);
+				ctx.stroke();
+			}
 		}
 	};
 	return GrappleEntity;

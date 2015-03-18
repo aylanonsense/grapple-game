@@ -40,7 +40,7 @@ define([
 		var closestPoint = null;
 		var distToClosestPoint = null;
 		for(var i = 0; i < this._geometry.length; i++) {
-			if(this._geometry[i].geomType === 'point') {
+			if(this._geometry[i].geomType === 'Point') {
 				var dist = this._geometry[i].pos.distance(x, y);
 				if(distToClosestPoint === null || dist < distToClosestPoint) {
 					closestPoint = this._geometry[i];

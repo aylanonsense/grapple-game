@@ -1,25 +1,15 @@
 define([
+	'Constants',
 	'entity/GrappleEntity',
 	'math/Vector'
 ], function(
+	Constants,
 	GrappleEntity,
 	Vector
 ) {
-	var JUMP_SPEED = 350;
-	var JUMP_BRAKE_SPEED = 100;
-	var GRAVITY = 600;
-	var STICKY_FORCE = 1;
-	var PLAYER_MOVEMENT = {
-		GROUND: { TURN_AROUND_ACC: 5000, SLOW_DOWN_ACC: 1200, SPEED_UP_ACC: 1200,
-			SOFT_MAX_SPEED: 220, MAX_SPEED: 1000 },
-		AIR: { TURN_AROUND_ACC: 450, SLOW_DOWN_ACC: 150, SPEED_UP_ACC: 450,
-			SOFT_MAX_SPEED: 300, MAX_SPEED: 1000 },
-		SLIDING: { TURN_AROUND_ACC: 175, SLOW_DOWN_ACC: 0, SPEED_UP_ACC: 175,
-			SOFT_MAX_SPEED: 400, MAX_SPEED: 1000 }
-	};
 	var JUMP_BUFFER_FRAMES = 5;
 	var JUMP_LENIANCE_FRAMES = 6;
-	var MAX_VERTICAL_SPEED = 1500;
+	var MIN_DIST_PER_COLLISION = 10;
 
 	function PlayerEntity(x, y) {
 		this.entityType = 'Player';
@@ -38,18 +28,20 @@ define([
 		this._collisionsThisFrame = [];
 		this._lastJumpableCollision = null;
 		this._timeSinceJumpableCollision = null;
+		this._tThisFrame = null;
 	}
 	PlayerEntity.prototype.startOfFrame = function(t) {
+		this._tThisFrame = t;
 		this._lastFramePos = this.pos.clone();
 		this.isAirborne = this._isAirborneLastFrame;
 		this._collisionsThisFrame = [];
 	};
 	PlayerEntity.prototype.tick = function(t) {
-		var newVel = this.vel.clone().add(0, GRAVITY * t);
+		var newVel = this.vel.clone().add(0, Constants.PLAYER_PHYSICS.GRAVITY * t);
 		var MOVEMENT;
-		if(this.isAirborne) { MOVEMENT = PLAYER_MOVEMENT.AIR; }
-		else if(!this.isOnTerraFirma) { MOVEMENT = PLAYER_MOVEMENT.SLIDING; }
-		else { MOVEMENT = PLAYER_MOVEMENT.GROUND; }
+		if(this.isAirborne) { MOVEMENT = Constants.PLAYER_PHYSICS.AIR; }
+		else if(!this.isOnTerraFirma) { MOVEMENT = Constants.PLAYER_PHYSICS.SLIDING; }
+		else { MOVEMENT = Constants.PLAYER_PHYSICS.GROUND; }
 		var moveDir = this.moveDir.x;
 		//moving REALLY FAST left/right...
 		if(Math.abs(newVel.x) > MOVEMENT.SOFT_MAX_SPEED) {
@@ -111,7 +103,7 @@ define([
 		}
 
 		//limit velocity to an absolute max
-		newVel.y = Math.max(-MAX_VERTICAL_SPEED, Math.min(newVel.y, MAX_VERTICAL_SPEED));
+		newVel.y = Math.max(-Constants.PLAYER_PHYSICS.MAX_VERTICAL_SPEED, Math.min(newVel.y, Constants.PLAYER_PHYSICS.MAX_VERTICAL_SPEED));
 		this.prevPos = this.pos.clone();
 		this.pos.add(this.vel.average(newVel).multiply(t));
 		this.vel = newVel;
@@ -137,7 +129,7 @@ define([
 		//we may even want to jump off of something right now!
 		if(this._bufferedJumpTime > 0.0 && this._lastJumpableCollision !== null &&
 			this._timeSinceJumpableCollision < (JUMP_LENIANCE_FRAMES + 0.5) / 60) {
-			var speed = (this._endJumpImmediately ? JUMP_BRAKE_SPEED : JUMP_SPEED);
+			var speed = (this._endJumpImmediately ? Constants.PLAYER_PHYSICS.JUMP_BRAKE_SPEED : Constants.PLAYER_PHYSICS.JUMP_SPEED);
 			this.vel.x += speed * this._lastJumpableCollision.jumpVector.x;
 			if(this._lastJumpableCollision.jumpVector.y <= 0) {
 				this.vel.y = Math.min(speed * this._lastJumpableCollision.jumpVector.y, this.vel.y);
@@ -159,13 +151,13 @@ define([
 		this._bufferedJumpTime = Math.max(0, this._bufferedJumpTime - t);
 
 		//adjust state
-		if(this.vel.y >= -JUMP_BRAKE_SPEED) {
+		if(this.vel.y >= -Constants.PLAYER_PHYSICS.JUMP_BRAKE_SPEED) {
 			this._isJumping = false;
 		}
 	};
 	PlayerEntity.prototype.shootGrapple = function(x, y) {
 		var squareSpeed = this.vel.squareLength();
-		var radiusPerent = Math.max(0.0, Math.min(squareSpeed / (350 * 350), 1.0));
+		var radiusPerent = Math.max(0.0, Math.min(squareSpeed / (Constants.PLAYER_PHYSICS.AIR.SOFT_MAX_SPEED * 1.2 * Constants.PLAYER_PHYSICS.AIR.SOFT_MAX_SPEED * 1.2), 1.0));
 		return new GrappleEntity(this, x - this.pos.x, y - this.pos.y, radiusPerent);
 	};
 	PlayerEntity.prototype.jump = function() {
@@ -175,26 +167,36 @@ define([
 	PlayerEntity.prototype.endJump = function() {
 		if(this._isJumping) {
 			this._isJumping = false;
-			this.vel.y = Math.max(-JUMP_BRAKE_SPEED, this.vel.y);
+			this.vel.y = Math.max(-Constants.PLAYER_PHYSICS.JUMP_BRAKE_SPEED, this.vel.y);
 		}
 		else {
 			this._endJumpImmediately = true;
 		}
 	};
 	PlayerEntity.prototype.handleCollision = function(collision) {
+		var t = this._tThisFrame;
 		this.pos = collision.finalPoint;
 		this.prevPos = collision.contactPoint;
 		this.vel = collision.finalVel;
 		this.isAirborne = false;
 		this._isAirborneLastFrame = false;
 		this.isOnTerraFirma = (collision.stabilityAngle !== null &&
-			-Math.PI / 4 > collision.stabilityAngle &&
-			-3 * Math.PI / 4 < collision.stabilityAngle);
-		this.vel.add(collision.vectorTowards.clone().multiply(STICKY_FORCE));
+			-Math.PI / 2 + Constants.PLAYER_PHYSICS.STABILITY_ANGLE > collision.stabilityAngle &&
+			-Math.PI / 2 - Constants.PLAYER_PHYSICS.STABILITY_ANGLE < collision.stabilityAngle);
+		this.vel.add(collision.vectorTowards.clone().multiply(Constants.PLAYER_PHYSICS.STICKY_FORCE));
+
+		if(collision.counterGravityVector && this.isOnTerraFirma) {
+			this.vel.add(collision.counterGravityVector.clone().multiply(Constants.PLAYER_PHYSICS.GRAVITY * t));
+		}
+
+		if(this.isOnTerraFirma && collision.contactPoint.squareDistance(collision.finalPoint) <
+			MIN_DIST_PER_COLLISION * t * MIN_DIST_PER_COLLISION * t) {
+			this.pos = collision.contactPoint;
+		}
 
 		//highlight line/point
-		collision.cause.highlight();
 		this._collisionsThisFrame.push(collision);
+		collision.cause.onCollision(collision);
 	};
 	PlayerEntity.prototype.render = function(ctx, camera) {
 		ctx.fillStyle = (this.isAirborne ? '#f00' : (this.isOnTerraFirma ? '#00f' : '#0f0'));
