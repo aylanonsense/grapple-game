@@ -113,6 +113,10 @@ define([
 			else if(!this.jumpable) {
 				ctx.fillStyle = '#090'; //green
 			}
+			//fully collidable, but slippery
+			else if(this.slideOnly) {
+				ctx.fillStyle = '#0aa'; //teal
+			}
 			//fully collidable
 			else {
 				ctx.fillStyle = '#000'; //black

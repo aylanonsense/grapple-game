@@ -102,7 +102,7 @@ define([
 					contactPoint: contactPoint.rotate(this._cosAngle, this._sinAngle),
 					finalPoint: finalPoint,
 					counterGravityVector: counterGravityVector,
-					stabilityAngle: this._perpendicularAngle,
+					stabilityAngle: (this.slideOnly ? null : this._perpendicularAngle),
 					jumpVector: (this.jumpable ? MathUtils.createJumpVector(this._perpendicularAngle) : null),
 					vectorTowards: new Vector(-Math.cos(this._perpendicularAngle), -Math.sin(this._perpendicularAngle)),
 					finalVel: finalVel
@@ -140,6 +140,10 @@ define([
 			//fully collideable, but NOT jumpable
 			else if(!this.jumpable) {
 				ctx.strokeStyle = '#090'; //green
+			}
+			//fully collidable, but slippery
+			else if(this.slideOnly) {
+				ctx.strokeStyle = '#0aa'; //teal
 			}
 			//fully collidable
 			else {

@@ -80,6 +80,11 @@ define([
 				evt.target.value = evt.target.value.toLowerCase().replace("w", "").replace("a", "")
 					.replace("s", "").replace("d", "").replace(" ", "");
 			}
+			Constants.FRAMES_PER_SECOND = getVal("frames_per_second");
+			if(Constants.FRAMES_PER_SECOND === 60) {
+				Constants.FRAMES_PER_SECOND = null;
+			}
+			Constants.TIME_SCALE = getVal("time_scale");
 			Constants.BOUNCE_AMOUNT = getVal("bounce_amount");
 			Constants.PLAYER_PHYSICS.GRAVITY = getVal("gravity");
 			Constants.PLAYER_PHYSICS.JUMP_SPEED = getVal("jump_speed");

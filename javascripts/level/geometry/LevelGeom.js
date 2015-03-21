@@ -7,6 +7,7 @@ define(function() {
 		this.collidesWithPlayer = opts.collidesWithPlayer !== false; //default: true
 		this.collidesWithGrapple = opts.collidesWithGrapple !== false; //default: true
 		this.jumpable = opts.jumpable !== false; //default: true
+		this.slideOnly = opts.slideOnly === true; //default: false
 	}
 	LevelGeom.prototype.sameAs = function(other) {
 		return other && this._levelGeomId === other._levelGeomId;
