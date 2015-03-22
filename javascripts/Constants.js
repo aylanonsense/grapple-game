@@ -13,6 +13,11 @@ define({
 	FRAMES_PER_SECOND: null, //null will use requestAnimationFrame
 	TIME_SCALE: 1.0, //2.0 will run twice as fast, 0.5 will run at half speed
 
+	//debug vars
+	DEBUG_HIDE_SPRITES: false,
+	DEBUG_TRACE_SPRITES: false,
+	DEBUG_SHOW_PHYS_OBJECTS: false,
+
 	//physics vars
 	BOUNCE_AMOUNT: 0.0001,
 	PLAYER_PHYSICS: {

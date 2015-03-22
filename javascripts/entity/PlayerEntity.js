@@ -1,12 +1,15 @@
 define([
 	'Constants',
+	'display/Sprite',
 	'entity/GrappleEntity',
 	'math/Vector'
 ], function(
 	Constants,
+	Sprite,
 	GrappleEntity,
 	Vector
 ) {
+	var SPRITE = new Sprite('GrappleGirl');
 	var JUMP_BUFFER_FRAMES = 5;
 	var JUMP_LENIANCE_FRAMES = 6;
 	var MIN_DIST_PER_COLLISION = 10;
@@ -21,19 +24,25 @@ define([
 		this.moveDir = new Vector(0, 0);
 		this.isAirborne = true;
 		this.isOnTerraFirma = false;
+		this.isGrappling = false;
 		this._isJumping = false;
 		this._isAirborneLastFrame = true;
+		this._isGrapplingLastFrame = false;
+		this._lastGrappleTouched = null;
 		this._bufferedJumpTime = 0;
 		this._endJumpImmediately = false;
 		this._collisionsThisFrame = [];
 		this._lastJumpableCollision = null;
 		this._timeSinceJumpableCollision = null;
 		this._tThisFrame = null;
+		this._isFlipped = false;
+		this._walkTime = 0.0;
 	}
 	PlayerEntity.prototype.startOfFrame = function(t) {
 		this._tThisFrame = t;
 		this._lastFramePos = this.pos.clone();
 		this.isAirborne = this._isAirborneLastFrame;
+		this.isGrappling = this._isGrapplingLastFrame;
 		this._collisionsThisFrame = [];
 	};
 	PlayerEntity.prototype.tick = function(t) {
@@ -108,6 +117,7 @@ define([
 		this.pos.add(this.vel.average(newVel).multiply(t));
 		this.vel = newVel;
 		this._isAirborneLastFrame = true;
+		this._isGrapplingLastFrame = false;
 	};
 	PlayerEntity.prototype.endOfFrame = function(t) {
 		//find the "best" jump surface this frame (the one that sends you them most upward)
@@ -154,6 +164,20 @@ define([
 		if(this.vel.y >= -Constants.PLAYER_PHYSICS.JUMP_BRAKE_SPEED) {
 			this._isJumping = false;
 		}
+
+		//adjust facing and walk time
+		if(!this.isAirborne && this.isOnTerraFirma && (this.vel.x > 0.001 || this.vel.x < -0.001)) {
+			this._walkTime += t;
+		}
+		else {
+			this._walkTime = 0.0;
+		}
+		if(this.vel.x > 0.001) {
+			this._isFlipped = false;
+		}
+		else if(this.vel.x < -0.001) {
+			this._isFlipped = true;
+		}
 	};
 	PlayerEntity.prototype.shootGrapple = function(x, y) {
 		var squareSpeed = this.vel.squareLength();
@@ -180,6 +204,10 @@ define([
 		this.vel = collision.finalVel;
 		this.isAirborne = false;
 		this._isAirborneLastFrame = false;
+		if(collision.cause.entityType === 'Grapple') {
+			this._isGrapplingLastFrame = true;
+			this._lastGrappleTouched = collision.cause;
+		}
 		this.isOnTerraFirma = (collision.stabilityAngle !== null &&
 			-Math.PI / 2 + Constants.PLAYER_PHYSICS.STABILITY_ANGLE > collision.stabilityAngle &&
 			-Math.PI / 2 - Constants.PLAYER_PHYSICS.STABILITY_ANGLE < collision.stabilityAngle);
@@ -199,28 +227,78 @@ define([
 		collision.cause.onCollision(collision);
 	};
 	PlayerEntity.prototype.render = function(ctx, camera) {
-		ctx.fillStyle = (this.isAirborne ? '#f00' : (this.isOnTerraFirma ? '#00f' : '#0f0'));
-		ctx.beginPath();
-		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.radius, 0, 2 * Math.PI, false);
-		ctx.fill();
-		if(this._isJumping) {
-			ctx.strokeStyle = '#a0a';
+		if(Constants.DEBUG_SHOW_PHYS_OBJECTS) {
+			ctx.fillStyle = (this.isAirborne ? '#f00' : (this.isOnTerraFirma ? '#00f' : '#0f0'));
+			ctx.beginPath();
+			ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, this.radius, 0, 2 * Math.PI, false);
+			ctx.fill();
+			if(this._isJumping) {
+				ctx.strokeStyle = '#a0a';
+				ctx.lineWidth = 2;
+				ctx.stroke();
+			}
+			ctx.strokeStyle = '#0bb';
 			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.moveTo(this.pos.x - camera.x, this.pos.y - camera.y);
+			var renderedVel = this.vel.clone().normalize().multiply(55);
+			ctx.lineTo(this.pos.x - camera.x + renderedVel.x, this.pos.y - camera.y + renderedVel.y);
+			ctx.stroke();
+			ctx.strokeStyle = '#f09';
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(this._lastFramePos.x - camera.x, this._lastFramePos.y - camera.y);
+			ctx.lineTo(this.pos.x - camera.x, this.pos.y - camera.y);
 			ctx.stroke();
 		}
-		ctx.strokeStyle = '#0bb';
-		ctx.lineWidth = 2;
-		ctx.beginPath();
-		ctx.moveTo(this.pos.x - camera.x, this.pos.y - camera.y);
-		var renderedVel = this.vel.clone().normalize().multiply(55);
-		ctx.lineTo(this.pos.x - camera.x + renderedVel.x, this.pos.y - camera.y + renderedVel.y);
-		ctx.stroke();
-		ctx.strokeStyle = '#f09';
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		ctx.moveTo(this._lastFramePos.x - camera.x, this._lastFramePos.y - camera.y);
-		ctx.lineTo(this.pos.x - camera.x, this.pos.y - camera.y);
-		ctx.stroke();
+		//render the player sprite
+		var frame;
+		var flipped = this._isFlipped;
+		if(this.isGrappling) {
+			var line = this.pos.createVectorTo(this._lastGrappleTouched.pos);
+			var tangentLine = new Vector(line.y, -line.x);
+			var angleToGrapple = line.angle();
+			if(angleToGrapple < 0) { angleToGrapple += 2 * Math.PI; }
+			var movingClockwise = (tangentLine.dot(this.vel) > 0);
+			var squareSpeed = this.vel.squareLength();
+			flipped = movingClockwise;
+			if(flipped) {
+				frame = 20 + Math.round(16 * angleToGrapple / (2 * Math.PI));
+			}
+			else {
+				frame = 28 - Math.round(16 * angleToGrapple / (2 * Math.PI));
+			}
+			if(frame >= 28) { frame -= 16; }
+			if(squareSpeed > 330 * 330) {
+				frame += 16;
+			}
+		}
+		else if(this.isAirborne) {
+			frame = 8;
+		}
+		else if(!this.isOnTerraFirma) {
+			frame = 0;
+		}
+		else if(this.vel.x > 0.001 || this.vel.x < -0.001) {
+			var walkCycle = (this._walkTime) % ((9 + 7 + 9 + 7) / 60);
+			if(walkCycle < (9) / 60) {
+				frame = 4;
+			}
+			else if(walkCycle < (9 + 7) / 60) {
+				frame = 5;
+			}
+			else if(walkCycle < (9 + 7 + 9) / 60) {
+				frame = 6;
+			}
+			else {
+				frame = 7;
+			}
+		}
+		else {
+			frame = 0;
+		}
+		SPRITE.render(ctx, camera, this.pos.x - SPRITE.width / 2,
+			this.pos.y + this.radius - SPRITE.height, frame, flipped);
 	};
 	return PlayerEntity;
 });
