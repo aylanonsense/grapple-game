@@ -155,7 +155,7 @@ define([
 			camera.y = player.pos.y - Constants.HEIGHT / 2;
 
 			//blank canvas
-			ctx.fillStyle = '#f5f5f5';
+			ctx.fillStyle = '#fff7ef';
 			ctx.fillRect(0, 0, Constants.WIDTH, Constants.HEIGHT);
 
 			//render level geometry
