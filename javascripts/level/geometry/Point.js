@@ -1,11 +1,15 @@
 define([
 	'level/geometry/LevelGeom',
 	'math/Vector',
-	'math/Utils'
+	'math/calcCircleLineIntersection',
+	'math/createJumpVector',
+	'display/Draw'
 ], function(
 	SUPERCLASS,
 	Vector,
-	MathUtils
+	calcCircleLineIntersection,
+	createJumpVector,
+	Draw
 ) {
 	var ERROR_ALLOWED = 0.3;
 	function Point(x, y, opts) {
@@ -17,14 +21,23 @@ define([
 	Point.prototype.onCollision = function(collision) {
 		this._highlightFrames = 3;
 	};
-	Point.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
+	Point.prototype.checkForCollisionWithEntity = function(entity) {
+		//we say two points can't collide (they both take up no space after all)
+		if(entity.radius === 0) {
+			return false;
+		}
+		else {
+			return this._checkForCollisionWithMovingCircle(entity.pos, entity.prevPos, entity.vel, entity.radius, entity.bounce);
+		}
+	};
+	/*Point.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
 		return this._checkForCollisionWithMovingCircle(circle.pos,
 			circle.prevPos, circle.vel, circle.radius, bounceAmt);
 	};
 	Point.prototype.checkForCollisionWithMovingPoint = function(point, bounceAmt) {
 		//we say two points can't collide (they both take up no space after all)
 		return false;
-	};
+	};*/
 	Point.prototype._checkForCollisionWithMovingCircle = function(pos, prevPos, vel, radius, bounceAmt) {
 		//if the circle started out inside of the point, we need to push it out
 		if(prevPos.squareDistance(this.pos) < radius * radius) {
@@ -32,12 +45,9 @@ define([
 			lineToPrevPos.setLength(radius + 0.01);
 			prevPos = this.pos.clone().add(lineToPrevPos);
 		}
-		// if(prevPos.squareDistance(this.pos) < radius * radius) {
-			// return false;
-		// }
 
 		//we have a utility method that finds us the interseciton between a circle and line
-		var contactPoint = MathUtils.findCircleLineIntersection(this.pos, radius, prevPos, pos);
+		var contactPoint = calcCircleLineIntersection(this.pos, radius, prevPos, pos);
 		if(contactPoint) {
 			//there definitely is a collision here
 			var lineToContactPoint = prevPos.createVectorTo(contactPoint);
@@ -76,7 +86,7 @@ define([
 				vectorTowards: new Vector(-Math.cos(angle), -Math.sin(angle)),
 				stabilityAngle: null,
 				finalPoint: finalPoint,
-				jumpVector: (this.jumpable ? MathUtils.createJumpVector(angle) : null),
+				jumpVector: (this.jumpable ? createJumpVector(angle) : null),
 				finalVel: finalVel
 			};
 		}
@@ -84,47 +94,8 @@ define([
 		//otherwise there is no collision
 		return false;
 	};
-	Point.prototype.render = function(ctx, camera) {
-		var radius;
-		if(this._highlightFrames > 0) {
-			ctx.fillStyle = '#f00';
-			this._highlightFrames--;
-			radius = 3;
-		}
-		else {
-			radius = 2;
-			//non-collidable, so why does it exist?
-			if(!this.collidesWithPlayer && !this.collidesWithGrapple) {
-				ctx.fillStyle = '#bbb'; //grey
-			}
-			//only grapples can collide with it
-			else if(!this.collidesWithPlayer) {
-				ctx.fillStyle = '#fb0'; //orange
-			}
-			//only player can collide with it, but not jump off of it
-			else if(!this.collidesWithGrapple && !this.jumpable) {
-				ctx.fillStyle = '#f0f'; //magenta
-			}
-			//only player can collide with it, and it IS jumpable
-			else if(!this.collidesWithGrapple) {
-				ctx.fillStyle = '#05f'; //blue
-			}
-			//fully collideable, but NOT jumpable
-			else if(!this.jumpable) {
-				ctx.fillStyle = '#090'; //green
-			}
-			//fully collidable, but slippery
-			else if(this.slideOnly) {
-				ctx.fillStyle = '#0aa'; //teal
-			}
-			//fully collidable
-			else {
-				ctx.fillStyle = '#000'; //black
-			}
-		}
-		ctx.beginPath();
-		ctx.arc(this.pos.x - camera.x, this.pos.y - camera.y, radius, 0, 2 * Math.PI, false);
-		ctx.fill();
+	Point.prototype.render = function() {
+		Draw.circle(this.pos.x, this.pos.y, 2, { fill: '#000' });
 	};
 	return Point;
 });

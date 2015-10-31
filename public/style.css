@@ -37,15 +37,3 @@ canvas {
 	font-weight: bold;
 	margin: 14px 0 3px 0;
 }
-#debug-controls .default-hint {
-	color: #ccc;
-	font-size: 50%;
-	position: absolute;
-	top: 2px;
-	right: -85px;
-	width: 80px;
-}
-#debug-controls #update-constants {
-	margin-top: 10px;
-	width: 70px;
-}

@@ -1,6 +1,9 @@
 define({
-	WIDTH: 800,
-	HEIGHT: 600,
+	//canvas
+	CANVAS_WIDTH: 800,
+	CANVAS_HEIGHT: 600,
+
+	//input
 	KEY_BINDINGS: {
 		32: 'JUMP', //space bar
 		16: 'PULL_GRAPPLES', //shift key
@@ -9,11 +12,17 @@ define({
 		40: 'MOVE_DOWN', 83: 'MOVE_DOWN', //down arrow key / s key
 		39: 'MOVE_RIGHT', 68: 'MOVE_RIGHT' //right arrow key / d key
 	},
+
+	//frame rate
 	CONSTANT_TIME_PER_FRAME: false,
 	FRAMES_PER_SECOND: null, //null will use requestAnimationFrame
 	TIME_SCALE: 1.0, //2.0 will run twice as fast, 0.5 will run at half speed
 
+	//logic
+	MAX_MOVE_STEPS_PER_FRAME: 6,
+
 	//debug vars
+	DEBUG_CONTROLS: true,
 	DEBUG_HIDE_SPRITES: false,
 	DEBUG_TRACE_SPRITES: false,
 	DEBUG_SHOW_PHYS_OBJECTS: false,
@@ -54,7 +63,7 @@ define({
 		MIN_RADIUS: 1,
 		MAX_RADIUS: 24,
 		MIN_LENGTH: 50,
-		MAX_LENGTH: 300,
+		MAX_LENGTH: 250,
 		PULL_ACC: 1800,
 		SHORTENING_ACC: 150,
 	}

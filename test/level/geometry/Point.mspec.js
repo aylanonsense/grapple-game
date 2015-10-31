@@ -40,12 +40,24 @@ describe("The level/geometry/Point module", function() {
 				var collision = createCircleCollision(100,77,   95,77,120,77,   40,0,   10,   1.0);
 				expect(collision).to.equal(false);
 			});
+			it("with a horizontal-moving circle", function() {
+				var collision = createCircleCollision(100,77,   105,77,120,77,   40,0,   10,   1.0);
+				expect(collision).to.equal(false);
+			});
 			it("with a vertical-moving circle", function() {
 				var collision = createCircleCollision(55,55,   55,50,55,-400,   0,-100,   20,   1.0);
 				expect(collision).to.equal(false);
 			});
+			it("with a vertical-moving circle", function() {
+				var collision = createCircleCollision(55,55,   55,60,55,-400,   0,-100,   20,   1.0);
+				expect(collision).to.equal(false);
+			});
 			it("with an angled-moving circle", function() {
-				var collision = createCircleCollision(-300,-300,   -300,-300,-200,-400,   30,-30,   15,   1.0);
+				var collision = createCircleCollision(-300,-300,   -300,-305,-200,-400,   30,-30,   15,   1.0);
+				expect(collision).to.equal(false);
+			});
+			it("with an angled-moving circle", function() {
+				var collision = createCircleCollision(-300,-300,   -300,-295,-200,-400,   30,-30,   15,   1.0);
 				expect(collision).to.equal(false);
 			});
 		});

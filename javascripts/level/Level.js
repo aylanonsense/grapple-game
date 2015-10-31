@@ -8,7 +8,26 @@ define([
 	function Level() {
 		this._geometry = [];
 	}
-	Level.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
+	Level.prototype.findAllCollisionsWithEntity = function(entity) {
+		var collisions = [];
+		for(var i = 0; i < this._geometry.length; i++) {
+			var collision = this._geometry[i].checkForCollisionWithEntity(entity);
+			if(collision) {
+				collisions.push(collision);
+			}
+			/*if((entity.entityType === 'Player' && this._geometry[i].collidesWithPlayer) ||
+				(entity.entityType === 'Grapple' && this._geometry[i].collidesWithGrapple) ||
+				(entity.entityType !== 'Player' && entity.entityType !== 'Grapple')) {
+				var collision = this._geometry[i][methodName](entity, bounceAmt);
+				if(collision && (earliestCollision === null ||
+					collision.distTraveled < earliestCollision.distTraveled)) {
+					earliestCollision = collision;
+				}
+			}*/
+		}
+		return collisions;
+	};
+	/*Level.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
 		return this._checkForCollision('checkForCollisionWithMovingCircle', circle, bounceAmt);
 	};
 	Level.prototype.checkForCollisionWithMovingPoint = function(point, bounceAmt) {
@@ -18,7 +37,8 @@ define([
 		var earliestCollision = null;
 		for(var i = 0; i < this._geometry.length; i++) {
 			if((entity.entityType === 'Player' && this._geometry[i].collidesWithPlayer) ||
-				(entity.entityType === 'Grapple' && this._geometry[i].collidesWithGrapple)) {
+				(entity.entityType === 'Grapple' && this._geometry[i].collidesWithGrapple) ||
+				(entity.entityType !== 'Player' && entity.entityType !== 'Grapple')) {
 				var collision = this._geometry[i][methodName](entity, bounceAmt);
 				if(collision && (earliestCollision === null ||
 					collision.distTraveled < earliestCollision.distTraveled)) {
@@ -27,7 +47,7 @@ define([
 			}
 		}
 		return earliestCollision;
-	};
+	};*/
 	Level.prototype.addLine = function(x1, y1, x2, y2, opts) {
 		var point1 = this.addPoint(x1, y1, opts);
 		var point2 = this.addPoint(x2, y2, opts);

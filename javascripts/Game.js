@@ -1,209 +1,192 @@
 define([
-	'Constants',
-	'entity/PlayerEntity',
-	'level/Level'
+	'Global',
+	'entity/Player',
+	'entity/Ball',
+	'level/TestLevel',
+	'input/Mouse',
+	'input/Keyboard',
+	'display/Camera',
+	'display/Draw'
 ], function(
-	Constants,
-	PlayerEntity,
-	Level
+	Global,
+	Player,
+	Ball,
+	TestLevel,
+	Mouse,
+	Keyboard,
+	Camera,
+	Draw
 ) {
-	var camera, level, player, grapples, shouldPullGrapples;
+	function Game() {
+		var i, self = this;
 
-	function checkforCollisions(circle) {
-		var prevCauses = [];
-		var collisionsThisFrame = 0;
-		var collisionString = "";
-		for(var i = 0; i < 6; i++) {
-			var collision = level.checkForCollisionWithMovingCircle(circle, Constants.BOUNCE_AMOUNT);
-			for(var j = 0; j < grapples.length; j++) {
-				var grappleCollision = grapples[j].checkForCollisionWithMovingCircle(circle);
-				if(grappleCollision && (!collision || grappleCollision.distTraveled < collision.distTraveled)) {
-					collision = grappleCollision;
-				}
-			}
-			if(collision) {
-				collisionString += (collision.cause.entityType ? collision.cause.entityType : collision.cause.geomType) + " ";
-				collisionsThisFrame++;
-				circle.handleCollision(collision);
-				if(collision.cause.sameAsAny(prevCauses)) {
-					if(!collision.cause.sameAs(prevCauses[prevCauses.length - 1])) {
-						circle.pos.copy(circle.prevPos);
-						circle.vel.zero();
+		//vars
+		this.level = TestLevel;
+		this.player = new Player();
+		this.entities = [ this.player, new Ball({ x: 130, y: -100 }) ];
+
+		//bind input handlers
+		Mouse.on('mouse-event', function(type, x, y) {
+			if(type === 'mousedown') {
+				//remove all other grapples
+				for(var i = 0; i < self.entities.length; i++) {
+					if(self.entities[i].entityType === 'Grapple') {
+						self.entities[i].kill();
 					}
-					break;
 				}
-				else {
-					prevCauses.push(collision.cause);
+				//add a new grapple
+				var grapple = self.player.shootGrapple(x + Camera.pos.x, y + Camera.pos.y);
+				self.entities.push(grapple);
+			}
+			else if(type === 'mouseup') {
+				//remove all grapples
+				for(var i = 0; i < self.entities.length; i++) {
+					if(self.entities[i].entityType === 'Grapple') {
+						self.entities[i].kill();
+					}
 				}
 			}
-			else {
+		});
+		Keyboard.on('key-event', function(key, isDown, state) {
+			var i;
+			if(key === 'MOVE_LEFT') {
+				self.player.moveDir.x = (isDown ? -1 : (state.MOVE_RIGHT ? 1 : 0));
+			}
+			else if(key === 'MOVE_RIGHT') {
+				self.player.moveDir.x = (isDown ? 1 : (state.MOVE_LEFT ? -1 : 0));
+			}
+			else if(key === 'JUMP' && isDown) {
+				self.player.startJumping();
+			}
+			else if(key === 'JUMP' && !isDown) {
+				self.player.stopJumping();
+			}
+			else if(key === 'PULL_GRAPPLES' && isDown) {
+				self.player.startPullingGrapples();
+			}
+			else if(key === 'PULL_GRAPPLES' && !isDown) {
+				self.player.stopPullingGrapples();
+			}
+		});
+	}
+	Game.prototype.update = function(t) {
+		var i;
+
+		//start of frame
+		for(i = 0; i < this.entities.length; i++) {
+			if(!this.entities[i].isDead) {
+				this.entities[i].startOfFrame(t);
+			}
+		}
+
+		//update entities
+		for(i = 0; i < this.entities.length; i++) {
+			if(!this.entities[i].isDead) {
+				this.entities[i].update(t);
+			}
+		}
+
+		//check for collisions
+		for(i = 0; i < this.entities.length; i++) {
+			if(!this.entities[i].isDead) {
+				if(this.entities[i].collidable) {
+					this._checkforCollisions(this.entities[i], t);
+				}
+			}
+		}
+		/*for(i = 0; i < this.grapples.length; i++) {
+			if(!this.grapples[i].isLatched) {
+				var collision = this.level.checkForCollisionWithMovingPoint(this.grapples[i]);
+				if(!collision) {
+					collision = this.level.checkForCollisionWithMovingCircle(this.grapples[i]);
+				}
+				if(collision) {
+					this.grapples[i].handleCollision(collision, t);
+				}
+			}
+		}*/
+
+		//end of frame
+		for(i = 0; i < this.entities.length; i++) {
+			if(!this.entities[i].isDead) {
+				this.entities[i].endOfFrame(t);
+			}
+		}
+
+		//clean up dead entities
+		this.entities = this.entities.filter(function(entity) { return !entity.isDead; });
+
+		//keep player in bounds
+		if(this.player.pos.x < -2200 || this.player.pos.x > 15000 || this.player.pos.y < -5000 || this.player.pos.y > 3000) {
+			this.player.pos.x = 0;
+			this.player.pos.y = 0;
+		}
+	};
+	Game.prototype.render = function() {
+		var i;
+
+		//move camera to follow the player
+		Camera.pos.x = this.player.pos.x - Global.CANVAS_WIDTH / 2;
+		Camera.pos.y = this.player.pos.y - Global.CANVAS_HEIGHT / 2;
+
+		//blank canvas
+		Draw.rect(0, 0, Global.CANVAS_WIDTH, Global.CANVAS_HEIGHT, { fill: '#fff7ef', fixed: true });
+
+		//draw gridlines for reference
+		var GRID_SIZE = 32;
+		var offsetX = Camera.pos.x % GRID_SIZE;
+		var offsetY = Camera.pos.y % GRID_SIZE;
+		for(i = 0; i < Global.CANVAS_WIDTH; i += GRID_SIZE) {
+			Draw.line(i - offsetX, -1, i - offsetX, Global.CANVAS_HEIGHT + 1, { stroke: '#f3e7d1', fixed: true });
+		}
+		for(i = 0; i < Global.CANVAS_HEIGHT; i += GRID_SIZE) {
+			Draw.line(-1, i - offsetY, Global.CANVAS_WIDTH + 1, i - offsetY, { stroke: '#f3e7d1', fixed: true });
+		}
+
+		//render level geometry
+		this.level.render();
+
+		//render entities
+		for(i = 0; i < this.entities.length; i++) {
+			if(!this.entities[i].isDead) {
+				this.entities[i].render();
+			}
+		}
+	};
+	Game.prototype._checkforCollisions = function(entity, t) {
+		var prevCauses = [];
+
+		//the entity may collide with a bunch of things in one frame
+		for(var step = 0; step < Global.MAX_MOVE_STEPS_PER_FRAME; step++) {
+			//check to see if the entity is colliding with anything
+			var collisions = entity.findAllCollisions(this.level, this.entities);
+
+			//if there were no collisions, we are done!
+			if(collisions.length === 0) {
 				break;
 			}
-		}
-		if(collisionsThisFrame > 1) {
-			// console.log(collisionsThisFrame + " collisions this frame: " + collisionString);
-		}
-	}
-
-	function addLines(points, closed, opts) {
-		for(var i = 0; i < points.length - 2; i += 2) {
-			level.addLine(points[i+0], points[i+1], points[i+2], points[i+3], opts || {});
-		}
-		if(closed) {
-			level.addLine(points[points.length-2], points[points.length-1], points[0], points[1], opts || {});
-		}
-	}
-
-	return {
-		reset: function() {
-			//render vars
-			camera = { x: 0, y: 0 };
-
-			//input vars
-			shouldPullGrapples = false;
-
-			//game vars
-			level = new Level();
-			player = new PlayerEntity(0, 0);
-			grapples = [];
-
-			//create level geometry
-			addLines([-1600,-500, -1575,-500, -1550,-300,
-				-1525,-500, -1500,-500, -1550,-200], true); //floating V pit
-			addLines([-1400,-675, -1400,-900, -1200,-900, //left edge of spikes
-				-1180,-1000, -1150,-980, -1130,-1100, -1110,-1070, -1100,-1200, //mountain
-				-1060,-1400, -1030,-1650, -1010,-1500, -960,-1550, -950,-1320,
-				-930,-1390, -920,-1220, -900,-1220, -880,-970, -860,-1000,
-				-850,-900, -650,-900, -650,-675, //right edge of spikes
-				-670,-650, -690,-675, -700,-620, -710,-650, -730,-580, -760,-675, //spikes
-				-780,-650, -800,-600, -840,-620, -850,-580, -900,-550, -920,-650,
-				-940,-630, -970,-640, -1000,-520, -1100,-590, -1110,-550, -1130,-580,
-				-1140,-630, -1160,-600, -1200,-650, -1210,-600, -1240,-620, -1280,-570,
-				-1290,-600, -1300,-590, -1340,-660, -1360,-630, -1370,-650, -1390,-675], true);
-			addLines([-550,-70, -550,-400, -450,-400, -450,-350, -500,-300, -500,-70], true);
-			addLines([-250,-700, -275,-650, -300,-700], true); //triangle
-			addLines([-150,-550, -175,-500, -200,-550], true); //triangle
-			addLines([-100,-850, -125,-800, -150,-850], true); //triangle
-			addLines([175,-775, 150,-725, 125,-775], true); //triangle
-			addLines([225,-1025, 200,-975, 175,-1025], true); //triangle
-			addLines([300,-950, 275,-900, 250,-950], true); //triangle
-			addLines([400,-1100, 375,-1050, 350,-1100], true); //triangle
-			addLines([600,-1150, 575,-1100, 550,-1150], true); //triangle
-			addLines([950,-1250, 875,-1100, 800,-1250], true); //triangle
-			addLines([-250,-250, -200,-250, -200,-225, -250,-225], true, { collidesWithPlayer: false });
-			addLines([-700,2000, -700,-300, -750,-350, //pit
-				-750,-400, -650,-400, //wall
-				-650,40, -70,40, //flat area
-				-40,20,  40,20, //spawn point
-				70,80, 80,130, 90,200, 100,300, 100,800]); //cliff
-			var pts = [];
-			for(var i = 0; i < 20; i++) {
-				pts.push(400 - 300 * Math.cos(3 * Math.PI / 4 * (i / 20)));
-				pts.push(800 + 300 * Math.sin(3 * Math.PI / 4 * (i / 20)));
-			}
-			pts.push(580);
-			pts.push(1100);
-			addLines(pts, false, { slideOnly: true }); //launch
-			pts = [];
-			for(i = 0; i < 300; i++) {
-				pts.push(580 + i * (30 * (1 + i / 700)));
-				pts.push(1100 - 50 * Math.cos(Math.PI * i / 10) * (i / 20));
-			}
-			addLines(pts, false);
-		},
-		tick: function(t) {
-			//start of frame
-			player.startOfFrame(t);
-			for(var i = 0; i < grapples.length; i++) {
-				grapples[i].startOfFrame(t);
-			}
-
-			//update entities
-			player.tick(t);
-			for(i = 0; i < grapples.length; i++) {
-				grapples[i].tick(t);
-			}
-
-			//check for collisions
-			checkforCollisions(player);
-			for(i = 0; i < grapples.length; i++) {
-				if(!grapples[i].isLatched) {
-					var collision = level.checkForCollisionWithMovingPoint(grapples[i]);
-					if(!collision) {
-						collision = level.checkForCollisionWithMovingCircle(grapples[i]);
-					}
-					if(collision) {
-						grapples[i].handleCollision(collision);
+			else {
+				//find the earliest collision
+				var collision = collisions[0];
+				for(var i = 1; i < collisions.length; i++) {
+					if(collisions[i].distTraveled < collision.distTraveled) {
+						collision = collisions[i];
 					}
 				}
-			}
 
-			//end of frame
-			player.endOfFrame(t);
-			for(i = 0; i < grapples.length; i++) {
-				grapples[i].endOfFrame(t);
-			}
-
-			if(player.pos.x < -2200 || player.pos.x > 15000 || player.pos.y < -5000 || player.pos.y > 3000) {
-				player = new PlayerEntity(0, 0);
-				grapples = [];
-			}
-		},
-		render: function(ctx) {
-			//move camera
-			camera.x = player.pos.x - Constants.WIDTH / 2;
-			camera.y = player.pos.y - Constants.HEIGHT / 2;
-
-			//blank canvas
-			ctx.fillStyle = '#fff7ef';
-			ctx.fillRect(0, 0, Constants.WIDTH, Constants.HEIGHT);
-
-			//render level geometry
-			level.render(ctx, camera);
-
-			//render entities
-			for(var i = 0; i < grapples.length; i++) {
-				grapples[i].render(ctx, camera);
-			}
-			player.render(ctx, camera);
-		},
-		onMouseEvent: function(evt) {
-			if(evt.type === 'mousedown') {
-				var grapple = player.shootGrapple(evt.x + camera.x, evt.y + camera.y)
-				grapples = [ grapple ];
-				if(shouldPullGrapples) {
-					grapple.startPulling();
+				//if the entity collides with something it's already collided with this frame, that's a good indicator
+				// that it's in a corner and that we don't need to check for any further collisions
+				if(collision.cause.sameAsAny(prevCauses)) {
+					entity.handleCollision(collision, t, !collision.cause.sameAs(prevCauses[prevCauses.length - 1]));
+					break;
 				}
-			}
-			else if(evt.type === 'mouseup') {
-				grapples = [];
-			}
-		},
-		onKeyboardEvent: function(evt, keyboard) {
-			if(evt.key === 'MOVE_LEFT') {
-				player.moveDir.x = (evt.isDown ? -1 : (keyboard.MOVE_RIGHT ? 1 : 0));
-			}
-			else if(evt.key === 'MOVE_RIGHT') {
-				player.moveDir.x = (evt.isDown ? 1 : (keyboard.MOVE_LEFT ? -1 : 0));
-			}
-			else if(evt.key === 'JUMP' && evt.isDown) {
-				player.jump();
-			}
-			else if(evt.key === 'JUMP' && !evt.isDown) {
-				player.endJump();
-			}
-			else if(evt.key === 'PULL_GRAPPLES' && evt.isDown) {
-				shouldPullGrapples = true;
-				for(var i = 0; i < grapples.length; i++) {
-					grapples[i].startPulling();
-				}
-			}
-			else if(evt.key === 'PULL_GRAPPLES' && !evt.isDown) {
-				shouldPullGrapples = false;
-				for(var i = 0; i < grapples.length; i++) {
-					grapples[i].stopPulling();
+				//otherwise we keep a look out to see if that collision will come up again this frame
+				else {
+					entity.handleCollision(collision, t, false);
+					prevCauses.push(collision.cause);
 				}
 			}
 		}
 	};
+	return Game;
 });

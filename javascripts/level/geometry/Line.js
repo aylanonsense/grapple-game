@@ -1,11 +1,13 @@
 define([
 	'level/geometry/LevelGeom',
 	'math/Vector',
-	'math/Utils'
+	'math/createJumpVector',
+	'display/Draw'
 ], function(
 	SUPERCLASS,
 	Vector,
-	MathUtils
+	createJumpVector,
+	Draw
 ) {
 	var ERROR_ALLOWED = 0.3;
 	function Line(x1, y1, x2, y2, opts) {
@@ -30,14 +32,17 @@ define([
 	Line.prototype.onCollision = function(collision) {
 		this._highlightFrames = 3;
 	};
-	Line.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
+	Line.prototype.checkForCollisionWithEntity = function(entity) {
+		return this._checkForCollisionWithMovingCircle(entity.pos, entity.prevPos, entity.vel, entity.radius, entity.bounce);
+	};
+	/*Line.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
 		return this._checkForCollisionWithMovingCircle(circle.pos,
 			circle.prevPos, circle.vel, circle.radius, bounceAmt);
 	};
 	Line.prototype.checkForCollisionWithMovingPoint = function(point, bounceAmt) {
 		//a moving point is just a moving circle with 0 radius, so... do that!
 		return this._checkForCollisionWithMovingCircle(point.pos, point.prevPos, point.vel, 0, bounceAmt);
-	};
+	};*/
 	Line.prototype._checkForCollisionWithMovingCircle = function(pos, prevPos, vel, radius, bounceAmt) {
 		bounceAmt = bounceAmt || 0.0;
 
@@ -103,7 +108,7 @@ define([
 					finalPoint: finalPoint,
 					counterGravityVector: counterGravityVector,
 					stabilityAngle: (this.slideOnly ? null : this._perpendicularAngle),
-					jumpVector: (this.jumpable ? MathUtils.createJumpVector(this._perpendicularAngle) : null),
+					jumpVector: (this.jumpable ? createJumpVector(this._perpendicularAngle) : null),
 					vectorTowards: new Vector(-Math.cos(this._perpendicularAngle), -Math.sin(this._perpendicularAngle)),
 					finalVel: finalVel
 				};
@@ -113,50 +118,11 @@ define([
 		//there was no collision
 		return false;
 	};
-	Line.prototype.render = function(ctx, camera) {
-		if(this._highlightFrames > 0) {
-			ctx.strokeStyle = '#f00';
-			ctx.lineWidth = 2;
-			this._highlightFrames--;
-		}
-		else {
-			ctx.lineWidth = 1;
-			//non-collidable, so why does it exist?
-			if(!this.collidesWithPlayer && !this.collidesWithGrapple) {
-				ctx.strokeStyle = '#bbb'; //grey
-			}
-			//only grapples can collide with it
-			else if(!this.collidesWithPlayer) {
-				ctx.strokeStyle = '#fb0'; //orange
-			}
-			//only player can collide with it, but not jump off of it
-			else if(!this.collidesWithGrapple && !this.jumpable) {
-				ctx.strokeStyle = '#f0f'; //magenta
-			}
-			//only player can collide with it, and it IS jumpable
-			else if(!this.collidesWithGrapple) {
-				ctx.strokeStyle = '#05f'; //blue
-			}
-			//fully collideable, but NOT jumpable
-			else if(!this.jumpable) {
-				ctx.strokeStyle = '#090'; //green
-			}
-			//fully collidable, but slippery
-			else if(this.slideOnly) {
-				ctx.strokeStyle = '#0aa'; //teal
-			}
-			//fully collidable
-			else {
-				ctx.strokeStyle = '#000'; //black
-			}
-		}
-		ctx.beginPath();
-		ctx.moveTo(this.start.x - camera.x, this.start.y - camera.y);
-		ctx.lineTo(this.end.x - camera.x, this.end.y - camera.y);
-		ctx.moveTo((this.start.x + this.end.x) / 2 - camera.x, (this.start.y + this.end.y) / 2 - camera.y);
-		ctx.lineTo((this.start.x + this.end.x) / 2 + 10 * this._cosPipAngle - camera.x,
-					(this.start.y + this.end.y) / 2 + 10 * this._sinPipAngle - camera.y);
-		ctx.stroke();
+	Line.prototype.render = function() {
+		Draw.line(this.start.x, this.start.y, this.end.x, this.end.y, { stroke: '#000' });
+		Draw.line((this.start.x + this.end.x) / 2, (this.start.y + this.end.y) / 2,
+			(this.start.x + this.end.x) / 2 + 10 * this._cosPipAngle,
+			(this.start.y + this.end.y) / 2 + 10 * this._sinPipAngle, { stroke: '#000' });
 	};
 	return Line;
 });

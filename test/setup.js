@@ -6,3 +6,6 @@ requirejs.config({ baseUrl: __dirname + '/../javascripts', nodeRequire: require 
 module.exports = {
 	require: requirejs
 };
+
+//mock the canvas module
+requirejs.define('display/Canvas', null);
