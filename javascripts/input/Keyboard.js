@@ -1,30 +1,30 @@
 define([
-	'Global',
-	'display/Canvas',
+	'global',
+	'display/canvas',
 	'util/EventHelper'
 ], function(
-	Global,
-	Canvas,
+	global,
+	canvas,
 	EventHelper
 ) {
 	var events = new EventHelper([ 'key-event' ]);
 	var keyboardState = {};
-	for(var key in Global.KEY_BINDINGS) {
-		keyboardState[Global.KEY_BINDINGS[key]] = false;
+	for(var key in global.KEY_BINDINGS) {
+		keyboardState[global.KEY_BINDINGS[key]] = false;
 	}
 
 	//add keyboard handler
 	function onKeyboardEvent(evt) {
 		var isDown = (evt.type === 'keydown');
-		if(Global.KEY_BINDINGS[evt.which]) {
+		if(global.KEY_BINDINGS[evt.which]) {
 			evt.preventDefault();
-			if(keyboardState[Global.KEY_BINDINGS[evt.which]] !== isDown) {
-				keyboardState[Global.KEY_BINDINGS[evt.which]] = isDown;
-				events.trigger('key-event', Global.KEY_BINDINGS[evt.which], isDown, keyboardState);
+			if(keyboardState[global.KEY_BINDINGS[evt.which]] !== isDown) {
+				keyboardState[global.KEY_BINDINGS[evt.which]] = isDown;
+				events.trigger('key-event', global.KEY_BINDINGS[evt.which], isDown, keyboardState);
 			}
 		}
 	}
-	if(Canvas) {
+	if(global.RENDER) {
 		document.onkeyup = onKeyboardEvent;
 		document.onkeydown = onKeyboardEvent;
 	}

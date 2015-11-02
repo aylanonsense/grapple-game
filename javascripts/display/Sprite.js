@@ -1,8 +1,8 @@
 define([
-	'Constants',
+	'global',
 	'display/sprite-config'
 ], function(
-	Constants,
+	global,
 	config
 ) {
 	var IMAGES = {};
@@ -114,7 +114,7 @@ define([
 	Sprite.prototype.render = function(ctx, camera, x, y, frame, flip) {
 		x -= (camera && camera.x || 0);
 		y -= (camera && camera.y || 0);
-		if(!Constants.DEBUG_HIDE_SPRITES) {
+		if(!global.DEBUG_HIDE_SPRITES) {
 			if(this._loaded) {
 				var numCols = this._canvas.width / this._frameWidth;
 				var numRows = (this._canvas.height / this._frameHeight) / (this._flipped ? 2 : 1);
@@ -144,7 +144,7 @@ define([
 				ctx.fillRect(x, y, this.width, this.height);
 			}
 		}
-		if(Constants.DEBUG_TRACE_SPRITES) {
+		if(global.DEBUG_TRACE_SPRITES) {
 			ctx.lineWidth = 1;
 			ctx.strokeStyle = 'rgba(255, 255, 0, 0.75)';
 			ctx.strokeRect(x, y, this.width, this.height);

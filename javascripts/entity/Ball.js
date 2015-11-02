@@ -1,20 +1,21 @@
 define([
-	'Global',
+	'global',
 	'util/extend',
 	'entity/Entity',
 	'math/Vector',
-	'display/Draw'
+	'display/draw'
 ], function(
-	Global,
+	global,
 	extend,
 	Entity,
 	Vector,
-	Draw
+	draw
 ) {
 	function Ball(params) {
 		Entity.call(this, extend(params, {
 			entityType: 'Ball',
 			radius: 30,
+			bounce: 1,
 			renderColor: '#ff0000',
 			gravityY: 300
 		}));

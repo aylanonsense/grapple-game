@@ -1,17 +1,17 @@
 define([
-	'Global',
+	'global',
 	'util/extend',
 	'entity/Entity',
 	'math/Vector',
 	'entity/Grapple',
-	'display/Draw'
+	'display/draw'
 ], function(
-	Global,
+	global,
 	extend,
 	Entity,
 	Vector,
 	Grapple,
-	Draw
+	draw
 ) {
 	var JUMP_BUFFER_FRAMES = 5;
 	var JUMP_LENIANCE_FRAMES = 6;
@@ -52,11 +52,11 @@ define([
 		this._collisionsThisFrame = [];
 	};
 	Player.prototype.update = function(t) {
-		var newVel = this.vel.clone().add(0, Global.PLAYER_PHYSICS.GRAVITY * t);
+		var newVel = this.vel.clone().add(0, global.PLAYER_PHYSICS.GRAVITY * t);
 		var MOVEMENT;
-		if(this.isAirborne) { MOVEMENT = Global.PLAYER_PHYSICS.AIR; }
-		else if(!this.isOnTerraFirma) { MOVEMENT = Global.PLAYER_PHYSICS.SLIDING; }
-		else { MOVEMENT = Global.PLAYER_PHYSICS.GROUND; }
+		if(this.isAirborne) { MOVEMENT = global.PLAYER_PHYSICS.AIR; }
+		else if(!this.isOnTerraFirma) { MOVEMENT = global.PLAYER_PHYSICS.SLIDING; }
+		else { MOVEMENT = global.PLAYER_PHYSICS.GROUND; }
 		var moveDir = this.moveDir.x;
 		//moving REALLY FAST left/right...
 		if(Math.abs(newVel.x) > MOVEMENT.SOFT_MAX_SPEED) {
@@ -118,7 +118,7 @@ define([
 		}
 
 		//limit velocity to an absolute max
-		newVel.y = Math.max(-Global.PLAYER_PHYSICS.MAX_VERTICAL_SPEED, Math.min(newVel.y, Global.PLAYER_PHYSICS.MAX_VERTICAL_SPEED));
+		newVel.y = Math.max(-global.PLAYER_PHYSICS.MAX_VERTICAL_SPEED, Math.min(newVel.y, global.PLAYER_PHYSICS.MAX_VERTICAL_SPEED));
 		this.prevPos = this.pos.clone();
 		this.pos.add(this.vel.average(newVel).multiply(t));
 		this.vel = newVel;
@@ -145,7 +145,7 @@ define([
 		//we may even want to jump off of something right now!
 		if(this._bufferedJumpTime > 0.0 && this._lastJumpableCollision !== null &&
 			this._timeSinceJumpableCollision < (JUMP_LENIANCE_FRAMES + 0.5) / 60) {
-			var speed = (this._endJumpImmediately ? Global.PLAYER_PHYSICS.JUMP_BRAKE_SPEED : Global.PLAYER_PHYSICS.JUMP_SPEED);
+			var speed = (this._endJumpImmediately ? global.PLAYER_PHYSICS.JUMP_BRAKE_SPEED : global.PLAYER_PHYSICS.JUMP_SPEED);
 			this.vel.x += speed * this._lastJumpableCollision.jumpVector.x;
 			if(this._lastJumpableCollision.jumpVector.y <= 0) {
 				this.vel.y = Math.min(speed * this._lastJumpableCollision.jumpVector.y, this.vel.y);
@@ -167,7 +167,7 @@ define([
 		this._bufferedJumpTime = Math.max(0, this._bufferedJumpTime - t);
 
 		//adjust state
-		if(this.vel.y >= -Global.PLAYER_PHYSICS.JUMP_BRAKE_SPEED) {
+		if(this.vel.y >= -global.PLAYER_PHYSICS.JUMP_BRAKE_SPEED) {
 			this._isJumping = false;
 		}
 
@@ -211,12 +211,12 @@ define([
 			this._lastGrappleTouched = collision.cause;
 		}
 		this.isOnTerraFirma = (collision.stabilityAngle !== null &&
-			-Math.PI / 2 + Global.PLAYER_PHYSICS.STABILITY_ANGLE > collision.stabilityAngle &&
-			-Math.PI / 2 - Global.PLAYER_PHYSICS.STABILITY_ANGLE < collision.stabilityAngle);
-		this.vel.add(collision.vectorTowards.clone().multiply(Global.PLAYER_PHYSICS.STICKY_FORCE));
+			-Math.PI / 2 + global.PLAYER_PHYSICS.STABILITY_ANGLE > collision.stabilityAngle &&
+			-Math.PI / 2 - global.PLAYER_PHYSICS.STABILITY_ANGLE < collision.stabilityAngle);
+		this.vel.add(collision.vectorTowards.clone().multiply(global.PLAYER_PHYSICS.STICKY_FORCE));
 
 		if(collision.counterGravityVector && this.isOnTerraFirma) {
-			this.vel.add(collision.counterGravityVector.clone().multiply(Global.PLAYER_PHYSICS.GRAVITY * t));
+			this.vel.add(collision.counterGravityVector.clone().multiply(global.PLAYER_PHYSICS.GRAVITY * t));
 		}
 
 		if(this.isOnTerraFirma && collision.contactPoint.squareDistance(collision.finalPoint) <
@@ -235,12 +235,10 @@ define([
 	};
 	Player.prototype.shootGrapple = function(x, y) {
 		var squareSpeed = this.vel.squareLength();
-		var radiusPerent = Math.max(0.0, Math.min(squareSpeed / (Global.PLAYER_PHYSICS.AIR.SOFT_MAX_SPEED * 1.2 * Global.PLAYER_PHYSICS.AIR.SOFT_MAX_SPEED * 1.2), 1.0));
 		return new Grapple({
 			parent: this,
-			dirX: x - this.pos.x,
-			dirY: y - this.pos.y,
-			radiusPercent: radiusPerent
+			aimX: x - this.pos.x,
+			aimY: y - this.pos.y
 		});
 	};
 	Player.prototype.startJumping = function() {
@@ -250,7 +248,7 @@ define([
 	Player.prototype.stopJumping = function() {
 		if(this._isJumping) {
 			this._isJumping = false;
-			this.vel.y = Math.max(-Global.PLAYER_PHYSICS.JUMP_BRAKE_SPEED, this.vel.y);
+			this.vel.y = Math.max(-global.PLAYER_PHYSICS.JUMP_BRAKE_SPEED, this.vel.y);
 		}
 		else {
 			this._endJumpImmediately = true;

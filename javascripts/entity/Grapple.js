@@ -1,25 +1,24 @@
 define([
-	'Global',
+	'global',
 	'util/extend',
 	'entity/Entity',
 	'math/Vector',
 	'math/calcCircleLineIntersection',
-	'display/Draw'
+	'display/draw'
 ], function(
-	Global,
+	global,
 	extend,
 	Entity,
 	Vector,
 	calcCircleLineIntersection,
-	Draw
+	draw
 ) {
 	function Grapple(params) {
-		//player, dirX, dirY, radiusPercent
 		this.parent = params.parent;
 		Entity.call(this, extend(params, {
 			entityType: 'Grapple',
 			pos: this.parent.pos.clone(),
-			vel: (new Vector(params.dirX, params.dirY)).setLength(Global.GRAPPLE_PHYSICS.MOVE_SPEED),
+			vel: (new Vector(params.aimX, params.aimY)).setLength(global.GRAPPLE_PHYSICS.MOVE_SPEED),
 			radius: 0
 		}));
 		this._startPos = this.pos.clone();
@@ -34,7 +33,6 @@ define([
 		this._collisionsThisFrame = [];
 	};
 	Grapple.prototype.update = function(t) {
-		//TODO limit the amount the grapple can move
 		if(this.isActive) {
 			var newVel = this.vel.clone().addMult(this._gravity, t);
 			this.prevPos.set(this.pos);
@@ -42,7 +40,7 @@ define([
 			this.vel = newVel;
 
 			//if the grapple surpasses the max length, dial it back to the max length
-			var maxLength = Global.GRAPPLE_PHYSICS.MAX_LENGTH - this.radius;
+			var maxLength = global.GRAPPLE_PHYSICS.MAX_LENGTH - this.radius + 0.5; //extra 0.5 to ensure it registers as above max length
 			if(!this.isLatched && this._startPos.squareDistance(this.pos) > maxLength * maxLength) {
 				var dirOfMovement = this._startPos.createVectorTo(this.pos);
 				this.pos.copy(this._startPos).add(dirOfMovement.setLength(maxLength));
@@ -56,22 +54,22 @@ define([
 		if(this.isLatched && this.parent.isPullingGrapples && this.isActive) {
 			//shorten the grapple
 			var lineToLatchPoint = this.parent.pos.createVectorTo(this.pos);
-			if(this.latchLength > Global.GRAPPLE_PHYSICS.MIN_LENGTH) {
+			if(this.latchLength > global.GRAPPLE_PHYSICS.MIN_LENGTH) {
 				var lengthToPlayer = lineToLatchPoint.length();
 				if(lengthToPlayer < this.latchLength) {
-					this.latchLength = Math.max(Global.GRAPPLE_PHYSICS.MIN_LENGTH,
-						this.latchLength - Global.GRAPPLE_PHYSICS.SHORTENING_ACC * t, lengthToPlayer);
+					this.latchLength = Math.max(global.GRAPPLE_PHYSICS.MIN_LENGTH,
+						this.latchLength - global.GRAPPLE_PHYSICS.SHORTENING_ACC * t, lengthToPlayer);
 				}
 			}
 
 			//pull the parent in that direction
-			this.parent.vel.add(lineToLatchPoint.setLength(Global.GRAPPLE_PHYSICS.PULL_ACC * t));
+			this.parent.vel.add(lineToLatchPoint.setLength(global.GRAPPLE_PHYSICS.PULL_ACC * t));
 		}
 
 		//if the grapple extends too far it will disappear
 		if(!this.isLatched) {
-			if(this._startPos.squareDistance(this.pos) > (Global.GRAPPLE_PHYSICS.MAX_LENGTH - this.radius) *
-				(Global.GRAPPLE_PHYSICS.MAX_LENGTH - this.radius)) {
+			if(this._startPos.squareDistance(this.pos) > (global.GRAPPLE_PHYSICS.MAX_LENGTH - this.radius) *
+				(global.GRAPPLE_PHYSICS.MAX_LENGTH - this.radius)) {
 				this.kill()
 			}
 		}
@@ -79,10 +77,7 @@ define([
 	Grapple.prototype.checkForCollisionWithParent = function() {
 		//the parent can only collide with the grapple once per frame, this prevents
 		// the grapple from clipping the parent through geometry
-		if(this._collisionsThisFrame.length > 0) {
-			return false;
-		}
-		if(this.isActive && this.isLatched && !this._hasCollidedThisFrame) {
+		if(this.isActive && this.isLatched && !this._hasCollidedThisFrame && this._collisionsThisFrame.length === 0) {
 			//it's only a collision if the the parent ended up outside the grapple's length
 			var lineToLatchPoint = this.parent.pos.createVectorTo(this.pos);
 			if(lineToLatchPoint.squareLength() > this.latchLength * this.latchLength) {
@@ -163,25 +158,25 @@ define([
 		this.vel.zero();
 		this.collidable = false;
 		this.isLatched = true;
-		this.latchLength = Math.max(this.parent.pos.createVectorTo(this.pos).length(), Global.GRAPPLE_PHYSICS.MIN_LENGTH);
+		this.latchLength = Math.max(this.parent.pos.createVectorTo(this.pos).length(), global.GRAPPLE_PHYSICS.MIN_LENGTH);
 	};
 	Grapple.prototype.render = function() {
 		if(this.isActive) {
-			Draw.circle(this.pos.x, this.pos.y, Math.max(this.radius, 2), { fill: '#009' });
-			Draw.line(this.parent.pos.x, this.parent.pos.y, this.pos.x, this.pos.y, { stroke: '#009' });
+			draw.circle(this.pos.x, this.pos.y, Math.max(this.radius, 2), { fill: '#009' });
+			draw.line(this.parent.pos.x, this.parent.pos.y, this.pos.x, this.pos.y, { stroke: '#009' });
 			if(this.isLatched) {
-				Draw.circle(this.pos.x, this.pos.y, this.latchLength, { stroke: '#ccc' });
+				draw.circle(this.pos.x, this.pos.y, this.latchLength, { stroke: '#ccc' });
 			}
 		}
 		else {
 			if(this.isLatched) {
-				Draw.line(this.pos.x - 4, this.pos.y - 4, this.pos.x + 4, this.pos.y + 4, { stroke: '#999' });
-				Draw.line(this.pos.x - 4, this.pos.y + 4, this.pos.x + 4, this.pos.y - 4, { stroke: '#999' });
+				draw.line(this.pos.x - 4, this.pos.y - 4, this.pos.x + 4, this.pos.y + 4, { stroke: '#999' });
+				draw.line(this.pos.x - 4, this.pos.y + 4, this.pos.x + 4, this.pos.y - 4, { stroke: '#999' });
 			}
 			else {
-				Draw.circle(this.pos.x, this.pos.y, Math.max(this.radius, 2), { fill: '#999' });
+				draw.circle(this.pos.x, this.pos.y, Math.max(this.radius, 2), { fill: '#999' });
 			}
-			Draw.line(this._startPos.x, this._startPos.y, this.pos.x, this.pos.y, { stroke: '#999' });
+			draw.line(this._startPos.x, this._startPos.y, this.pos.x, this.pos.y, { stroke: '#999' });
 		}
 	};
 	Grapple.prototype.kill = function() {

@@ -1,13 +1,13 @@
 define(function() {
-	var nextId = 0;
-	function LevelGeom(type, opts) {
-		opts = opts || {};
-		this._levelGeomId = nextId++;
-		this.geomType = type;
-		this.collidesWithPlayer = opts.collidesWithPlayer !== false; //default: true
-		this.collidesWithGrapple = opts.collidesWithGrapple !== false; //default: true
-		this.jumpable = opts.jumpable !== false; //default: true
-		this.slideOnly = opts.slideOnly === true; //default: false
+	var nextLevelGeomId = 0;
+	function LevelGeom(params) {
+		params = params || {};
+		this._levelGeomId = nextLevelGeomId++;
+		this.levelGeomType = params.levelGeomType;
+
+		this.slippery = params.slippery || false;
+		this._grapplesOnly = params.grapplesOnly || false;
+		this._noGrapples = params.noGrapples || false;
 	}
 	LevelGeom.prototype.sameAs = function(other) {
 		return other && this._levelGeomId === other._levelGeomId;
@@ -21,6 +21,23 @@ define(function() {
 			}
 		}
 		return false;
+	};
+	LevelGeom.prototype.canCollideWithEntity = function(entity) {
+		if(!entity) {
+			return false;
+		}
+		else if(this._grapplesOnly) {
+			return entity.entityType === 'Grapple';
+		}
+		else if(this._noGrapples) {
+			return entity.entityType !== 'Grapple';
+		}
+		else {
+			return true;
+		}
+	};
+	LevelGeom.prototype.checkForCollisionWithEntity = function(enttiy) {
+		throw new Error("Need to implement in subclasses");
 	};
 	return LevelGeom;
 });

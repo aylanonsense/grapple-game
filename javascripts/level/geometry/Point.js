@@ -1,53 +1,43 @@
 define([
 	'level/geometry/LevelGeom',
+	'util/extend',
 	'math/Vector',
 	'math/calcCircleLineIntersection',
 	'math/createJumpVector',
-	'display/Draw'
+	'display/draw'
 ], function(
-	SUPERCLASS,
+	LevelGeom,
+	extend,
 	Vector,
 	calcCircleLineIntersection,
 	createJumpVector,
-	Draw
+	draw
 ) {
 	var ERROR_ALLOWED = 0.3;
-	function Point(x, y, opts) {
-		SUPERCLASS.call(this, 'Point', opts);
+	function Point(x, y, params) {
+		LevelGeom.call(this, extend(params, {
+			levelGeomType: 'Point'
+		}));
 		this.pos = new Vector(x, y);
-		this._highlightFrames = 0;
 	}
-	Point.prototype = Object.create(SUPERCLASS.prototype);
-	Point.prototype.onCollision = function(collision) {
-		this._highlightFrames = 3;
-	};
+	Point.prototype = Object.create(LevelGeom.prototype);
 	Point.prototype.checkForCollisionWithEntity = function(entity) {
 		//we say two points can't collide (they both take up no space after all)
 		if(entity.radius === 0) {
 			return false;
 		}
-		else {
-			return this._checkForCollisionWithMovingCircle(entity.pos, entity.prevPos, entity.vel, entity.radius, entity.bounce);
-		}
-	};
-	/*Point.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
-		return this._checkForCollisionWithMovingCircle(circle.pos,
-			circle.prevPos, circle.vel, circle.radius, bounceAmt);
-	};
-	Point.prototype.checkForCollisionWithMovingPoint = function(point, bounceAmt) {
-		//we say two points can't collide (they both take up no space after all)
-		return false;
-	};*/
-	Point.prototype._checkForCollisionWithMovingCircle = function(pos, prevPos, vel, radius, bounceAmt) {
-		//if the circle started out inside of the point, we need to push it out
-		if(prevPos.squareDistance(this.pos) < radius * radius) {
+
+		//if the circle started out inside of the point, we need to consider what it looks like pushed outside of the point
+		var pos = entity.pos.clone();
+		var prevPos = entity.prevPos.clone();
+		if(prevPos.squareDistance(this.pos) < entity.radius * entity.radius) {
 			var lineToPrevPos = this.pos.createVectorTo(prevPos);
-			lineToPrevPos.setLength(radius + 0.01);
+			lineToPrevPos.setLength(entity.radius + 0.01);
 			prevPos = this.pos.clone().add(lineToPrevPos);
 		}
 
 		//we have a utility method that finds us the interseciton between a circle and line
-		var contactPoint = calcCircleLineIntersection(this.pos, radius, prevPos, pos);
+		var contactPoint = calcCircleLineIntersection(this.pos, entity.radius, prevPos, pos);
 		if(contactPoint) {
 			//there definitely is a collision here
 			var lineToContactPoint = prevPos.createVectorTo(contactPoint);
@@ -62,31 +52,30 @@ define([
 
 			//calculate the final position
 			var distToTravel = totalDist - distTraveled;
-			var movementPostContact = lineOfMovement.clone()
-				.setLength(distToTravel).unrotate(cosAngle, sinAngle);
+			var movementPostContact = lineOfMovement.clone().setLength(distToTravel).unrotate(cosAngle, sinAngle);
 			if(movementPostContact.x < 0) {
-				movementPostContact.x *= -bounceAmt;
+				movementPostContact.x *= -entity.bounce;
 			}
 			movementPostContact.rotate(cosAngle, sinAngle);
 			var finalPoint = contactPoint.clone().add(movementPostContact);
 
 			//calculate the final velocity
-			var finalVel = vel.clone().unrotate(cosAngle, sinAngle);
+			var finalVel = entity.vel.clone().unrotate(cosAngle, sinAngle);
 			if(finalVel.x < 0) {
-				finalVel.x *= -bounceAmt;
+				finalVel.x *= -entity.bounce;
 			}
 			finalVel.rotate(cosAngle, sinAngle);
 
 			return {
 				cause: this,
-				collidableRadius: radius,
+				collidableRadius: entity.radius,
 				distTraveled: distTraveled,
 				distToTravel: distToTravel,
 				contactPoint: contactPoint,
 				vectorTowards: new Vector(-Math.cos(angle), -Math.sin(angle)),
-				stabilityAngle: null,
+				stabilityAngle: null, //TODO allow entities to be stable on points?
 				finalPoint: finalPoint,
-				jumpVector: (this.jumpable ? createJumpVector(angle) : null),
+				jumpVector: createJumpVector(angle),
 				finalVel: finalVel
 			};
 		}
@@ -95,7 +84,17 @@ define([
 		return false;
 	};
 	Point.prototype.render = function() {
-		Draw.circle(this.pos.x, this.pos.y, 2, { fill: '#000' });
+		var color = '#000';
+		if(this._grapplesOnly) {
+			color = '#bb0';
+		}
+		else if(this._noGrapples) {
+			color = '#a0a';
+		}
+		else if(this.slippery) {
+			color = '#0aa';
+		}
+		draw.circle(this.pos.x, this.pos.y, 2, { fill: color });
 	};
 	return Point;
 });

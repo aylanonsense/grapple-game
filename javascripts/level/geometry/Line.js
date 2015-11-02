@@ -1,20 +1,23 @@
 define([
 	'level/geometry/LevelGeom',
+	'util/extend',
 	'math/Vector',
 	'math/createJumpVector',
-	'display/Draw'
+	'display/draw'
 ], function(
-	SUPERCLASS,
+	LevelGeom,
+	extend,
 	Vector,
 	createJumpVector,
-	Draw
+	draw
 ) {
 	var ERROR_ALLOWED = 0.3;
-	function Line(x1, y1, x2, y2, opts) {
-		SUPERCLASS.call(this, 'Line', opts);
+	function Line(x1, y1, x2, y2, params) {
+		LevelGeom.call(this, extend(params, {
+			levelGeomType: 'Line'
+		}));
 		this.start = new Vector(x1, y1);
 		this.end = new Vector(x2, y2);
-		this._highlightFrames = 0;
 
 		//cache some math
 		this._lineBetween = this.start.createVectorTo(this.end);
@@ -28,30 +31,14 @@ define([
 		this._cosPipAngle = -Math.cos(pipAngle);
 		this._sinPipAngle = -Math.sin(pipAngle);
 	}
-	Line.prototype = Object.create(SUPERCLASS.prototype);
-	Line.prototype.onCollision = function(collision) {
-		this._highlightFrames = 3;
-	};
+	Line.prototype = Object.create(LevelGeom.prototype);
 	Line.prototype.checkForCollisionWithEntity = function(entity) {
-		return this._checkForCollisionWithMovingCircle(entity.pos, entity.prevPos, entity.vel, entity.radius, entity.bounce);
-	};
-	/*Line.prototype.checkForCollisionWithMovingCircle = function(circle, bounceAmt) {
-		return this._checkForCollisionWithMovingCircle(circle.pos,
-			circle.prevPos, circle.vel, circle.radius, bounceAmt);
-	};
-	Line.prototype.checkForCollisionWithMovingPoint = function(point, bounceAmt) {
-		//a moving point is just a moving circle with 0 radius, so... do that!
-		return this._checkForCollisionWithMovingCircle(point.pos, point.prevPos, point.vel, 0, bounceAmt);
-	};*/
-	Line.prototype._checkForCollisionWithMovingCircle = function(pos, prevPos, vel, radius, bounceAmt) {
-		bounceAmt = bounceAmt || 0.0;
-
 		//let's rotate the scene so the line is horizontal and the circle is "above" it
-		pos = pos.clone().unrotate(this._cosAngle, this._sinAngle);
-		prevPos = prevPos.clone().unrotate(this._cosAngle, this._sinAngle);
+		var pos = entity.pos.clone().unrotate(this._cosAngle, this._sinAngle);
+		var prevPos = entity.prevPos.clone().unrotate(this._cosAngle, this._sinAngle);
 
 		//if there was a collision, the circle was right on top of the line (ignoring endpoints)
-		var collisionY = this._rotatedStart.y - radius;
+		var collisionY = this._rotatedStart.y - entity.radius;
 
 		//we fudge the numbers a little bit, makes things more consistent
 		if(prevPos.y > collisionY && prevPos.y <= collisionY + ERROR_ALLOWED) {
@@ -61,7 +48,7 @@ define([
 			pos.y = collisionY;
 		}
 
-		//of course this would only happen if the circle was moving downwards onto the line
+		//of course this would only happen if the entity was moving downwards towards the line
 		if(prevPos.y <= collisionY && collisionY < pos.y) {
 			var lineOfMovement = prevPos.createVectorTo(pos);
 			var totalDist = lineOfMovement.length();
@@ -72,10 +59,10 @@ define([
 			lineOfMovement.multiply(percentOfMovement);
 			var contactPoint = prevPos.clone().add(lineOfMovement);
 
-			//we have the only possible collision point, we know the circle was there, now all we
+			//we have the only possible collision point, we know the entity was there, now all we
 			// have to do is see if that is on the line segment
 			if(this._rotatedStart.x <= contactPoint.x && contactPoint.x <= this._rotatedEnd.x) {
-				//there WAS a collision! return all the relevant info
+				//there WAS a collision! now we want to return all the relevant info
 				var distTraveled = lineOfMovement.length();
 
 				//calculate the final position
@@ -83,32 +70,32 @@ define([
 				var lineOfMovementPostCollision = prevPos.createVectorTo(pos)
 					.normalize().multiply(distToTravel, distToTravel);
 				if(lineOfMovementPostCollision.y > 0) {
-					lineOfMovementPostCollision.y *= -bounceAmt;
+					lineOfMovementPostCollision.y *= -entity.bounce;
 				}
 				var finalPoint = contactPoint.clone().add(lineOfMovementPostCollision)
 					.rotate(this._cosAngle, this._sinAngle);
 
 				//calculate the final velocity
-				var finalVel = vel.clone().unrotate(this._cosAngle, this._sinAngle);
+				var finalVel = entity.vel.clone().unrotate(this._cosAngle, this._sinAngle);
 				if(finalVel.y > 0) {
-					finalVel.multiply(1.0, -bounceAmt);
+					finalVel.multiply(1.0, -entity.bounce);
 				}
 				finalVel.rotate(this._cosAngle, this._sinAngle);
 
 				//counter-gravity vector
-				var counterGravityVector = this._lineBetween.clone()
-					.setLength(-this._sinAngle);
+				var counterGravityVector = this._lineBetween.clone().setLength(-this._sinAngle);
 
+				//voila!!
 				return {
 					cause: this,
-					collidableRadius: radius,
+					collidableRadius: entity.radius,
 					distTraveled: distTraveled,
 					distToTravel: distToTravel,
 					contactPoint: contactPoint.rotate(this._cosAngle, this._sinAngle),
 					finalPoint: finalPoint,
 					counterGravityVector: counterGravityVector,
-					stabilityAngle: (this.slideOnly ? null : this._perpendicularAngle),
-					jumpVector: (this.jumpable ? createJumpVector(this._perpendicularAngle) : null),
+					stabilityAngle: (this.slippery ? null : this._perpendicularAngle),
+					jumpVector: createJumpVector(this._perpendicularAngle),
 					vectorTowards: new Vector(-Math.cos(this._perpendicularAngle), -Math.sin(this._perpendicularAngle)),
 					finalVel: finalVel
 				};
@@ -119,10 +106,20 @@ define([
 		return false;
 	};
 	Line.prototype.render = function() {
-		Draw.line(this.start.x, this.start.y, this.end.x, this.end.y, { stroke: '#000' });
-		Draw.line((this.start.x + this.end.x) / 2, (this.start.y + this.end.y) / 2,
+		var color = '#000';
+		if(this._grapplesOnly) {
+			color = '#bb0';
+		}
+		else if(this._noGrapples) {
+			color = '#a0a';
+		}
+		else if(this.slippery) {
+			color = '#0aa';
+		}
+		draw.line(this.start.x, this.start.y, this.end.x, this.end.y, { stroke: color });
+		draw.line((this.start.x + this.end.x) / 2, (this.start.y + this.end.y) / 2,
 			(this.start.x + this.end.x) / 2 + 10 * this._cosPipAngle,
-			(this.start.y + this.end.y) / 2 + 10 * this._sinPipAngle, { stroke: '#000' });
+			(this.start.y + this.end.y) / 2 + 10 * this._sinPipAngle, { stroke: color });
 	};
 	return Line;
 });

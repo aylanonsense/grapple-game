@@ -1,5 +1,6 @@
 define({
-	//canvas
+	//rendering/canvas
+	RENDER: true,
 	CANVAS_WIDTH: 800,
 	CANVAS_HEIGHT: 600,
 
@@ -60,8 +61,6 @@ define({
 	},
 	GRAPPLE_PHYSICS: {
 		MOVE_SPEED: 2000,
-		MIN_RADIUS: 1,
-		MAX_RADIUS: 24,
 		MIN_LENGTH: 50,
 		MAX_LENGTH: 250,
 		PULL_ACC: 1800,

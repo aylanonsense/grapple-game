@@ -1,3 +1,7 @@
-define(function() {
-	return document.getElementById("canvas");
+define([
+	'global'
+], function(
+	global
+) {
+	return (global.RENDER ? document.getElementById("canvas") : null);
 });

@@ -1,14 +1,14 @@
 define([
-	'display/Draw',
+	'display/draw',
 	'math/Vector'
 ], function(
-	Draw,
+	draw,
 	Vector
 ) {
-	var NEXT_ID = 0;
+	var nextEntityId = 0;
 	function Entity(params) {
 		params = params || {};
-		this._id = NEXT_ID++;
+		this._entityId = nextEntityId++;
 		this.entityType = params.entityType;
 
 		//all entities are circles that can collide with the level
@@ -20,12 +20,12 @@ define([
 		this.isActive = true;
 		this.isDead = false;
 		this.collidable = params.collidable !== false;
-		this.bounce = params.bounce || 0.0001;
+		this.bounce = (params.bounce || params.bounce === 0 ? params.bounce : 0.0001);
 		this._gravity = new Vector(params.gravityX || 0, params.gravityY || params.gravity || 0);
 		this._renderColor = params.renderColor || '#000';
 	}
 	Entity.prototype.sameAs = function(other) {
-		return other && this._id === other._id;
+		return other && this._entityId === other._entityId;
 	};
 	Entity.prototype.sameAsAny = function(others) {
 		if(!others) {
@@ -61,7 +61,7 @@ define([
 		}
 	};
 	Entity.prototype.render = function() {
-		Draw.circle(this.pos.x, this.pos.y, this.radius, { fill: this._renderColor });
+		draw.circle(this.pos.x, this.pos.y, this.radius, { fill: this._renderColor });
 	};
 	Entity.prototype.kill = function() {
 		this.isActive = false;

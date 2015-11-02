@@ -1,8 +1,8 @@
-describe("The Main module", function() {
+describe("The main module", function() {
 	var test = require('./setup');
 	var expect = test.require('chai').expect;
-	var Main = test.require('Main');
+	var main = test.require('main');
 	it("is a function", function() {
-		expect(Main).to.be.a('function');
+		expect(main).to.be.a('function');
 	});
 });

@@ -1,72 +1,36 @@
 define([
-	'Global',
+	'global',
 	'entity/Player',
 	'entity/Ball',
 	'level/TestLevel',
-	'input/Mouse',
-	'input/Keyboard',
-	'display/Camera',
-	'display/Draw'
+	'input/mouse',
+	'input/keyboard',
+	'display/camera',
+	'display/draw'
 ], function(
-	Global,
+	global,
 	Player,
 	Ball,
 	TestLevel,
-	Mouse,
-	Keyboard,
-	Camera,
-	Draw
+	mouse,
+	keyboard,
+	camera,
+	draw
 ) {
 	function Game() {
 		var i, self = this;
 
 		//vars
-		this.level = TestLevel;
+		this.level = new TestLevel();
 		this.player = new Player();
-		this.entities = [ this.player, new Ball({ x: 130, y: -100 }) ];
+		this.entities = [ this.player, new Ball({ x: 130, y: -100 }), new Ball({ x: -45, y: -100 }) ];
 
 		//bind input handlers
-		Mouse.on('mouse-event', function(type, x, y) {
-			if(type === 'mousedown') {
-				//remove all other grapples
-				for(var i = 0; i < self.entities.length; i++) {
-					if(self.entities[i].entityType === 'Grapple') {
-						self.entities[i].kill();
-					}
-				}
-				//add a new grapple
-				var grapple = self.player.shootGrapple(x + Camera.pos.x, y + Camera.pos.y);
-				self.entities.push(grapple);
-			}
-			else if(type === 'mouseup') {
-				//remove all grapples
-				for(var i = 0; i < self.entities.length; i++) {
-					if(self.entities[i].entityType === 'Grapple') {
-						self.entities[i].kill();
-					}
-				}
-			}
+		mouse.on('mouse-event', function(type, x, y) {
+			self._onmouseEvent(type, x, y);
 		});
-		Keyboard.on('key-event', function(key, isDown, state) {
-			var i;
-			if(key === 'MOVE_LEFT') {
-				self.player.moveDir.x = (isDown ? -1 : (state.MOVE_RIGHT ? 1 : 0));
-			}
-			else if(key === 'MOVE_RIGHT') {
-				self.player.moveDir.x = (isDown ? 1 : (state.MOVE_LEFT ? -1 : 0));
-			}
-			else if(key === 'JUMP' && isDown) {
-				self.player.startJumping();
-			}
-			else if(key === 'JUMP' && !isDown) {
-				self.player.stopJumping();
-			}
-			else if(key === 'PULL_GRAPPLES' && isDown) {
-				self.player.startPullingGrapples();
-			}
-			else if(key === 'PULL_GRAPPLES' && !isDown) {
-				self.player.stopPullingGrapples();
-			}
+		keyboard.on('key-event', function(key, isDown, state) {
+			self._onKeyEvent(key, isDown, state);
 		});
 	}
 	Game.prototype.update = function(t) {
@@ -94,17 +58,6 @@ define([
 				}
 			}
 		}
-		/*for(i = 0; i < this.grapples.length; i++) {
-			if(!this.grapples[i].isLatched) {
-				var collision = this.level.checkForCollisionWithMovingPoint(this.grapples[i]);
-				if(!collision) {
-					collision = this.level.checkForCollisionWithMovingCircle(this.grapples[i]);
-				}
-				if(collision) {
-					this.grapples[i].handleCollision(collision, t);
-				}
-			}
-		}*/
 
 		//end of frame
 		for(i = 0; i < this.entities.length; i++) {
@@ -122,42 +75,11 @@ define([
 			this.player.pos.y = 0;
 		}
 	};
-	Game.prototype.render = function() {
-		var i;
-
-		//move camera to follow the player
-		Camera.pos.x = this.player.pos.x - Global.CANVAS_WIDTH / 2;
-		Camera.pos.y = this.player.pos.y - Global.CANVAS_HEIGHT / 2;
-
-		//blank canvas
-		Draw.rect(0, 0, Global.CANVAS_WIDTH, Global.CANVAS_HEIGHT, { fill: '#fff7ef', fixed: true });
-
-		//draw gridlines for reference
-		var GRID_SIZE = 32;
-		var offsetX = Camera.pos.x % GRID_SIZE;
-		var offsetY = Camera.pos.y % GRID_SIZE;
-		for(i = 0; i < Global.CANVAS_WIDTH; i += GRID_SIZE) {
-			Draw.line(i - offsetX, -1, i - offsetX, Global.CANVAS_HEIGHT + 1, { stroke: '#f3e7d1', fixed: true });
-		}
-		for(i = 0; i < Global.CANVAS_HEIGHT; i += GRID_SIZE) {
-			Draw.line(-1, i - offsetY, Global.CANVAS_WIDTH + 1, i - offsetY, { stroke: '#f3e7d1', fixed: true });
-		}
-
-		//render level geometry
-		this.level.render();
-
-		//render entities
-		for(i = 0; i < this.entities.length; i++) {
-			if(!this.entities[i].isDead) {
-				this.entities[i].render();
-			}
-		}
-	};
 	Game.prototype._checkforCollisions = function(entity, t) {
 		var prevCauses = [];
 
 		//the entity may collide with a bunch of things in one frame
-		for(var step = 0; step < Global.MAX_MOVE_STEPS_PER_FRAME; step++) {
+		for(var step = 0; step < global.MAX_MOVE_STEPS_PER_FRAME; step++) {
 			//check to see if the entity is colliding with anything
 			var collisions = entity.findAllCollisions(this.level, this.entities);
 
@@ -185,6 +107,78 @@ define([
 					entity.handleCollision(collision, t, false);
 					prevCauses.push(collision.cause);
 				}
+			}
+		}
+	};
+	Game.prototype._onmouseEvent = function(type, x, y) {
+		if(type === 'mousedown') {
+			//remove all other grapples
+			for(var i = 0; i < this.entities.length; i++) {
+				if(this.entities[i].entityType === 'Grapple') {
+					this.entities[i].kill();
+				}
+			}
+			//add a new grapple
+			var grapple = this.player.shootGrapple(x + camera.pos.x, y + camera.pos.y);
+			this.entities.push(grapple);
+		}
+		else if(type === 'mouseup') {
+			//remove all grapples
+			for(var i = 0; i < this.entities.length; i++) {
+				if(this.entities[i].entityType === 'Grapple') {
+					this.entities[i].kill();
+				}
+			}
+		}
+	};
+	Game.prototype._onKeyEvent = function(key, isDown, state) {
+		if(key === 'MOVE_LEFT') {
+			this.player.moveDir.x = (isDown ? -1 : (state.MOVE_RIGHT ? 1 : 0));
+		}
+		else if(key === 'MOVE_RIGHT') {
+			this.player.moveDir.x = (isDown ? 1 : (state.MOVE_LEFT ? -1 : 0));
+		}
+		else if(key === 'JUMP' && isDown) {
+			this.player.startJumping();
+		}
+		else if(key === 'JUMP' && !isDown) {
+			this.player.stopJumping();
+		}
+		else if(key === 'PULL_GRAPPLES' && isDown) {
+			this.player.startPullingGrapples();
+		}
+		else if(key === 'PULL_GRAPPLES' && !isDown) {
+			this.player.stopPullingGrapples();
+		}
+	};
+	Game.prototype.render = function() {
+		var i;
+
+		//move camera to follow the player
+		camera.pos.x = this.player.pos.x - global.CANVAS_WIDTH / 2;
+		camera.pos.y = this.player.pos.y - global.CANVAS_HEIGHT / 2;
+
+		//blank canvas
+		draw.rect(0, 0, global.CANVAS_WIDTH, global.CANVAS_HEIGHT, { fill: '#fff7ef', fixed: true });
+
+		//draw gridlines for reference
+		var GRID_SIZE = 32;
+		var offsetX = camera.pos.x % GRID_SIZE;
+		var offsetY = camera.pos.y % GRID_SIZE;
+		for(i = 0; i < global.CANVAS_WIDTH; i += GRID_SIZE) {
+			draw.line(i - offsetX, -1, i - offsetX, global.CANVAS_HEIGHT + 1, { stroke: '#f3e7d1', fixed: true });
+		}
+		for(i = 0; i < global.CANVAS_HEIGHT; i += GRID_SIZE) {
+			draw.line(-1, i - offsetY, global.CANVAS_WIDTH + 1, i - offsetY, { stroke: '#f3e7d1', fixed: true });
+		}
+
+		//render level geometry
+		this.level.render();
+
+		//render entities
+		for(i = 0; i < this.entities.length; i++) {
+			if(!this.entities[i].isDead) {
+				this.entities[i].render();
 			}
 		}
 	};

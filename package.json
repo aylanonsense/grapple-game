@@ -1,18 +1,29 @@
 {
+  "name": "grapple-game",
   "version": "0.0.1",
+  "description": "A game where you grapple onto stuff, whee!",
+  "main": "index.js",
   "dependencies": {
-    "amdefine": "^0.1.0",
-    "chai": "^2.1.1",
-    "express": "^4.12.2",
-    "istanbul": "^0.3.7",
-    "mocha": "^2.1.0",
-    "requirejs": "^2.1.16"
+    "express": "^4.13.3",
+    "requirejs": "^2.1.20"
+  },
+  "devDependencies": {
+    "chai": "^3.4.0",
+    "istanbul": "^0.4.0",
+    "mocha": "^2.3.3"
   },
   "scripts": {
     "start": "node app.js",
     "test": "make test"
   },
-  "engines": {
-    "node": "0.8.*"
-  }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bridgs/grapple-game.git"
+  },
+  "author": "bridgs",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bridgs/grapple-game/issues"
+  },
+  "homepage": "https://github.com/bridgs/grapple-game"
 }

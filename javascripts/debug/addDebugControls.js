@@ -1,7 +1,7 @@
 define([
-	'Global'
+	'global'
 ], function(
-	Global
+	global
 ) {
 	var DEBUG_VARS = {
 		"Basic": [ "TIME_SCALE", "BOUNCE_AMOUNT" ],
@@ -18,7 +18,7 @@ define([
 	};
 
 	return function addDebugControls() {
-		//add a debug control panel with inputs that change Global vars
+		//add a debug control panel with inputs that change global vars
 		var controlsDiv = document.createElement("div");
 		controlsDiv.setAttribute("id", "debug-controls");
 		document.body.appendChild(controlsDiv);
@@ -37,7 +37,7 @@ define([
 		}
 		function addInput(key) {
 			var keys = key.split(".");
-			var val = Global;
+			var val = global;
 			for(var i = 0; i < keys.length; i++) {
 				val = val[keys[i]];
 			}
@@ -54,7 +54,7 @@ define([
 		}
 		function createKeyUpHandler(keys) {
 			return function onKeyUp() {
-				var val = Global;
+				var val = global;
 				for(var i = 0; i < keys.length - 1; i++) {
 					val = val[keys[i]];
 				}

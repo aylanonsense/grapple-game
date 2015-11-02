@@ -1,8 +1,10 @@
 define([
-	'display/Canvas',
+	'global',
+	'display/canvas',
 	'util/EventHelper'
 ], function(
-	Canvas,
+	global,
+	canvas,
 	EventHelper
 ) {
 	var events = new EventHelper([ 'mouse-event' ]);
@@ -11,11 +13,11 @@ define([
 	function onMouseEvent(evt) {
 		evt.preventDefault();
 		events.trigger('mouse-event', evt.type,
-			evt.clientX - Canvas.offsetLeft + document.body.scrollLeft,
-			evt.clientY - Canvas.offsetTop + document.body.scrollTop);
+			evt.clientX - canvas.offsetLeft + document.body.scrollLeft,
+			evt.clientY - canvas.offsetTop + document.body.scrollTop);
 	}
-	if(Canvas) {
-		Canvas.onmousedown = onMouseEvent;
+	if(global.RENDER) {
+		canvas.onmousedown = onMouseEvent;
 		document.onmouseup = onMouseEvent;
 		document.onmousemove = onMouseEvent;
 	}
