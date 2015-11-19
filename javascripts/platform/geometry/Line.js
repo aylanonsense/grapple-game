@@ -1,21 +1,19 @@
 define([
-	'level/geometry/LevelGeom',
+	'platform/geometry/PlatformGeometry',
 	'util/extend',
 	'math/Vector',
 	'display/draw'
 ], function(
-	LevelGeom,
+	PlatformGeometry,
 	extend,
 	Vector,
 	draw
 ) {
 	var ERROR_ALLOWED = 0.3;
-	function Line(x1, y1, x2, y2, params) {
-		LevelGeom.call(this, extend(params, {
-			levelGeomType: 'Line'
-		}));
-		this.start = new Vector(x1, y1);
-		this.end = new Vector(x2, y2);
+	function Line(params) {
+		PlatformGeometry.call(this, extend(params, { type: 'Line' }));
+		this.start = new Vector(params.x1 || 0, params.y1 || 0);
+		this.end = new Vector(params.x2 || 0, params.y2 || 0);
 
 		//cache some math
 		this._lineBetween = this.start.createVectorTo(this.end);
@@ -24,17 +22,33 @@ define([
 		this._sinAngle = Math.sin(angle);
 		this._rotatedStart = this.start.clone().unrotate(this._cosAngle, this._sinAngle);
 		this._rotatedEnd = this.end.clone().unrotate(this._cosAngle, this._sinAngle);
-		this._perpendicularAngle = Math.atan2(x1 - x2, y2 - y1);
+		this._perpendicularAngle = Math.atan2(this.start.x - this.end.x, this.end.y - this.start.y);
 		var pipAngle = Math.atan2(this.start.x - this.end.x, this.end.y - this.start.y);
 		this._cosPipAngle = -Math.cos(pipAngle);
 		this._sinPipAngle = -Math.sin(pipAngle);
 		this._counterGravityVector = this._lineBetween.clone().setLength(-this._sinAngle);
 	}
-	Line.prototype = Object.create(LevelGeom.prototype);
+	Line.prototype = Object.create(PlatformGeometry.prototype);
+	Line.prototype.move = function(movement, vel) {
+		PlatformGeometry.prototype.move.apply(this, arguments);
+
+		//move line
+		this.start.add(movement);
+		this.end.add(movement);
+
+		//recalc math
+		this._rotatedStart = this.start.clone().unrotate(this._cosAngle, this._sinAngle);
+		this._rotatedEnd = this.end.clone().unrotate(this._cosAngle, this._sinAngle);
+		this._frame++;
+	};
 	Line.prototype.checkForCollisionWithEntity = function(entity) {
+		//TODO account for velocity
+
 		//let's rotate the scene so the line is horizontal and the circle is "above" it
+		var pos1 = entity.pos.clone();
+		var prevPos1 = entity.prevPos.clone().add(this._movement);
 		var pos = entity.pos.clone().unrotate(this._cosAngle, this._sinAngle);
-		var prevPos = entity.prevPos.clone().unrotate(this._cosAngle, this._sinAngle);
+		var prevPos = entity.prevPos.clone().add(this._movement).unrotate(this._cosAngle, this._sinAngle);
 
 		//if there was a collision, the circle was right on top of the line (ignoring endpoints)
 		var collisionY = this._rotatedStart.y - entity.radius;

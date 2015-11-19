@@ -1,7 +1,9 @@
 define([
-	'level/Level'
+	'level/Level',
+	'platform/Platform'
 ], function(
-	Level
+	Level,
+	Platform
 ) {
 	function TestLevel() {
 		Level.call(this);
@@ -34,7 +36,7 @@ define([
 		this.addPoly([950,-1250, 875,-1100, 800,-1250]);
 		//platforms near spawn
 		this.addPoly([-250,-250, -200,-250, -200,-225, -250,-225], { grapplesOnly: true });
-		this.addPoly([-50,-250, 0,-250, 0,-225, -50,-225], { noGrapples: true });
+		this.addPoly([150,-250, 200,-250, 200,-225, 150,-225], { noGrapples: true });
 		//spawn point + cliff
 		this.addPoly([-700,2000, -700,-300, -750,-350,
 			-750,-400, -650,-400,
@@ -57,6 +59,10 @@ define([
 			pts.push(1100 - 50 * Math.cos(Math.PI * i / 10) * (i / 20));
 		}
 		this.addPoly(pts, { closed: false });
+		// this.addPoly([-300,-200, -200,-200, -200,-150, -300,-150], { moving: true, velX: 20 });
+		//this.addPoly([-100,200, 0,200, 0,250, -100,250], { moving: true, velY: -600 });
+		var platform = this.addPlatform(new Platform({ x: -50, y: 50, points: [75,25, -75,25, -75,-25, 75,-25] }));
+		platform.moveTo(1000, -500, { speed: 100 });
 	}
 	TestLevel.prototype = Object.create(Level.prototype);
 	return TestLevel;

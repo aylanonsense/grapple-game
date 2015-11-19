@@ -46,7 +46,7 @@ define([
 		scheduleLoop();
 
 		//add debug controls along the left side
-		if(global.DEBUG_CONTROLS) {
+		if(global.RENDER && global.DEBUG_CONTROLS) {
 			addDebugControls();
 		}
 	};

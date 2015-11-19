@@ -12,21 +12,28 @@ define([
 	draw
 ) {
 	var ERROR_ALLOWED = 0.3;
-	function Point(x, y, params) {
+	function MovingPoint(x, y, params) {
 		LevelGeom.call(this, extend(params, {
 			levelGeomType: 'Point'
 		}));
 		this.pos = new Vector(x, y);
+		this.vel = new Vector(params.velX || 0, params.velY || 0);
+		this._moveThisFrame = new Vector(0, 0);
 	}
-	Point.prototype = Object.create(LevelGeom.prototype);
-	Point.prototype.checkForCollisionWithEntity = function(entity) {
+	MovingPoint.prototype = Object.create(LevelGeom.prototype);
+	MovingPoint.prototype.update = function(t) {
+		//move point -- assume this occurs BEFORE entities
+		this._moveThisFrame.copy(this.vel).multiply(t);
+		this.pos.add(this._moveThisFrame);
+	};
+	MovingPoint.prototype.checkForCollisionWithEntity = function(entity) {
 		//we say two points can't collide (they both take up no space after all)
 		if(entity.radius === 0) {
 			return false;
 		}
 
 		//if the circle started out inside of the point, we need to consider what it looks like pushed outside of the point
-		var pos = entity.pos.clone();
+		var pos = entity.pos.clone().add(this._moveThisFrame);
 		var prevPos = entity.prevPos.clone();
 		if(prevPos.squareDistance(this.pos) < entity.radius * entity.radius) {
 			var lineToPrevPos = this.pos.createVectorTo(prevPos);
@@ -86,7 +93,7 @@ define([
 		//otherwise there is no collision
 		return false;
 	};
-	Point.prototype.render = function() {
+	MovingPoint.prototype.render = function() {
 		var color = '#000';
 		if(this._grapplesOnly) {
 			color = '#bb0';
@@ -99,5 +106,5 @@ define([
 		}
 		draw.circle(this.pos.x, this.pos.y, 2, { fill: color });
 	};
-	return Point;
+	return MovingPoint;
 });

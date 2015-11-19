@@ -1,32 +1,36 @@
 define([
-	'level/geometry/LevelGeom',
+	'platform/geometry/PlatformGeometry',
 	'util/extend',
 	'math/Vector',
 	'math/calcCircleLineIntersection',
 	'display/draw'
 ], function(
-	LevelGeom,
+	PlatformGeometry,
 	extend,
 	Vector,
 	calcCircleLineIntersection,
 	draw
 ) {
 	var ERROR_ALLOWED = 0.3;
-	function Point(x, y, params) {
-		LevelGeom.call(this, extend(params, {
-			levelGeomType: 'Point'
-		}));
-		this.pos = new Vector(x, y);
+	function Point(params) {
+		PlatformGeometry.call(this, extend(params, { type: 'Point' }));
+		this.pos = new Vector(params.x || 0, params.y || 0);
 	}
-	Point.prototype = Object.create(LevelGeom.prototype);
+	Point.prototype = Object.create(PlatformGeometry.prototype);
+	Point.prototype.move = function(movement, vel) {
+		PlatformGeometry.prototype.move.apply(this, arguments);
+		this.pos.add(movement);
+	};
 	Point.prototype.checkForCollisionWithEntity = function(entity) {
+		//TODO account for the point's velocity
+
 		//we say two points can't collide (they both take up no space after all)
 		if(entity.radius === 0) {
 			return false;
 		}
 
 		//if the circle started out inside of the point, we need to consider what it looks like pushed outside of the point
-		var pos = entity.pos.clone();
+		var pos = entity.pos.clone().add(this._movement); //add movement to account for point velocity
 		var prevPos = entity.prevPos.clone();
 		if(prevPos.squareDistance(this.pos) < entity.radius * entity.radius) {
 			var lineToPrevPos = this.pos.createVectorTo(prevPos);

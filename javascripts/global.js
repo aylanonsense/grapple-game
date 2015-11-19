@@ -1,6 +1,7 @@
 define({
 	//rendering/canvas
 	RENDER: true,
+	RENDER_MDOE: 'full', //full = sprites
 	CANVAS_WIDTH: 800,
 	CANVAS_HEIGHT: 600,
 
@@ -24,12 +25,8 @@ define({
 
 	//debug vars
 	DEBUG_CONTROLS: true,
-	DEBUG_HIDE_SPRITES: false,
-	DEBUG_TRACE_SPRITES: false,
-	DEBUG_SHOW_PHYS_OBJECTS: false,
 
 	//physics vars
-	BOUNCE_AMOUNT: 0.0001,
 	PLAYER_PHYSICS: {
 		JUMP_SPEED: 350,
 		JUMP_BRAKE_SPEED: 100,

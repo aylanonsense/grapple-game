@@ -7,9 +7,9 @@ define([
 	canvas,
 	camera
 ) {
-	var CTX = (global.RENDER ? canvas.getContext("2d") : null);
+	var CTX = global.RENDER ? canvas.getContext("2d") : null;
 
-	function applyDrawOptions(opts, defualtDrawMode) {
+	function applyDrawParams(params, defualtDrawMode) {
 		var result = {
 			shouldFill: false,
 			shouldStroke: false,
@@ -17,31 +17,31 @@ define([
 		};
 
 		//figure out if we should stroke
-		if(!opts || !opts.fill || opts.stroke) {
+		if(!params || !params.fill || params.stroke) {
 			result.shouldStroke = true;
-			CTX.strokeStyle = opts && opts.stroke || '#fff';
-			CTX.lineWidth = opts && (opts.thickness || opts.thickness === 0) ? opts.thickness : 1;
+			CTX.strokeStyle = params && params.stroke || '#fff';
+			CTX.lineWidth = params && (params.thickness || params.thickness === 0) ? params.thickness : 1;
 		}
-		else if(opts && opts.color && defualtDrawMode === 'stroke') {
+		else if(params && params.color && defualtDrawMode === 'stroke') {
 			result.shouldStroke = true;
-			CTX.strokeStyle = opts && opts.color || '#fff';
-			CTX.lineWidth = opts && (opts.thickness || opts.thickness === 0) ? opts.thickness : 1;
+			CTX.strokeStyle = params && params.color || '#fff';
+			CTX.lineWidth = params && (params.thickness || params.thickness === 0) ? params.thickness : 1;
 		}
 
-		//figure out if we should fille
-		if(opts && opts.fill) {
+		//figure out if we should fill
+		if(params && params.fill) {
 			result.shouldFill = true;
-			CTX.fillStyle = opts.fill || '#fff';
+			CTX.fillStyle = params.fill || '#fff';
 			result.shouldFill = true;
 		}
-		else if(opts && opts.color && defualtDrawMode === 'fill') {
+		else if(params && params.color && defualtDrawMode === 'fill') {
 			result.shouldFill = true;
-			CTX.fillStyle = opts.color || '#fff';
+			CTX.fillStyle = params.color || '#fff';
 			result.shouldFill = true;
 		}
 
 		//fixed drawings will ignore the position of the camera
-		if(opts && opts.fixed === true) {
+		if(params && params.fixed === true) {
 			result.offset.x = 0;
 			result.offset.y = 0;
 		}
@@ -51,13 +51,13 @@ define([
 	}
 
 	return {
-		rect: function(x, y, width, height, opts) {
+		rect: function(x, y, width, height, params) {
 			if(global.RENDER) {
-				//(Rect) or (Rect, opts)
+				//(Rect) or (Rect, params)
 				if(arguments.length < 3) {
-					opts = y; height = x.height; width = x.width; y = x.top; x = x.left;
+					params = y; height = x.height; width = x.width; y = x.top; x = x.left;
 				}
-				var result = applyDrawOptions(opts, 'fill');
+				var result = applyDrawParams(params, 'fill');
 				if(result.shouldFill) {
 					CTX.fillRect(x + result.offset.x, y + result.offset.y, width, height);
 				}
@@ -66,9 +66,9 @@ define([
 				}
 			}
 		},
-		circle: function(x, y, r, opts) {
+		circle: function(x, y, r, params) {
 			if(global.RENDER) {
-				var result = applyDrawOptions(opts, 'fill');
+				var result = applyDrawParams(params, 'fill');
 				CTX.beginPath();
 				CTX.arc(x + result.offset.x, y + result.offset.y, r, 0, 2 * Math.PI);
 				if(result.shouldFill) {
@@ -79,13 +79,13 @@ define([
 				}
 			}
 		},
-		line: function(x1, y1, x2, y2, opts) {
+		line: function(x1, y1, x2, y2, params) {
 			if(global.RENDER) {
-				//(Vector, Vector) or (Vector, Vector, opts)
+				//(Vector, Vector) or (Vector, Vector, params)
 				if(arguments.length < 4) {
-					opts = x2; y2 = y1.y; x2 = y1.x; y1 = x1.y; x1 = x1.x;
+					params = x2; y2 = y1.y; x2 = y1.x; y1 = x1.y; x1 = x1.x;
 				}
-				var result = applyDrawOptions(opts, 'stroke');
+				var result = applyDrawParams(params, 'stroke');
 				if(result.shouldStroke) {
 					CTX.beginPath();
 					CTX.moveTo(x1 + result.offset.x, y1 + result.offset.y);
@@ -94,17 +94,16 @@ define([
 				}
 			}
 		},
-		poly: function(/* x1, y1, x2, y2, ..., */ opts) {
+		poly: function(/* x1, y1, x2, y2, ..., */ params) {
 			if(global.RENDER) {
-				var result = applyDrawOptions(opts, 'stroke');
+				params = arguments.length % 2 === 0 ? {} : arguments[arguments.length - 1];
+				var result = applyDrawParams(params, 'stroke');
 				CTX.beginPath();
 				CTX.moveTo(arguments[0] + result.offset.x, arguments[1] + result.offset.y);
 				for(var i = 2; i < arguments.length - 1; i += 2) {
 					CTX.lineTo(arguments[i] + result.offset.x, arguments[i + 1] + result.offset.y);
 				}
-				//this function assumes opts is given...
-				opts = arguments[arguments.length - 1];
-				if(opts && opts.close) {
+				if(params && params.close) {
 					CTX.closePath();
 				}
 				if(result.shouldFill) {
@@ -113,6 +112,16 @@ define([
 				if(result.shouldStroke) {
 					CTX.stroke();
 				}
+			}
+		},
+		image: function(canvas, x1, y1, x2, y2, width, height, params) {
+			if(global.RENDER) {
+				params = params || {};
+				var offset = {
+					x: params.fixed ? 0 : -camera.pos.x,
+					y: params.fixed ? 0 : -camera.pos.y
+				};
+				CTX.drawImage(canvas, x1, y1, width, height, x2 + offset.x, y2 + offset.y, width, height);
 			}
 		}
 	};

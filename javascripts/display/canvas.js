@@ -3,5 +3,5 @@ define([
 ], function(
 	global
 ) {
-	return (global.RENDER ? document.getElementById("canvas") : null);
+	return global.RENDER ? document.getElementById("canvas") : null;
 });

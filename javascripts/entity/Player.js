@@ -4,14 +4,16 @@ define([
 	'entity/Entity',
 	'math/Vector',
 	'entity/Grapple',
-	'display/draw'
+	'display/draw',
+	'display/loadSprite!grapple-girl'
 ], function(
 	global,
 	extend,
 	Entity,
 	Vector,
 	Grapple,
-	draw
+	draw,
+	sprite
 ) {
 	var JUMP_BUFFER_FRAMES = 5;
 	var JUMP_LENIANCE_FRAMES = 6;
@@ -20,12 +22,12 @@ define([
 	function Player(params) {
 		Entity.call(this, extend(params, {
 			entityType: 'Player',
-			radius: 12,
-			renderColor: '#1100bb'
+			radius: 14,
+			renderColor: '#1100bb',
+			gravity: global.PLAYER_PHYSICS.GRAVITY
 		}));
-
 		this.isPullingGrapples = false;
-		this._lastFramePos = this.pos.clone();
+
 		this.moveDir = new Vector(0, 0);
 		this.isAirborne = true;
 		this.isOnTerraFirma = false;
@@ -37,22 +39,21 @@ define([
 		this._bufferedJumpTime = 0;
 		this._endJumpImmediately = false;
 		this._collisionsThisFrame = [];
-		this._lastJumpableCollision = null;
-		this._timeSinceJumpableCollision = null;
-		this._tThisFrame = null;
+		this._lastJumpVector = null;
+		this._timeSinceLastJumpVector = null;
 		this._isFlipped = false;
 		this._walkTime = 0.0;
 	}
 	Player.prototype = Object.create(Entity.prototype);
 	Player.prototype.startOfFrame = function(t) {
-		this._tThisFrame = t;
-		this._lastFramePos = this.pos.clone();
+		Entity.prototype.startOfFrame.call(this, t);
 		this.isAirborne = this._isAirborneLastFrame;
 		this.isGrappling = this._isGrapplingLastFrame;
 		this._collisionsThisFrame = [];
 	};
 	Player.prototype.update = function(t) {
-		var newVel = this.vel.clone().add(0, global.PLAYER_PHYSICS.GRAVITY * t);
+		this._gravity.y = global.PLAYER_PHYSICS.GRAVITY;
+		var newVel = this.vel.clone().addMult(this._gravity, t);
 		var MOVEMENT;
 		if(this.isAirborne) { MOVEMENT = global.PLAYER_PHYSICS.AIR; }
 		else if(!this.isOnTerraFirma) { MOVEMENT = global.PLAYER_PHYSICS.SLIDING; }
@@ -126,43 +127,47 @@ define([
 		this._isGrapplingLastFrame = false;
 	};
 	Player.prototype.endOfFrame = function(t) {
+		Entity.prototype.endOfFrame.call(this, t);
+
 		//find the "best" jump surface this frame (the one that sends you them most upward)
-		var bestJumpableCollision = null;
+		var bestJumpVector = null;
 		for(var i = 0; i < this._collisionsThisFrame.length; i++) {
 			var collision = this._collisionsThisFrame[i];
-			if(collision.jumpVector && (bestJumpableCollision === null ||
-				Math.abs(collision.jumpVector.y) > Math.abs(bestJumpableCollision.jumpVector.y))) {
-				bestJumpableCollision = collision;
+			if(collision.jumpable) {
+				var jumpVector = createJumpVector(collision.perpendicularAngle);
+				if(bestJumpVector === null || Math.abs(jumpVector.y) > Math.abs(bestJumpVector.y)) {
+					bestJumpVector = jumpVector;
+				}
 			}
 		}
 
 		//if we have a good jump candidate, we store it until we want to jump off of it
-		if(bestJumpableCollision) {
-			this._lastJumpableCollision = bestJumpableCollision;
-			this._timeSinceJumpableCollision = 0.0;
+		if(bestJumpVector) {
+			this._lastJumpVector = bestJumpVector;
+			this._timeSinceLastJumpVector = 0.0;
 		}
 
 		//we may even want to jump off of something right now!
-		if(this._bufferedJumpTime > 0.0 && this._lastJumpableCollision !== null &&
-			this._timeSinceJumpableCollision < (JUMP_LENIANCE_FRAMES + 0.5) / 60) {
+		if(this._bufferedJumpTime > 0.0 && this._lastJumpVector !== null &&
+			this._timeSinceLastJumpVector < (JUMP_LENIANCE_FRAMES + 0.5) / 60) {
 			var speed = (this._endJumpImmediately ? global.PLAYER_PHYSICS.JUMP_BRAKE_SPEED : global.PLAYER_PHYSICS.JUMP_SPEED);
-			this.vel.x += speed * this._lastJumpableCollision.jumpVector.x;
-			if(this._lastJumpableCollision.jumpVector.y <= 0) {
-				this.vel.y = Math.min(speed * this._lastJumpableCollision.jumpVector.y, this.vel.y);
+			this.vel.x += speed * this._lastJumpVector.x;
+			if(this._lastJumpVector.y <= 0) {
+				this.vel.y = Math.min(speed * this._lastJumpVector.y, this.vel.y);
 			}
 			else {
-				this.vel.y = Math.max(speed * this._lastJumpableCollision.jumpVector.y, this.vel.y);
+				this.vel.y = Math.max(speed * this._lastJumpVector.y, this.vel.y);
 			}
 			this._isJumping = true;
 			this._bufferedJumpTime = 0.0;
 			this._endJumpImmediately = false;
-			this._lastJumpableCollision = null;
-			this._timeSinceJumpableCollision = null;
+			this._lastJumpVector = null;
+			this._timeSinceLastJumpVector = null;
 		}
 
 		//increment timers
-		if(this._timeSinceJumpableCollision !== null) {
-			this._timeSinceJumpableCollision += t;
+		if(this._timeSinceLastJumpVector !== null) {
+			this._timeSinceLastJumpVector += t;
 		}
 		this._bufferedJumpTime = Math.max(0, this._bufferedJumpTime - t);
 
@@ -260,5 +265,68 @@ define([
 	Player.prototype.stopPullingGrapples = function() {
 		this.isPullingGrapples = false;
 	};
+	Player.prototype.render = function() {
+		//render the player sprite
+		var frame;
+		var flipped = this._isFlipped;
+		if(this.isGrappling) {
+			var line = this.pos.createVectorTo(this._lastGrappleTouched.pos);
+			var tangentLine = new Vector(line.y, -line.x);
+			var angleToGrapple = line.angle();
+			if(angleToGrapple < 0) { angleToGrapple += 2 * Math.PI; }
+			var movingClockwise = (tangentLine.dot(this.vel) > 0);
+			var squareSpeed = this.vel.squareLength();
+			flipped = movingClockwise;
+			if(flipped) {
+				frame = 20 + Math.round(16 * angleToGrapple / (2 * Math.PI));
+			}
+			else {
+				frame = 28 - Math.round(16 * angleToGrapple / (2 * Math.PI));
+			}
+			if(frame >= 28) { frame -= 16; }
+			if(squareSpeed > 330 * 330) {
+				frame += 16;
+			}
+		}
+		else if(this.isAirborne) {
+			frame = 8;
+		}
+		else if(!this.isOnTerraFirma) {
+			frame = 0;
+		}
+		else if(this.vel.x > 0.001 || this.vel.x < -0.001) {
+			var walkCycle = (this._walkTime) % ((9 + 7 + 9 + 7) / 60);
+			if(walkCycle < (9) / 60) {
+				frame = 4;
+			}
+			else if(walkCycle < (9 + 7) / 60) {
+				frame = 5;
+			}
+			else if(walkCycle < (9 + 7 + 9) / 60) {
+				frame = 6;
+			}
+			else {
+				frame = 7;
+			}
+		}
+		else {
+			frame = 0;
+		}
+		sprite.render(this.pos.x, this.pos.y, frame, { flip: flipped });
+	};
+
+	//helper methods
+	function createJumpVector(angle) {
+		var distFromTop = (angle + Math.PI / 2) % (2 * Math.PI);
+		if(distFromTop > Math.PI) {
+			distFromTop = distFromTop - 2 * Math.PI;
+		}
+		var squareDistFromTop = distFromTop * distFromTop;
+		var const1 = 1.1; //0 = always jump perpendicular, -1 = jump "more down", 1 = jump "more up"
+		angle = angle - const1 * distFromTop + (const1 / Math.PI) *
+			(distFromTop > 0 ? 1 : -1) * squareDistFromTop;
+		return new Vector(Math.cos(angle), Math.sin(angle));
+	}
+
 	return Player;
 });

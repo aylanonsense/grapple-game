@@ -23,7 +23,11 @@ define([
 		//vars
 		this.level = new TestLevel();
 		this.player = new Player();
-		this.entities = [ this.player, new Ball({ x: 130, y: -100 }), new Ball({ x: -45, y: -100 }) ];
+		this.entities = [
+			this.player,
+			new Ball({ x: 130, y: -100 }),
+			new Ball({ x: -45, y: -100 })
+		];
 
 		//bind input handlers
 		mouse.on('mouse-event', function(type, x, y) {
@@ -42,6 +46,9 @@ define([
 				this.entities[i].startOfFrame(t);
 			}
 		}
+
+		//update level (move platforms)
+		this.level.update(t);
 
 		//update entities
 		for(i = 0; i < this.entities.length; i++) {
@@ -111,9 +118,10 @@ define([
 		}
 	};
 	Game.prototype._onmouseEvent = function(type, x, y) {
+		var i;
 		if(type === 'mousedown') {
 			//remove all other grapples
-			for(var i = 0; i < this.entities.length; i++) {
+			for(i = 0; i < this.entities.length; i++) {
 				if(this.entities[i].entityType === 'Grapple') {
 					this.entities[i].kill();
 				}
@@ -124,7 +132,7 @@ define([
 		}
 		else if(type === 'mouseup') {
 			//remove all grapples
-			for(var i = 0; i < this.entities.length; i++) {
+			for(i = 0; i < this.entities.length; i++) {
 				if(this.entities[i].entityType === 'Grapple') {
 					this.entities[i].kill();
 				}

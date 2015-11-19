@@ -1,16 +1,32 @@
 define([
 	'level/geometry/Line',
-	'level/geometry/Point'
+	'level/geometry/MovingLine',
+	'level/geometry/Point',
+	'level/geometry/MovingPoint'
 ], function(
 	Line,
-	Point
+	MovingLine,
+	Point,
+	MovingPoint
 ) {
 	function Level() {
+		this.platforms = [];
 		this._geometry = [];
 	}
+	Level.prototype.update = function(t) {
+		for(var i = 0; i < this.platforms.length; i++) {
+			this.platforms[i].update(t);
+		}
+		for(i = 0; i < this._geometry.length; i++) {
+			this._geometry[i].update(t);
+		}
+	};
 	Level.prototype.findAllCollisionsWithEntity = function(entity) {
 		var collisions = [];
-		for(var i = 0; i < this._geometry.length; i++) {
+		for(var i = 0; i < this.platforms.length; i++) {
+			collisions = collisions.concat(this.platforms[i].checkForCollisionsWithEntity(entity));
+		}
+		for(i = 0; i < this._geometry.length; i++) {
 			if(this._geometry[i].canCollideWithEntity(entity)) {
 				var collision = this._geometry[i].checkForCollisionWithEntity(entity);
 				if(collision) {
@@ -21,6 +37,8 @@ define([
 		return collisions;
 	};
 	Level.prototype.addPoint = function(x, y, params) {
+		params = params || {};
+
 		//find the point closest to where we're trying to add one
 		var closestPoint = null;
 		var distToClosestPoint = null;
@@ -41,15 +59,16 @@ define([
 
 		//otherwise create a new point
 		else {
-			var point = new Point(x, y, params);
+			var point = new (params.moving ? MovingPoint : Point)(x, y, params);
 			this._geometry.push(point);
 			return point;
 		}
 	};
 	Level.prototype.addLine = function(x1, y1, x2, y2, params) {
+		params = params || {};
 		var point1 = this.addPoint(x1, y1, params);
 		var point2 = this.addPoint(x2, y2, params);
-		var line = new Line(point1.pos.x, point1.pos.y, point2.pos.x, point2.pos.y, params);
+		var line = new (params.moving ? MovingLine : Line)(point1.pos.x, point1.pos.y, point2.pos.x, point2.pos.y, params);
 		this._geometry.push(line);
 		return line;
 	};
@@ -61,9 +80,16 @@ define([
 			this.addLine(points[points.length-2], points[points.length-1], points[0], points[1], params);
 		}
 	};
-	Level.prototype.render = function(ctx, camera) {
-		for(var i = 0; i < this._geometry.length; i++) {
-			this._geometry[i].render(ctx, camera);
+	Level.prototype.addPlatform = function(platform) {
+		this.platforms.push(platform);
+		return platform;
+	};
+	Level.prototype.render = function() {
+		for(var i = 0; i < this.platforms.length; i++) {
+			this.platforms[i].render();
+		}
+		for(i = 0; i < this._geometry.length; i++) {
+			this._geometry[i].render();
 		}
 	};
 	return Level;

@@ -22,6 +22,9 @@ define(function() {
 		}
 		return false;
 	};
+	LevelGeom.prototype.update = function(t) {
+		//move LevelGeom don't need to update
+	};
 	LevelGeom.prototype.canCollideWithEntity = function(entity) {
 		if(!entity) {
 			return false;

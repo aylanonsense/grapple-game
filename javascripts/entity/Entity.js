@@ -38,14 +38,16 @@ define([
 		}
 		return false;
 	};
-	Entity.prototype.startOfFrame = function(t) {};
+	Entity.prototype.startOfFrame = function(t) {
+	};
 	Entity.prototype.update = function(t) {
 		var newVel = this.vel.clone().addMult(this._gravity, t);
-		this.prevPos.set(this.pos);
+		this.prevPos.copy(this.pos);
 		this.pos.add(this.vel.average(newVel).multiply(t));
 		this.vel = newVel;
 	};
-	Entity.prototype.endOfFrame = function(t) {};
+	Entity.prototype.endOfFrame = function(t) {
+	};
 	Entity.prototype.findAllCollisions = function(level, entities) {
 		return level.findAllCollisionsWithEntity(this);
 	};

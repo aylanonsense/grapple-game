@@ -138,7 +138,8 @@ define([
 							vectorTowards: lineFromLatchPointToPrev.clone().normalize(),
 							stabilityAngle: null,
 							finalPoint: finalPoint,
-							jumpVector: null,
+							perpendicularAngle: null, //TODO add if needed and make sure it's correct
+							jumpable: false,
 							finalVel: finalVel
 						};
 						this._collisionsThisFrame.push(collision);

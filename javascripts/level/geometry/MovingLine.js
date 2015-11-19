@@ -10,12 +10,14 @@ define([
 	draw
 ) {
 	var ERROR_ALLOWED = 0.3;
-	function Line(x1, y1, x2, y2, params) {
+	function MovingLine(x1, y1, x2, y2, params) {
 		LevelGeom.call(this, extend(params, {
 			levelGeomType: 'Line'
 		}));
 		this.start = new Vector(x1, y1);
 		this.end = new Vector(x2, y2);
+		this.vel = new Vector(params.velX || 0, params.velY || 0);
+		this._moveThisFrame = new Vector(0, 0);
 
 		//cache some math
 		this._lineBetween = this.start.createVectorTo(this.end);
@@ -30,11 +32,21 @@ define([
 		this._sinPipAngle = -Math.sin(pipAngle);
 		this._counterGravityVector = this._lineBetween.clone().setLength(-this._sinAngle);
 	}
-	Line.prototype = Object.create(LevelGeom.prototype);
-	Line.prototype.checkForCollisionWithEntity = function(entity) {
+	MovingLine.prototype = Object.create(LevelGeom.prototype);
+	MovingLine.prototype.update = function(t) {
+		//move line -- assume this occurs BEFORE entities
+		this._moveThisFrame.copy(this.vel).multiply(t);
+		this.start.add(this._moveThisFrame);
+		this.end.add(this._moveThisFrame);
+
+		//recalc math
+		this._rotatedStart = this.start.clone().unrotate(this._cosAngle, this._sinAngle);
+		this._rotatedEnd = this.end.clone().unrotate(this._cosAngle, this._sinAngle);
+	};
+	MovingLine.prototype.checkForCollisionWithEntity = function(entity) {
 		//let's rotate the scene so the line is horizontal and the circle is "above" it
 		var pos = entity.pos.clone().unrotate(this._cosAngle, this._sinAngle);
-		var prevPos = entity.prevPos.clone().unrotate(this._cosAngle, this._sinAngle);
+		var prevPos = entity.prevPos.clone().add(this._moveThisFrame).unrotate(this._cosAngle, this._sinAngle);
 
 		//if there was a collision, the circle was right on top of the line (ignoring endpoints)
 		var collisionY = this._rotatedStart.y - entity.radius;
@@ -102,7 +114,7 @@ define([
 		//there was no collision
 		return false;
 	};
-	Line.prototype.render = function() {
+	MovingLine.prototype.render = function() {
 		var color = '#000';
 		if(this._grapplesOnly) {
 			color = '#bb0';
@@ -118,5 +130,5 @@ define([
 			(this.start.x + this.end.x) / 2 + 10 * this._cosPipAngle,
 			(this.start.y + this.end.y) / 2 + 10 * this._sinPipAngle, { stroke: color });
 	};
-	return Line;
+	return MovingLine;
 });
