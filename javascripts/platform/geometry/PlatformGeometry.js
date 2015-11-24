@@ -7,12 +7,7 @@ define([
 	function PlatformGeometry(params) {
 		params = params || {};
 		this._platformGeometryId = nextPlatformGeometryId++;
-		this.platformGeometryType = params.type;
-
-		this.slippery = params.slippery || false;
-		this._grapplesOnly = params.grapplesOnly || false;
-		this._noGrapples = params.noGrapples || false;
-
+		this.platformGeometryType = params.geometryType;
 		this._vel = new Vector(0, 0);
 		this._movement = new Vector(0, 0);
 	}
@@ -32,20 +27,6 @@ define([
 	PlatformGeometry.prototype.move = function(movement, vel) {
 		this._movement.copy(movement);
 		this._vel.copy(vel);
-	};
-	PlatformGeometry.prototype.canCollideWithEntity = function(entity) {
-		if(!entity) {
-			return false;
-		}
-		else if(this._grapplesOnly) {
-			return entity.entityType === 'Grapple';
-		}
-		else if(this._noGrapples) {
-			return entity.entityType !== 'Grapple';
-		}
-		else {
-			return true;
-		}
 	};
 	PlatformGeometry.prototype.checkForCollisionWithEntity = function(enttiy) {
 		throw new Error("Need to implement in subclasses");

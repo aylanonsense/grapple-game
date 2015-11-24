@@ -70,7 +70,7 @@ define([
 		if(!this.isLatched) {
 			if(this._startPos.squareDistance(this.pos) > (global.GRAPPLE_PHYSICS.MAX_LENGTH - this.radius) *
 				(global.GRAPPLE_PHYSICS.MAX_LENGTH - this.radius)) {
-				this.kill()
+				this.kill();
 			}
 		}
 	};

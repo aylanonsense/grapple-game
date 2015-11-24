@@ -27,11 +27,16 @@ define(function() {
 			this._eventCallbacks[eventName][i].apply(this, args);
 		}
 	};
-	EventHelper.prototype.on = function(eventName, callback) {
+	EventHelper.prototype.on = function(eventName, callback, ctx) {
 		if(!this._eventCallbacks[eventName]) {
 			throw new Error("Event '" + eventName + "' is not registered");
 		}
-		this._eventCallbacks[eventName].push(callback);
+		if(ctx) {
+			this._eventCallbacks[eventName].push(callback.bind(ctx));
+		}
+		else {
+			this._eventCallbacks[eventName].push(callback);
+		}
 	};
 	return EventHelper;
 });

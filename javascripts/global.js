@@ -20,8 +20,12 @@ define({
 	FRAMES_PER_SECOND: null, //null will use requestAnimationFrame
 	TIME_SCALE: 1.0, //2.0 will run twice as fast, 0.5 will run at half speed
 
+	//game
+	LEVEL: 'level/TestLevel',
+
 	//logic
 	MAX_MOVE_STEPS_PER_FRAME: 6,
+	LOG_WHEN_EXCEED_MAX_MOVE_STEPS: true,
 
 	//debug vars
 	DEBUG_CONTROLS: true,

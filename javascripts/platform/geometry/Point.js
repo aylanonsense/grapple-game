@@ -13,7 +13,7 @@ define([
 ) {
 	var ERROR_ALLOWED = 0.3;
 	function Point(params) {
-		PlatformGeometry.call(this, extend(params, { type: 'Point' }));
+		PlatformGeometry.call(this, extend(params, { geometryType: 'Point' }));
 		this.pos = new Vector(params.x || 0, params.y || 0);
 	}
 	Point.prototype = Object.create(PlatformGeometry.prototype);
@@ -62,14 +62,14 @@ define([
 			var finalPoint = contactPoint.clone().add(movementPostContact);
 
 			//calculate the final velocity
-			var finalVel = entity.vel.clone().unrotate(cosAngle, sinAngle);
-			if(finalVel.x < 0) {
-				finalVel.x *= -entity.bounce;
+			var vel = entity.vel.clone().subtract(this._vel).unrotate(cosAngle, sinAngle);
+			if(vel.x < 0) {
+				vel.x *= -entity.bounce;
 			}
-			finalVel.rotate(cosAngle, sinAngle);
 
 			//counter-gravity vector
 			var counterGravityVector = lineFromPointToContactPoint.clone().rotate(Math.PI / 2).setLength(-cosAngle);//this._lineBetween.clone().setLength(-this._sinAngle);
+			//TODO this counter gravity vector is probably wrong...
 
 			return {
 				cause: this,
@@ -78,12 +78,13 @@ define([
 				distToTravel: distToTravel,
 				contactPoint: contactPoint,
 				vectorTowards: new Vector(-Math.cos(angle), -Math.sin(angle)),
-				stabilityAngle: (this.slippery ? null : angle),
+				stabilityAngle: angle,
 				finalPoint: finalPoint,
 				counterGravityVector: counterGravityVector,
 				perpendicularAngle: angle,
+				surfaceVel: this._vel,
 				jumpable: true,
-				finalVel: finalVel
+				finalVel: vel.rotate(cosAngle, sinAngle).add(this._vel)
 			};
 		}
 

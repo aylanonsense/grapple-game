@@ -142,6 +142,13 @@ define(function() {
 		var dy = this.y - y;
 		return dx * dx + dy * dy;
 	};
+	Vector.prototype.equals = function(x, y) {
+		if(arguments.length === 1) { y = x.y; x = x.x; }
+		return this.x === x && this.y === y;
+	};
+	Vector.prototype.isZero = function() {
+		return this.x === 0 && this.y === 0;
+	};
 	Vector.prototype.toString = function() {
 		//for readability we reduce really small numbers to 0
 		return 'x:' + (-0.0000000001 < this.x && this.x < 0.0000000001 ? 0 : Math.floor(100 * this.x) / 100) +

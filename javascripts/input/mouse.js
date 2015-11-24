@@ -23,8 +23,8 @@ define([
 	}
 
 	return {
-		on: function(eventName, callback) {
-			events.on(eventName, callback);
+		on: function(eventName, callback, ctx) {
+			events.on.apply(events, arguments);
 		}
 	};
 });

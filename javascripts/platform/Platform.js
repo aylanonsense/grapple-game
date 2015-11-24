@@ -9,37 +9,35 @@ define([
 ) {
 	function Platform(params) {
 		var x = params.x || 0, y = params.y || 0;
-		var avgX = 0, avgY = 0;
 
 		//create point and line children
 		this._geometry = [];
 		var minX = params.points[0], maxX = params.points[0];
 		var minY = params.points[1], maxY = params.points[1];
 		for(var i = 0; i < params.points.length; i += 2) {
-			avgX += params.points[i];
-			avgY += params.points[i + 1];
-			this._geometry.push(new Point({
-				x: x + params.points[i],
-				y: y + params.points[i + 1]
-			}));
-			this._geometry.push(new Line({
-				x1: x + params.points[i],
-				y1: y + params.points[i + 1],
-				x2: x + params.points[(i + 2) % params.points.length],
-				y2: y + params.points[(i + 3) % params.points.length]
-			}));
-			if(params.points[i] < minX) {
-				minX = params.points[i];
+			//get points
+			var x1 = x + params.points[i],
+				y1 = y + params.points[i + 1],
+				x2 = x + params.points[(i + 2) % params.points.length],
+				y2 = y + params.points[(i + 3) % params.points.length],
+				x3 = x + params.points[(i + 4) % params.points.length],
+				y3 = y + params.points[(i + 5) % params.points.length];
+
+			//create a line
+			this._geometry.push(new Line({ x1: x1, y1: y1, x2: x2, y2: y2 }));
+			var vector1 = new Vector(x2 - x1, y2 - y1),
+				vector2 = new Vector(x3 - x2, y3 - y2);
+
+			//only create a point if it's not superfluous
+			if(vector1.unrotate(vector2.angle()).angle() < 0) {
+				this._geometry.push(new Point({ x: x2, y: y2 }));
 			}
-			else if(maxX < params.points[i]) {
-				maxX = params.points[i];
-			}
-			if(params.points[i + 1] < minY) {
-				minY = params.points[i + 1];
-			}
-			else if(maxY < params.points[i + 1]) {
-				maxY = params.points[i + 1];
-			}
+
+			//record min/max x/y values
+			if(x2 < minX) { minX = x2; }
+			else if(maxX < x2) { maxX = x2; }
+			if(y2 < minY) { minY = y2; }
+			else if(maxY < y2) { maxY = y2; }
 		}
 
 		//create read-only position and some helper vectors
@@ -87,7 +85,7 @@ define([
 				var lineOfMovement = this.pos.createVectorTo(this._waypoint.pos);
 				this._vel.set(lineOfMovement).setLength(this._waypoint.speed);
 				//the platform is close enough to the waypoint that it can just go straight there
-				if(lineOfMovement.squareLength() < this._waypoint.speed * t + this._waypoint.speed * t) {
+				if(lineOfMovement.squareLength() <= this._waypoint.speed * t * this._waypoint.speed * t) {
 					this._movement.set(lineOfMovement);
 					this.pos.set(this._waypoint.pos);
 					this._waypoint = null;
@@ -113,11 +111,9 @@ define([
 	Platform.prototype.checkForCollisionsWithEntity = function(entity) {
 		var collisions = [];
 		for(var i = 0; i < this._geometry.length; i++) {
-			if(this._geometry[i].canCollideWithEntity(entity)) {
-				var collision = this._geometry[i].checkForCollisionWithEntity(entity);
-				if(collision) {
-					collisions.push(collision);
-				}
+			var collision = this._geometry[i].checkForCollisionWithEntity(entity);
+			if(collision) {
+				collisions.push(collision);
 			}
 		}
 		return collisions;

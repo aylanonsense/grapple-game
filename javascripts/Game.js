@@ -1,85 +1,63 @@
 define([
 	'global',
-	'entity/Player',
-	'entity/Ball',
-	'level/TestLevel',
-	'input/mouse',
-	'input/keyboard',
 	'display/camera',
 	'display/draw'
 ], function(
 	global,
-	Player,
-	Ball,
-	TestLevel,
-	mouse,
-	keyboard,
 	camera,
 	draw
 ) {
-	function Game() {
+	function Game(level) {
 		var i, self = this;
-
-		//vars
-		this.level = new TestLevel();
-		this.player = new Player();
-		this.entities = [
-			this.player,
-			new Ball({ x: 130, y: -100 }),
-			new Ball({ x: -45, y: -100 })
-		];
-
-		//bind input handlers
-		mouse.on('mouse-event', function(type, x, y) {
-			self._onmouseEvent(type, x, y);
-		});
-		keyboard.on('key-event', function(key, isDown, state) {
-			self._onKeyEvent(key, isDown, state);
-		});
+		this.level = level;
 	}
 	Game.prototype.update = function(t) {
 		var i;
 
 		//start of frame
-		for(i = 0; i < this.entities.length; i++) {
-			if(!this.entities[i].isDead) {
-				this.entities[i].startOfFrame(t);
+		for(i = 0; i < this.level.entities.length; i++) {
+			if(!this.level.entities[i].isDead) {
+				this.level.entities[i].startOfFrame(t);
 			}
 		}
 
-		//update level (move platforms)
-		this.level.update(t);
+		//move platforms
+		for(i = 0; i < this.level.platforms.length; i++) {
+			this.level.platforms[i].update(t);
+		}
 
 		//update entities
-		for(i = 0; i < this.entities.length; i++) {
-			if(!this.entities[i].isDead) {
-				this.entities[i].update(t);
+		for(i = 0; i < this.level.entities.length; i++) {
+			if(!this.level.entities[i].isDead) {
+				this.level.entities[i].update(t);
 			}
 		}
 
 		//check for collisions
-		for(i = 0; i < this.entities.length; i++) {
-			if(!this.entities[i].isDead) {
-				if(this.entities[i].collidable) {
-					this._checkforCollisions(this.entities[i], t);
+		for(i = 0; i < this.level.entities.length; i++) {
+			if(!this.level.entities[i].isDead) {
+				if(this.level.entities[i].collidable) {
+					this._checkforCollisions(this.level.entities[i], t);
 				}
 			}
 		}
 
 		//end of frame
-		for(i = 0; i < this.entities.length; i++) {
-			if(!this.entities[i].isDead) {
-				this.entities[i].endOfFrame(t);
+		for(i = 0; i < this.level.entities.length; i++) {
+			if(!this.level.entities[i].isDead) {
+				this.level.entities[i].endOfFrame(t);
 			}
 		}
 
 		//clean up dead entities
-		this.entities = this.entities.filter(function(entity) { return !entity.isDead; });
+		this.level.entities = this.level.entities.filter(function(entity) { return !entity.isDead; });
 
 		//keep player in bounds
-		if(this.player.pos.x < -2200 || this.player.pos.x > 15000 || this.player.pos.y < -5000 || this.player.pos.y > 3000) {
-			this.player.pos.x = 0;
-			this.player.pos.y = 0;
+		if(this.level.player) {
+			if(this.level.player.pos.x < -2200 || this.level.player.pos.x > 15000 || this.level.player.pos.y < -5000 || this.level.player.pos.y > 3000) {
+				this.level.player.pos.x = 0;
+				this.level.player.pos.y = 0;
+			}
 		}
 	};
 	Game.prototype._checkforCollisions = function(entity, t) {
@@ -88,7 +66,7 @@ define([
 		//the entity may collide with a bunch of things in one frame
 		for(var step = 0; step < global.MAX_MOVE_STEPS_PER_FRAME; step++) {
 			//check to see if the entity is colliding with anything
-			var collisions = entity.findAllCollisions(this.level, this.entities);
+			var collisions = entity.findAllCollisions();
 
 			//if there were no collisions, we are done!
 			if(collisions.length === 0) {
@@ -116,55 +94,18 @@ define([
 				}
 			}
 		}
-	};
-	Game.prototype._onmouseEvent = function(type, x, y) {
-		var i;
-		if(type === 'mousedown') {
-			//remove all other grapples
-			for(i = 0; i < this.entities.length; i++) {
-				if(this.entities[i].entityType === 'Grapple') {
-					this.entities[i].kill();
-				}
-			}
-			//add a new grapple
-			var grapple = this.player.shootGrapple(x + camera.pos.x, y + camera.pos.y);
-			this.entities.push(grapple);
-		}
-		else if(type === 'mouseup') {
-			//remove all grapples
-			for(i = 0; i < this.entities.length; i++) {
-				if(this.entities[i].entityType === 'Grapple') {
-					this.entities[i].kill();
-				}
-			}
-		}
-	};
-	Game.prototype._onKeyEvent = function(key, isDown, state) {
-		if(key === 'MOVE_LEFT') {
-			this.player.moveDir.x = (isDown ? -1 : (state.MOVE_RIGHT ? 1 : 0));
-		}
-		else if(key === 'MOVE_RIGHT') {
-			this.player.moveDir.x = (isDown ? 1 : (state.MOVE_LEFT ? -1 : 0));
-		}
-		else if(key === 'JUMP' && isDown) {
-			this.player.startJumping();
-		}
-		else if(key === 'JUMP' && !isDown) {
-			this.player.stopJumping();
-		}
-		else if(key === 'PULL_GRAPPLES' && isDown) {
-			this.player.startPullingGrapples();
-		}
-		else if(key === 'PULL_GRAPPLES' && !isDown) {
-			this.player.stopPullingGrapples();
+		if(step >= global.MAX_MOVE_STEPS_PER_FRAME && global.LOG_WHEN_EXCEED_MAX_MOVE_STEPS) {
+			console.log("Entity '" + entity.entityType + "' exceeded the max move steps of " + global.MAX_MOVE_STEPS_PER_FRAME);
 		}
 	};
 	Game.prototype.render = function() {
 		var i;
 
 		//move camera to follow the player
-		camera.pos.x = this.player.pos.x - global.CANVAS_WIDTH / 2;
-		camera.pos.y = this.player.pos.y - global.CANVAS_HEIGHT / 2;
+		if(this.level.player) {
+			camera.pos.x = this.level.player.pos.x - global.CANVAS_WIDTH / 2;
+			camera.pos.y = this.level.player.pos.y - global.CANVAS_HEIGHT / 2;
+		}
 
 		//blank canvas
 		draw.rect(0, 0, global.CANVAS_WIDTH, global.CANVAS_HEIGHT, { fill: '#fff7ef', fixed: true });
@@ -180,13 +121,15 @@ define([
 			draw.line(-1, i - offsetY, global.CANVAS_WIDTH + 1, i - offsetY, { stroke: '#f3e7d1', fixed: true });
 		}
 
-		//render level geometry
-		this.level.render();
+		//render platforms
+		for(i = 0; i < this.level.platforms.length; i++) {
+			this.level.platforms[i].render();
+		}
 
 		//render entities
-		for(i = 0; i < this.entities.length; i++) {
-			if(!this.entities[i].isDead) {
-				this.entities[i].render();
+		for(i = 0; i < this.level.entities.length; i++) {
+			if(!this.level.entities[i].isDead) {
+				this.level.entities[i].render();
 			}
 		}
 	};

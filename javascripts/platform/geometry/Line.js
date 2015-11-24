@@ -11,7 +11,7 @@ define([
 ) {
 	var ERROR_ALLOWED = 0.3;
 	function Line(params) {
-		PlatformGeometry.call(this, extend(params, { type: 'Line' }));
+		PlatformGeometry.call(this, extend(params, { geometryType: 'Line' }));
 		this.start = new Vector(params.x1 || 0, params.y1 || 0);
 		this.end = new Vector(params.x2 || 0, params.y2 || 0);
 
@@ -27,6 +27,7 @@ define([
 		this._cosPipAngle = -Math.cos(pipAngle);
 		this._sinPipAngle = -Math.sin(pipAngle);
 		this._counterGravityVector = this._lineBetween.clone().setLength(-this._sinAngle);
+		this._vectorTowards = new Vector(-Math.cos(this._perpendicularAngle), -Math.sin(this._perpendicularAngle));
 	}
 	Line.prototype = Object.create(PlatformGeometry.prototype);
 	Line.prototype.move = function(movement, vel) {
@@ -39,7 +40,6 @@ define([
 		//recalc math
 		this._rotatedStart = this.start.clone().unrotate(this._cosAngle, this._sinAngle);
 		this._rotatedEnd = this.end.clone().unrotate(this._cosAngle, this._sinAngle);
-		this._frame++;
 	};
 	Line.prototype.checkForCollisionWithEntity = function(entity) {
 		//TODO account for velocity
@@ -49,6 +49,7 @@ define([
 		var prevPos1 = entity.prevPos.clone().add(this._movement);
 		var pos = entity.pos.clone().unrotate(this._cosAngle, this._sinAngle);
 		var prevPos = entity.prevPos.clone().add(this._movement).unrotate(this._cosAngle, this._sinAngle);
+		var vel = entity.vel.clone().subtract(this._vel).unrotate(this._cosAngle, this._sinAngle);
 
 		//if there was a collision, the circle was right on top of the line (ignoring endpoints)
 		var collisionY = this._rotatedStart.y - entity.radius;
@@ -63,52 +64,49 @@ define([
 
 		//of course this would only happen if the entity was moving downwards towards the line
 		if(prevPos.y <= collisionY && collisionY < pos.y) {
+			//find the contact point
 			var lineOfMovement = prevPos.createVectorTo(pos);
-			var totalDist = lineOfMovement.length();
+			var distTotal = lineOfMovement.length();
 			var percentOfMovement;
 			if(lineOfMovement.y === 0) { percentOfMovement = 1.0; }
 			else { percentOfMovement = (collisionY - prevPos.y) / lineOfMovement.y; }
 			percentOfMovement = Math.max(0.0, Math.min(percentOfMovement, 1.0));
-			lineOfMovement.multiply(percentOfMovement);
-			var contactPoint = prevPos.clone().add(lineOfMovement);
+			var contactPoint = prevPos.clone().addMult(lineOfMovement, percentOfMovement);
 
 			//we have the only possible collision point, we know the entity was there, now all we
 			// have to do is see if that is on the line segment
 			if(this._rotatedStart.x <= contactPoint.x && contactPoint.x <= this._rotatedEnd.x) {
 				//there WAS a collision! now we want to return all the relevant info
-				var distTraveled = lineOfMovement.length();
+				var distPreCollision = distTotal * percentOfMovement;
 
 				//calculate the final position
-				var distToTravel = totalDist - distTraveled;
-				var lineOfMovementPostCollision = prevPos.createVectorTo(pos)
-					.normalize().multiply(distToTravel, distToTravel);
+				var distPostCollision = distTotal - distPreCollision;
+				var lineOfMovementPostCollision = lineOfMovement.clone().setLength(distPostCollision);
 				if(lineOfMovementPostCollision.y > 0) {
 					lineOfMovementPostCollision.y *= -entity.bounce;
 				}
-				var finalPoint = contactPoint.clone().add(lineOfMovementPostCollision)
-					.rotate(this._cosAngle, this._sinAngle);
+				var finalPoint = contactPoint.clone().add(lineOfMovementPostCollision);
 
 				//calculate the final velocity
-				var finalVel = entity.vel.clone().unrotate(this._cosAngle, this._sinAngle);
-				if(finalVel.y > 0) {
-					finalVel.multiply(1.0, -entity.bounce);
+				if(vel.y > 0) {
+					vel.y *= -entity.bounce;
 				}
-				finalVel.rotate(this._cosAngle, this._sinAngle);
 
 				//voila!!
 				return {
 					cause: this,
 					collidableRadius: entity.radius,
-					distTraveled: distTraveled,
-					distToTravel: distToTravel,
+					distTraveled: distPreCollision,
+					distToTravel: distPostCollision,
 					contactPoint: contactPoint.rotate(this._cosAngle, this._sinAngle),
-					finalPoint: finalPoint,
+					finalPoint: finalPoint.rotate(this._cosAngle, this._sinAngle),
 					counterGravityVector: this._counterGravityVector,
-					stabilityAngle: (this.slippery ? null : this._perpendicularAngle),
+					stabilityAngle: this._perpendicularAngle, //TODO just use perpendicularAngle?
 					perpendicularAngle: this._perpendicularAngle,
 					jumpable: true,
-					vectorTowards: new Vector(-Math.cos(this._perpendicularAngle), -Math.sin(this._perpendicularAngle)),
-					finalVel: finalVel
+					vectorTowards: this._vectorTowards,
+					surfaceVel: this._vel,
+					finalVel: vel.rotate(this._cosAngle, this._sinAngle).add(this._vel)
 				};
 			}
 		}
