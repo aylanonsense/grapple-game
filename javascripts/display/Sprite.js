@@ -40,7 +40,7 @@ define([
 		this.key = key;
 
 		//if the image isn't loaded... well, we need to load it
-		var imagePath = config[key].imagePath;
+		var imagePath = BASE_URL + config[key].imagePath;
 		if(global.RENDER) {
 			if(!IMAGES[imagePath]) {
 				var image = new Image();

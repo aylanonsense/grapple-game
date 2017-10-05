@@ -25,8 +25,8 @@ define([
 		this.player = new Player();
 		this.entities = [
 			this.player,
-			new Ball({ x: 130, y: -100 }),
-			new Ball({ x: -45, y: -100 })
+			new Ball({ x: 180, y: -100 }),
+			new Ball({ x: 105, y: -100 })
 		];
 
 		//bind input handlers

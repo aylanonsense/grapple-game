@@ -23,6 +23,7 @@ define([
 		Entity.call(this, extend(params, {
 			entityType: 'Player',
 			radius: 14,
+			x: -300,
 			renderColor: '#1100bb',
 			gravity: global.PLAYER_PHYSICS.GRAVITY
 		}));
@@ -270,23 +271,24 @@ define([
 		var frame;
 		var flipped = this._isFlipped;
 		if(this.isGrappling) {
-			var line = this.pos.createVectorTo(this._lastGrappleTouched.pos);
-			var tangentLine = new Vector(line.y, -line.x);
-			var angleToGrapple = line.angle();
-			if(angleToGrapple < 0) { angleToGrapple += 2 * Math.PI; }
-			var movingClockwise = (tangentLine.dot(this.vel) > 0);
-			var squareSpeed = this.vel.squareLength();
-			flipped = movingClockwise;
-			if(flipped) {
-				frame = 20 + Math.round(16 * angleToGrapple / (2 * Math.PI));
-			}
-			else {
-				frame = 28 - Math.round(16 * angleToGrapple / (2 * Math.PI));
-			}
-			if(frame >= 28) { frame -= 16; }
-			if(squareSpeed > 330 * 330) {
-				frame += 16;
-			}
+			frame = 8;
+		// 	var line = this.pos.createVectorTo(this._lastGrappleTouched.pos);
+		// 	var tangentLine = new Vector(line.y, -line.x);
+		// 	var angleToGrapple = line.angle();
+		// 	if(angleToGrapple < 0) { angleToGrapple += 2 * Math.PI; }
+		// 	var movingClockwise = (tangentLine.dot(this.vel) > 0);
+		// 	var squareSpeed = this.vel.squareLength();
+		// 	flipped = movingClockwise;
+		// 	if(flipped) {
+		// 		frame = 20 + Math.round(16 * angleToGrapple / (2 * Math.PI));
+		// 	}
+		// 	else {
+		// 		frame = 28 - Math.round(16 * angleToGrapple / (2 * Math.PI));
+		// 	}
+		// 	if(frame >= 28) { frame -= 16; }
+		// 	if(squareSpeed > 330 * 330) {
+		// 		frame += 16;
+		// 	}
 		}
 		else if(this.isAirborne) {
 			frame = 8;

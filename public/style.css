@@ -5,9 +5,10 @@ body {
 }
 canvas {
 	display: block;
-	margin: 15px auto;
+	margin: 0 auto;
 }
 #instructions {
+	display: none;
 	color: #bbb;
 	width: 800px;
 	text-align: center;
