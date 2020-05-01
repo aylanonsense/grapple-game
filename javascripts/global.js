@@ -24,7 +24,7 @@ define({
 	MAX_MOVE_STEPS_PER_FRAME: 6,
 
 	//debug vars
-	DEBUG_CONTROLS: true,
+	DEBUG_CONTROLS: false,
 
 	//physics vars
 	PLAYER_PHYSICS: {

@@ -11,7 +11,7 @@ define([
 
 	//add mouse handler
 	function onMouseEvent(evt) {
-		evt.preventDefault();
+		//evt.preventDefault();
 		events.trigger('mouse-event', evt.type,
 			evt.clientX - canvas.offsetLeft + document.body.scrollLeft,
 			evt.clientY - canvas.offsetTop + document.body.scrollTop);
